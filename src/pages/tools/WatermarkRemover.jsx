@@ -829,87 +829,87 @@ export default function WatermarkRemover() {
           {/* Simple Modal: Masking Selector */}
           {isModalOpen && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-              <div className="relative w-[90%] max-w-[450px] rounded-xl bg-white text-gray-900 shadow-2xl overflow-hidden">
+              <div className="relative w-[92%] max-w-[700px] rounded-xl bg-[--color-surface] text-[--color-text] shadow-2xl overflow-hidden border border-[--color-border]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[--color-border]">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
                       <Paintbrush size={16} />
                     </div>
                     <div>
                       <p className="text-sm font-bold leading-tight">Masking Watermark</p>
-                      <p className="text-[11px] text-gray-500">{origDims.w} × {origDims.h} px</p>
+                      <p className="text-[11px] text-[--color-text-2]">{origDims.w} × {origDims.h} px</p>
                     </div>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                  <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-2] hover:text-[--color-text]">
                     <X size={18} />
                   </button>
                 </div>
 
                 {/* Body */}
                 <div className="px-5 py-4 space-y-3">
-                  <p className="text-xs text-gray-600">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
+                  <p className="text-xs text-[--color-text-2]">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
 
                   {/* Brush Size */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600">Kuas:</span>
+                    <span className="text-xs font-semibold text-[--color-text-2]">Kuas:</span>
                     <input type="range" min="6" max="80" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
-                    <span className="text-[11px] font-mono text-gray-500 w-8">{brushSize}px</span>
+                    <span className="text-[11px] font-mono text-[--color-text-3] w-8">{brushSize}px</span>
                   </div>
 
-                {/* Preview Canvas */}
-                <div className="relative flex justify-center rounded-lg border border-gray-200 bg-gray-50 p-2 overflow-hidden min-h-[200px] max-h-[50vh]">
-                  {activeMedia === 'video' ? (
-                    <div className="relative inline-flex items-center justify-center">
-                      <canvas
-                        ref={(el) => {
-                          videoModalImgRef.current = el
-                          if (el && videoRef.current) {
-                            const vw = videoRef.current.videoWidth || 1280
-                            const vh = videoRef.current.videoHeight || 720
-                            el.width = vw
-                            el.height = vh
-                            const c = el.getContext('2d')
-                            const tempVid = document.createElement('video')
-                            tempVid.src = mediaSrc
-                            tempVid.muted = true
-                            tempVid.onloadeddata = () => {
-                              tempVid.currentTime = 0.5
-                              tempVid.onseeked = () => c.drawImage(tempVid, 0, 0, vw, vh)
+                  {/* Preview Canvas */}
+                  <div className="relative flex justify-center rounded-lg border border-[--color-border] bg-[--color-surface-2] p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
+                    {activeMedia === 'video' ? (
+                      <div className="relative inline-flex items-center justify-center">
+                        <canvas
+                          ref={(el) => {
+                            videoModalImgRef.current = el
+                            if (el && videoRef.current) {
+                              const vw = videoRef.current.videoWidth || 1280
+                              const vh = videoRef.current.videoHeight || 720
+                              el.width = vw
+                              el.height = vh
+                              const c = el.getContext('2d')
+                              const tempVid = document.createElement('video')
+                              tempVid.src = mediaSrc
+                              tempVid.muted = true
+                              tempVid.onloadeddata = () => {
+                                tempVid.currentTime = 0.5
+                                tempVid.onseeked = () => c.drawImage(tempVid, 0, 0, vw, vh)
+                              }
                             }
-                          }
-                        }}
-                        className="block max-h-[46vh] max-w-full rounded pointer-events-none"
-                      />
-                      <canvas
-                        ref={videoModalCanvasRef}
-                        onMouseDown={startVideoModalPaint}
-                        onMouseMove={paintVideoModal}
-                        onMouseUp={stopVideoModalPaint}
-                        onMouseLeave={stopVideoModalPaint}
-                        className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-                        style={{ width: '100%', height: '100%' }}
-                      />
+                          }}
+                          className="block max-h-[60vh] max-w-full rounded pointer-events-none"
+                        />
+                        <canvas
+                          ref={videoModalCanvasRef}
+                          onMouseDown={startVideoModalPaint}
+                          onMouseMove={paintVideoModal}
+                          onMouseUp={stopVideoModalPaint}
+                          onMouseLeave={stopVideoModalPaint}
+                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                          style={{ width: '100%', height: '100%' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="relative inline-flex items-center justify-center">
+                        <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[60vh] max-w-full rounded pointer-events-none" />
+                        <canvas
+                          ref={modalCanvasRef}
+                          onMouseDown={startModalPaint}
+                          onMouseMove={paintModal}
+                          onMouseUp={stopModalPaint}
+                          onMouseLeave={stopModalPaint}
+                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                          style={{ width: '100%', height: '100%' }}
+                        />
+                      </div>
+                    )}
                     </div>
-                  ) : (
-                    <div className="relative inline-flex items-center justify-center">
-                      <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[46vh] max-w-full rounded pointer-events-none" />
-                      <canvas
-                        ref={modalCanvasRef}
-                        onMouseDown={startModalPaint}
-                        onMouseMove={paintModal}
-                        onMouseUp={stopModalPaint}
-                        onMouseLeave={stopModalPaint}
-                        className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    </div>
-                  )}
-                  </div>
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[--color-border] bg-[--color-surface-2]">
                   <button onClick={activeMedia === 'video' ? clearVideoMask : clearMask} className="text-xs text-red-500 hover:underline font-semibold">
                     <Trash2 size={12} className="inline mr-1" />Hapus Tanda
                   </button>
