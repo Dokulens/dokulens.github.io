@@ -34,69 +34,19 @@ export async function getGeminiEngine() {
 }
 
 /**
- * Create a fast video frame processor.
- * Runs full detection on frame 0, then lightweight reverse-alpha-blend on every subsequent frame.
- * This avoids the heavy multi-pass pipeline per frame.
+ * Create a video frame processor that runs the full library pipeline per frame.
+ * This uses the same multi-pass detection, scoring, and removal as single-image mode.
+ * Alpha maps are cached after the first call, so subsequent frames are fast.
  */
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
-  const config = detectWatermarkConfig(videoWidth, videoHeight)
-  const position = calculateWatermarkPosition(videoWidth, videoHeight, config)
-  if (!position) return null
-
-  const size = config?.logoSize || position.width
-  const alphaMap = await engine.getAlphaMap(size)
-
-  let alphaGain = 1.0
-  try {
-    const info = engine.getWatermarkInfo(videoWidth, videoHeight)
-    if (info?.config?.alphaGain) alphaGain = info.config.alphaGain
-  } catch {}
-
-  const { x, y, width: wmW, height: wmH } = position
 
   return {
-    position: { x, y, width: wmW, height: wmH },
-    /**
-     * Process a single video frame canvas in-place (fast O(n) reverse alpha blend)
-     * Formula from @pilio/gemini-watermark-remover/src/core/blendModes.js:
-     *   watermarked = α × logo + (1 − α) × original
-     *   original = (watermarked − α × logo) / (1 − α)
-     * Gemini watermark is WHITE (logoValue = 255)
-     */
-    processFrame(frameCanvas) {
+    async processFrame(frameCanvas) {
+      const resultCanvas = await engine.removeWatermarkFromImage(frameCanvas)
       const ctx = frameCanvas.getContext('2d')
-      const imgData = ctx.getImageData(x, y, wmW, wmH)
-      const pixels = imgData.data
-      const ALPHA_NOISE_FLOOR = 3 / 255
-      const ALPHA_THRESHOLD = 0.002
-      const MAX_ALPHA = 0.99
-      const LOGO_VALUE = 255
-
-      for (let row = 0; row < wmH; row++) {
-        for (let col = 0; col < wmW; col++) {
-          const localIdx = row * wmW + col
-          const rawAlpha = alphaMap[localIdx] ?? 0
-          const alphaMagnitude = Math.abs(rawAlpha)
-          const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
-
-          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * alphaGain
-          if (signalAlpha < ALPHA_THRESHOLD) continue
-
-          const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
-          const oneMinusAlpha = 1.0 - alpha
-          if (oneMinusAlpha <= 0.001) continue
-
-          const pixIdx = localIdx * 4
-          for (let ch = 0; ch < 3; ch++) {
-            const watermarked = pixels[pixIdx + ch]
-            const original = (watermarked - alpha * logoValue) / oneMinusAlpha
-            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(original)))
-          }
-        }
-      }
-
-      ctx.putImageData(imgData, x, y)
+      ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
+      ctx.drawImage(resultCanvas, 0, 0)
     }
   }
 }

@@ -301,11 +301,6 @@ export default function WatermarkRemover() {
     try {
       setProgress(5)
       const processor = await createVideoFrameProcessor(w, h)
-      if (!processor) {
-        setError('Tidak bisa mendeteksi watermark pada video ini')
-        setProcessing(false)
-        return
-      }
 
       video.currentTime = 0
       video.playbackRate = 1.0
@@ -331,7 +326,7 @@ export default function WatermarkRemover() {
           }
         }
 
-        const renderFrame = () => {
+        const renderFrame = async () => {
           if (isCancelledRef.current) {
             video.pause()
             try { mediaRecorder.stop() } catch {}
@@ -345,16 +340,16 @@ export default function WatermarkRemover() {
           }
 
           ctx.drawImage(video, 0, 0, w, h)
-          processor.processFrame(canvas)
+          await processor.processFrame(canvas)
 
           if (video.duration > 0) {
             setProgress(10 + Math.round((video.currentTime / video.duration) * 90))
           }
 
           if ('requestVideoFrameCallback' in video) {
-            video.requestVideoFrameCallback(renderFrame)
+            video.requestVideoFrameCallback(() => renderFrame())
           } else {
-            requestAnimationFrame(renderFrame)
+            requestAnimationFrame(() => renderFrame())
           }
         }
 
