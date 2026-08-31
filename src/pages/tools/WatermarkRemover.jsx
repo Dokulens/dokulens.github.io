@@ -451,7 +451,7 @@ export default function WatermarkRemover() {
   return (
     <ToolShell
       title="Hapus Watermark (Foto & Video)"
-      description="Penghapus watermark AI (Google Gemini / Imagen) lossless berbasis @pilio/gemini-watermark-remover, plus Inpainting untuk logo & teks foto/video."
+      description="Penghapus watermark AI (Google Gemini / Imagen) lossless berbasis engine mandiri GargantuaX, plus Inpainting untuk logo & teks foto/video."
     >
       <DropZone
         accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.mkv"

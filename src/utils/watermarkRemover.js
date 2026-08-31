@@ -1,6 +1,6 @@
 /**
- * Official Gemini Watermark Remover Engine + Telea Inpainting for Arbitrary Logos
- * Powered by @pilio/gemini-watermark-remover (Official engine from geminiwatermarkremover.io)
+ * Gemini Watermark Remover Engine + Telea Inpainting for Arbitrary Logos
+ * Self-contained detection engine (no external dependencies).
  */
 
 import {
@@ -8,7 +8,7 @@ import {
   createWatermarkEngine,
   calculateWatermarkPosition,
   detectWatermarkConfig
-} from '@pilio/gemini-watermark-remover/browser'
+} from './geminiAutoDetect.js'
 
 let cachedEngine = null
 
@@ -20,13 +20,10 @@ async function getEngine() {
 }
 
 /**
- * Remove Gemini AI watermark using official engine (for single images)
+ * Remove Gemini AI watermark using self-contained engine (for single images)
  */
 export async function removeOfficialGeminiWatermark(image, options = {}) {
-  return await removeWatermarkFromImage(image, {
-    adaptiveMode: 'auto',
-    ...options,
-  })
+  return await removeWatermarkFromImage(image, options)
 }
 
 export async function getGeminiEngine() {
@@ -40,16 +37,11 @@ export async function getGeminiEngine() {
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
-  // Detect watermark on frame 0 using full pipeline
-  const tempCanvas = new OffscreenCanvas(videoWidth, videoHeight)
-  const tempCtx = tempCanvas.getContext('2d')
-
   return {
     /** Call once with the first frame to calibrate detection */
     async calibrate(frameCanvas) {
       const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas)
 
-      // Extract detection results
       const candidate = meta?.selectedCandidate
       const position = candidate?.position ?? null
       const alphaGain = candidate?.config?.alphaGain ?? 1.0
@@ -57,7 +49,6 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
 
       if (!position) return null
 
-      // Get the alpha map from engine cache
       const alphaMap = await engine.getAlphaMap(logoSize)
 
       return { position, alphaMap, alphaGain, logoSize }
