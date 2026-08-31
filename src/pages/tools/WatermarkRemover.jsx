@@ -12,9 +12,7 @@ import ProgressBar from '../../components/ProgressBar'
 import {
   removeGeminiWatermarkPrecision,
   inpaintWatermark,
-  detectGeminiWatermark,
-  getGeminiCandidateConfigs,
-  findBestGeminiAnchor
+  detectGeminiWatermark
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 
@@ -24,7 +22,7 @@ export default function WatermarkRemover() {
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
-  const [removalMode, setRemovalMode] = useState('alpha') // Default to precision Reverse Alpha for Gemini
+  const [removalMode, setRemovalMode] = useState('alpha')
   const [brushSize, setBrushSize] = useState(24)
   const [inpaintRadius, setInpaintRadius] = useState(6)
   const [alphaGain, setAlphaGain] = useState(1.0)
@@ -75,7 +73,6 @@ export default function WatermarkRemover() {
       img.onload = () => {
         setOrigDims({ w: img.naturalWidth, h: img.naturalHeight })
 
-        // Extract image data to run anchor search
         const tempCanvas = document.createElement('canvas')
         tempCanvas.width = img.naturalWidth
         tempCanvas.height = img.naturalHeight
@@ -87,7 +84,6 @@ export default function WatermarkRemover() {
         setDetectedBox(det)
         initMaskCanvas(img.naturalWidth, img.naturalHeight)
 
-        // Automatically mark the detected Gemini watermark
         setTimeout(() => {
           if (maskCanvasRef.current) {
             const ctx = maskCanvasRef.current.getContext('2d')
@@ -232,7 +228,7 @@ export default function WatermarkRemover() {
     }
   }, [isModalOpen])
 
-  // Precision Watermark Removal Process
+  // Precision Watermark Removal Process for Image
   const processImageWatermark = async () => {
     if (!mediaSrc || !hasMask) return
     setProcessing(true)
@@ -261,13 +257,11 @@ export default function WatermarkRemover() {
       setProgress(50)
 
       if (removalMode === 'alpha' && detectedBox) {
-        // High-Precision Reverse Alpha Blending
         removeGeminiWatermarkPrecision(imgData, detectedBox, {
           logoValue: 255,
           alphaGain,
         })
       } else {
-        // Fast Marching Inpainting Mode (Arbitrary Watermarks)
         inpaintWatermark(imgData, maskImgData.data, inpaintRadius)
       }
 
@@ -284,6 +278,7 @@ export default function WatermarkRemover() {
     }
   }
 
+  // Normal Speed Synchronized Video Watermark Removal
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -294,13 +289,13 @@ export default function WatermarkRemover() {
     const video = videoRef.current
     const w = video.videoWidth || 1280
     const h = video.videoHeight || 720
-    const duration = video.duration || 5
 
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
 
+    // Build static watermark mask for the selected video region
     const maskCanvas = document.createElement('canvas')
     maskCanvas.width = w
     maskCanvas.height = h
@@ -314,63 +309,92 @@ export default function WatermarkRemover() {
     mCtx.fillRect(targetX, targetY, targetW, targetH)
     const maskData = mCtx.getImageData(0, 0, w, h).data
 
+    // 30 FPS stream for normal video playback
     const stream = canvas.captureStream(30)
+
+    // Capture audio if supported
+    try {
+      const vidStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null)
+      if (vidStream) {
+        const audioTracks = vidStream.getAudioTracks()
+        if (audioTracks.length > 0) {
+          stream.addTrack(audioTracks[0])
+        }
+      }
+    } catch {
+      // Audio fallback
+    }
+
     let mimeType = 'video/webm;codecs=vp9'
     if (!MediaRecorder.isTypeSupported(mimeType)) {
       mimeType = 'video/webm'
     }
 
-    const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6000000 })
+    const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 })
     const recordedChunks = []
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) recordedChunks.push(e.data)
     }
 
-    mediaRecorder.start()
-
-    const fps = 25
-    const totalFrames = Math.floor(duration * fps)
-    const frameInterval = 1 / fps
-
-    video.pause()
-
     try {
-      for (let f = 0; f < totalFrames; f++) {
-        if (isCancelledRef.current) break
+      // Reset video to start at 1.0x playback rate
+      video.currentTime = 0
+      video.playbackRate = 1.0
+      await video.play()
 
-        video.currentTime = f * frameInterval
-        await new Promise((r) => {
-          const onSeeked = () => {
-            video.removeEventListener('seeked', onSeeked)
-            r()
+      mediaRecorder.start(250)
+
+      await new Promise((resolve, reject) => {
+        let isDone = false
+
+        const finishRecording = async () => {
+          if (isDone) return
+          isDone = true
+          video.pause()
+          mediaRecorder.stop()
+          mediaRecorder.onstop = () => {
+            const videoBlob = new Blob(recordedChunks, { type: mimeType })
+            setResultBlob(videoBlob)
+            setProgress(100)
+            resolve()
           }
-          video.addEventListener('seeked', onSeeked)
-        })
-
-        ctx.drawImage(video, 0, 0, w, h)
-        const frameData = ctx.getImageData(0, 0, w, h)
-
-        inpaintWatermark(frameData, maskData, 4)
-        ctx.putImageData(frameData, 0, 0)
-
-        if (previewCanvasRef.current) {
-          previewCanvasRef.current.width = w
-          previewCanvasRef.current.height = h
-          previewCanvasRef.current.getContext('2d').drawImage(canvas, 0, 0)
         }
 
-        setProgress(Math.round(((f + 1) / totalFrames) * 100))
-        await new Promise((r) => setTimeout(r, 10))
-      }
+        const renderFrame = () => {
+          if (isCancelledRef.current) {
+            video.pause()
+            try { mediaRecorder.stop() } catch {}
+            resolve()
+            return
+          }
 
-      mediaRecorder.stop()
-      await new Promise((r) => {
-        mediaRecorder.onstop = r
+          if (video.paused || video.ended) {
+            finishRecording()
+            return
+          }
+
+          ctx.drawImage(video, 0, 0, w, h)
+          const frameData = ctx.getImageData(0, 0, w, h)
+          inpaintWatermark(frameData, maskData, 3)
+          ctx.putImageData(frameData, 0, 0)
+
+          if (video.duration > 0) {
+            setProgress(Math.round((video.currentTime / video.duration) * 100))
+          }
+
+          if ('requestVideoFrameCallback' in video) {
+            video.requestVideoFrameCallback(renderFrame)
+          } else {
+            requestAnimationFrame(renderFrame)
+          }
+        }
+
+        video.onended = finishRecording
+        video.onerror = (e) => reject(new Error('Gagal memutar frame video'))
+
+        renderFrame()
       })
-
-      const videoBlob = new Blob(recordedChunks, { type: mimeType })
-      setResultBlob(videoBlob)
     } catch (e) {
       setError(`Gagal memproses video: ${e.message}`)
     } finally {
@@ -384,13 +408,13 @@ export default function WatermarkRemover() {
   return (
     <ToolShell
       title="Hapus Watermark (Foto & Video)"
-      description="Hapus watermark AI (Gemini/Imagen/Midjourney), logo, cap air, dan tanggal dari foto maupun video secara presisi dan 100% lokal tanpa kirim file ke server."
+      description="Hapus watermark AI (Gemini/Imagen/Midjourney), logo, cap air, dan tanggal dari foto maupun video secara presisi pada kecepatan normal 1.0x dan 100% lokal tanpa kirim file ke server."
     >
       <DropZone
         accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.mkv"
         onFiles={handleFile}
         label="Pilih foto atau video untuk dihapus watermark-nya"
-        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — 100% Client-Side"
+        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — Kecepatan Normal 1.0x"
       />
 
       {mediaSrc && (
@@ -508,7 +532,7 @@ export default function WatermarkRemover() {
               <div className="flex items-center justify-between border-b border-[--color-border] pb-3 text-xs">
                 <div className="flex items-center gap-2 font-bold text-[--color-text]">
                   <Video size={16} className="text-[--color-brand]" />
-                  <span>Area Watermark Video (Bisa Drag & Resize Langsung pada Player)</span>
+                  <span>Area Watermark Video (Kecepatan Normal 1.0x)</span>
                 </div>
                 <span className="text-[11px] text-[--color-text-3]">
                   Durasi: {videoDuration ? `${videoDuration.toFixed(1)} detik` : 'Memuat…'}
@@ -619,7 +643,7 @@ export default function WatermarkRemover() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Sedang memproses rekontruksi frame… ({progress}%)</span>
+                  <span>Sedang memproses video pada kecepatan normal 1.0x… ({progress}%)</span>
                 </div>
                 {activeMedia === 'video' && (
                   <button
@@ -651,7 +675,7 @@ export default function WatermarkRemover() {
               {processing
                 ? 'Menghapus Watermark…'
                 : activeMedia === 'video'
-                ? 'Hapus Watermark dari Seluruh Video'
+                ? 'Hapus Watermark dari Seluruh Video (Kecepatan Normal 1.0x)'
                 : hasMask
                 ? 'Hapus Watermark dari Gambar'
                 : 'Tandai Area Watermark untuk Memulai'}
