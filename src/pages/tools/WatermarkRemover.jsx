@@ -193,6 +193,7 @@ export default function WatermarkRemover() {
   }
 
   const base = file ? stripExt(file.name) : 'image'
+  const isLandscape = origDims.w >= origDims.h
 
   return (
     <ToolShell
@@ -369,19 +370,25 @@ export default function WatermarkRemover() {
             />
           )}
 
-          {/* Pop-up Fullscreen Masking & Zoom Modal */}
+          {/* Pop-up Masking Modal (Responsive to Image Aspect Ratio) */}
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-fade-in">
-              <div className="flex h-[92vh] w-[95vw] max-w-6xl flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-6 animate-fade-in">
+              <div
+                className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden transition-all"
+                style={{
+                  width: isLandscape ? 'min(94vw, 1100px)' : 'min(90vw, 750px)',
+                  height: 'min(90vh, 850px)',
+                }}
+              >
                 {/* Modal Header */}
-                <div className="flex items-center justify-between border-b border-[--color-border] px-5 py-3 bg-[--color-surface]">
+                <div className="flex items-center justify-between border-b border-[--color-border] px-4 sm:px-5 py-3 bg-[--color-surface]">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
                       <Paintbrush size={16} />
                     </span>
                     <div>
                       <h3 className="text-sm font-bold text-[--color-text]">
-                        Kanvas Seleksi Watermark
+                        Kanvas Seleksi Watermark ({origDims.w ? `${origDims.w} × ${origDims.h} px` : ''})
                       </h3>
                       <p className="text-[11px] text-[--color-text-3]">
                         Warnai area merah persis di atas logo/teks watermark yang ingin dihapus
@@ -406,7 +413,7 @@ export default function WatermarkRemover() {
                 </div>
 
                 {/* Modal Toolbar: Zoom & Brush Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-5 py-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-4 sm:px-5 py-2 text-xs">
                   {/* Zoom Controls */}
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[--color-text-3]">Zoom:</span>
@@ -444,7 +451,7 @@ export default function WatermarkRemover() {
                       max="80"
                       value={brushSize}
                       onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-28"
+                      className="w-24 sm:w-28"
                     />
                     <span className="w-8 font-mono text-xs text-[--color-text]">{brushSize}px</span>
                   </div>
@@ -460,16 +467,19 @@ export default function WatermarkRemover() {
                   </div>
                 </div>
 
-                {/* Modal Interactive Canvas Scrollable Body */}
-                <div className="relative flex-1 overflow-auto bg-neutral-900 p-8 flex items-center justify-center cursor-crosshair select-none">
+                {/* Modal Interactive Canvas Stage with Image Aspect-Ratio Container */}
+                <div className="relative flex-1 overflow-auto bg-neutral-900 p-4 sm:p-6 flex items-center justify-center cursor-crosshair select-none">
                   <div
                     className="relative inline-block shadow-2xl transition-transform duration-100 origin-center"
-                    style={{ transform: `scale(${zoomLevel})` }}
+                    style={{
+                      transform: `scale(${zoomLevel})`,
+                      aspectRatio: origDims.w ? `${origDims.w} / ${origDims.h}` : 'auto',
+                    }}
                   >
                     <img
                       src={imageSrc}
                       alt="Mask Target"
-                      className="block max-h-[70vh] w-auto max-w-[80vw] object-contain pointer-events-none select-none"
+                      className="block max-h-[62vh] w-auto max-w-[85vw] object-contain pointer-events-none select-none rounded"
                     />
                     <canvas
                       ref={modalCanvasRef}
@@ -477,7 +487,7 @@ export default function WatermarkRemover() {
                       onMouseMove={paintModal}
                       onMouseUp={stopModalPaint}
                       onMouseLeave={stopModalPaint}
-                      className="absolute inset-0 block h-full w-full pointer-events-auto opacity-75"
+                      className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
                     />
                   </div>
                 </div>
