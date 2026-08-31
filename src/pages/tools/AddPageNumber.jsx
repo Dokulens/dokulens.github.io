@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import mammoth from 'mammoth'
 import {
   FileText, ChevronLeft, ChevronRight, Hash,
   Sparkles, Sliders, Loader2, Check, RefreshCw,
-  Move, ShieldCheck
+  Move, ShieldCheck, FileType
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
+import { addPageNumberToDocx } from '../../utils/docxNumbering'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 
 const FONT_OPTIONS = [
@@ -41,12 +43,13 @@ export default function AddPageNumber() {
   const [fileType, setFileType] = useState('pdf') // 'pdf' | 'docx'
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pagePreview, setPagePreview] = useState(null) // { dataUrl, width, height }
+  const [pagePreview, setPagePreview] = useState(null)
+  const [docxTextSummary, setDocxTextSummary] = useState('')
 
   // Numbering Settings
   const [positionPreset, setPositionPreset] = useState('bottom-center')
-  const [customX, setCustomX] = useState(50) // %
-  const [customY, setCustomY] = useState(95) // %
+  const [customX, setCustomX] = useState(50)
+  const [customY, setCustomY] = useState(95)
   const [formatId, setFormatId] = useState('num')
   const [customTemplate, setCustomTemplate] = useState('{n}')
   const [fontFamily, setFontFamily] = useState('TimesRoman')
@@ -54,14 +57,11 @@ export default function AddPageNumber() {
   const [fontColor, setFontColor] = useState('#000000')
   const [isBold, setIsBold] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
-  const [skipFirstPage, setSkipFirstPage] = useState(true) // Cover page skip
-  const [pageRangeMode, setPageRangeMode] = useState('all') // 'all' | 'except-first' | 'range'
-  const [customRange, setCustomRange] = useState('')
-  const [perPageOverrides, setPerPageOverrides] = useState({}) // { [page]: { enabled: boolean, xPct, yPct, template } }
+  const [skipFirstPage, setSkipFirstPage] = useState(true)
+  const [perPageOverrides, setPerPageOverrides] = useState({})
 
   // Auto-detection state
   const [detectedPosition, setDetectedPosition] = useState(null)
-  const [isDetecting, setIsDetecting] = useState(false)
 
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -77,11 +77,25 @@ export default function AddPageNumber() {
     setCurrentPage(1)
     setPerPageOverrides({})
     setDetectedPosition(null)
+    setDocxTextSummary('')
 
     const isDocx = f.name.toLowerCase().endsWith('.docx')
     setFileType(isDocx ? 'docx' : 'pdf')
 
-    if (!isDocx) {
+    if (isDocx) {
+      setLoadingPreview(true)
+      try {
+        const buf = await readAsArrayBuffer(f)
+        const res = await mammoth.extractRawText({ arrayBuffer: buf })
+        const text = res.value || ''
+        setDocxTextSummary(text.slice(0, 350) + (text.length > 350 ? '…' : ''))
+        setTotalPages(Math.max(1, Math.ceil(text.split(/\r?\n/).length / 30)))
+      } catch (e) {
+        setError(`Gagal membaca DOCX: ${e.message}`)
+      } finally {
+        setLoadingPreview(false)
+      }
+    } else {
       setLoadingPreview(true)
       try {
         const buf = await readAsArrayBuffer(f)
@@ -91,15 +105,12 @@ export default function AddPageNumber() {
         setTotalPages(doc.numPages)
         await loadPreview(doc, 1)
 
-        // Run auto-detection for existing page numbers
         autoDetectExistingPageNumber(doc)
       } catch (e) {
         setError(`Gagal memuat PDF: ${e.message}`)
       } finally {
         setLoadingPreview(false)
       }
-    } else {
-      setTotalPages(1)
     }
   }
 
@@ -122,9 +133,7 @@ export default function AddPageNumber() {
     await loadPreview(pdfDocRef.current, target)
   }
 
-  // Detect if document already contains page numbers at margins
   const autoDetectExistingPageNumber = async (doc) => {
-    setIsDetecting(true)
     try {
       const checkPages = Math.min(3, doc.numPages)
       for (let p = 1; p <= checkPages; p++) {
@@ -154,8 +163,6 @@ export default function AddPageNumber() {
       }
     } catch {
       // Ignore detection errors
-    } finally {
-      setIsDetecting(false)
     }
   }
 
@@ -188,22 +195,7 @@ export default function AddPageNumber() {
   const isPageIncluded = (page) => {
     if (perPageOverrides[page]?.enabled === false) return false
     if (perPageOverrides[page]?.enabled === true) return true
-
-    if (pageRangeMode === 'except-first' || skipFirstPage) {
-      return page > 1
-    }
-    if (pageRangeMode === 'range' && customRange) {
-      const parts = customRange.split(',').map((s) => s.trim())
-      for (const part of parts) {
-        if (part.includes('-')) {
-          const [a, b] = part.split('-').map(Number)
-          if (page >= a && page <= b) return true
-        } else if (Number(part) === page) {
-          return true
-        }
-      }
-      return false
-    }
+    if (skipFirstPage) return page > 1
     return true
   }
 
@@ -231,46 +223,60 @@ export default function AddPageNumber() {
 
     try {
       const arrayBuf = await readAsArrayBuffer(file)
-      const doc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
 
-      const fontObj = FONT_OPTIONS.find((f) => f.id === fontFamily) || FONT_OPTIONS[0]
-      const font = await doc.embedFont(isBold ? fontObj.boldRef : fontObj.ref)
-      const color = hexToRgb(fontColor)
+      if (fileType === 'docx') {
+        // DOCX numbering injection
+        const blob = await addPageNumberToDocx(arrayBuf, {
+          position: positionPreset,
+          format: formatId,
+          customTemplate,
+          fontFamily,
+          fontSize,
+          isBold,
+          skipFirstPage,
+        })
+        setResultBlob(blob)
+      } else {
+        // PDF numbering injection
+        const doc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
+        const fontObj = FONT_OPTIONS.find((f) => f.id === fontFamily) || FONT_OPTIONS[0]
+        const font = await doc.embedFont(isBold ? fontObj.boldRef : fontObj.ref)
+        const color = hexToRgb(fontColor)
 
-      const pages = doc.getPages()
-      const total = pages.length
+        const pages = doc.getPages()
+        const total = pages.length
 
-      for (let i = 0; i < total; i++) {
-        const pageNum = i + 1
-        if (!isPageIncluded(pageNum)) continue
+        for (let i = 0; i < total; i++) {
+          const pageNum = i + 1
+          if (!isPageIncluded(pageNum)) continue
 
-        const page = pages[i]
-        const { width: pWidth, height: pHeight } = page.getSize()
+          const page = pages[i]
+          const { width: pWidth, height: pHeight } = page.getSize()
 
-        const numText = getPageNumberText(i + 1, total)
-        const textWidth = font.widthOfTextAtSize(numText, fontSize)
-        const textHeight = font.heightAtSize(fontSize)
+          const numText = getPageNumberText(i + 1, total)
+          const textWidth = font.widthOfTextAtSize(numText, fontSize)
 
-        let targetX = (customX / 100) * pWidth
-        let targetY = pHeight - (customY / 100) * pHeight
+          let targetX = (customX / 100) * pWidth
+          let targetY = pHeight - (customY / 100) * pHeight
 
-        if (positionPreset.includes('center')) {
-          targetX -= textWidth / 2
-        } else if (positionPreset.includes('right')) {
-          targetX -= textWidth
+          if (positionPreset.includes('center')) {
+            targetX -= textWidth / 2
+          } else if (positionPreset.includes('right')) {
+            targetX -= textWidth
+          }
+
+          page.drawText(numText, {
+            x: targetX,
+            y: targetY,
+            size: fontSize,
+            font,
+            color: rgb(color.r, color.g, color.b),
+          })
         }
 
-        page.drawText(numText, {
-          x: targetX,
-          y: targetY,
-          size: fontSize,
-          font,
-          color: rgb(color.r, color.g, color.b),
-        })
+        const bytes = await doc.save()
+        setResultBlob(new Blob([bytes], { type: 'application/pdf' }))
       }
-
-      const bytes = await doc.save()
-      setResultBlob(new Blob([bytes], { type: 'application/pdf' }))
     } catch (e) {
       setError(`Gagal memproses penomoran: ${e.message}`)
     } finally {
@@ -281,23 +287,40 @@ export default function AddPageNumber() {
   const currentIncluded = isPageIncluded(currentPage)
   const previewNumText = getPageNumberText(currentPage, totalPages)
   const base = file ? stripExt(file.name) : 'document'
+  const outExt = fileType === 'docx' ? 'docx' : 'pdf'
 
   return (
     <ToolShell
-      title="Tambah Nomor Halaman (Page Number)"
-      description="Beri nomor halaman otomatis pada PDF & Dokumen. Dilengkapi deteksi posisi otomatis, penempatan tengah bawah satu klik, pilihan font resmi, dan kustomisasi per halaman."
+      title="Tambah Nomor Halaman (PDF & Word DOCX)"
+      description="Beri nomor halaman otomatis pada PDF dan dokumen Microsoft Word (.docx). Dilengkapi deteksi posisi otomatis, penempatan tengah bawah satu klik, pilihan font resmi, dan kustomisasi per halaman."
     >
       <DropZone
-        accept=".pdf,application/pdf"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onFiles={handleFile}
-        label="Pilih file PDF untuk diberi nomor halaman"
-        hint="PDF — deteksi & atur posisi nomor halaman"
+        label="Pilih file PDF atau Word (.docx)"
+        hint="Mendukung dokumen PDF (.pdf) & Microsoft Word (.docx)"
       />
 
       {file && (
         <div className="space-y-4 animate-fade-in">
-          {/* Detected Position Banner */}
-          {detectedPosition && (
+          {/* File format indicator */}
+          <div className="flex items-center justify-between rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+            <div className="flex items-center gap-2">
+              {fileType === 'docx' ? (
+                <FileType size={16} className="text-blue-500" />
+              ) : (
+                <FileText size={16} className="text-red-500" />
+              )}
+              <span className="font-semibold text-[--color-text] truncate">{file.name}</span>
+              <span className="rounded bg-[--color-surface-3] px-2 py-0.5 font-bold uppercase text-[--color-text-3]">
+                {fileType}
+              </span>
+            </div>
+            <span className="text-[--color-text-3] shrink-0">{fmtBytes(file.size)}</span>
+          </div>
+
+          {/* Detected Position Banner for PDF */}
+          {detectedPosition && fileType === 'pdf' && (
             <div className="flex items-center justify-between rounded-lg border border-[--color-brand] bg-[--color-brand-light] p-3 text-xs animate-fade-in">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="shrink-0 text-[--color-brand]" />
@@ -404,20 +427,22 @@ export default function AddPageNumber() {
                 />
               </div>
 
-              <div>
-                <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
-                  Warna Teks
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={fontColor}
-                    onChange={(e) => setFontColor(e.target.value)}
-                    className="h-7 w-10 cursor-pointer rounded border border-[--color-border]"
-                  />
-                  <span className="font-mono text-xs text-[--color-text-3] uppercase">{fontColor}</span>
+              {fileType === 'pdf' && (
+                <div>
+                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
+                    Warna Teks
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={fontColor}
+                      onChange={(e) => setFontColor(e.target.value)}
+                      className="h-7 w-10 cursor-pointer rounded border border-[--color-border]"
+                    />
+                    <span className="font-mono text-xs text-[--color-text-3] uppercase">{fontColor}</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex items-end pb-1">
                 <label className="flex items-center gap-1.5 text-xs text-[--color-text-2] cursor-pointer">
@@ -443,86 +468,100 @@ export default function AddPageNumber() {
             </div>
           </div>
 
-          {/* Interactive Document Page Preview */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
-            {/* Page Navigation Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => changePage(-1)}
-                  disabled={currentPage <= 1 || loadingPreview}
-                  className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span className="font-bold text-[--color-text]">
-                  Halaman {currentPage} dari {totalPages}
-                </span>
-                <button
-                  onClick={() => changePage(1)}
-                  disabled={currentPage >= totalPages || loadingPreview}
-                  className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
-                >
-                  <ChevronRight size={16} />
-                </button>
+          {/* Interactive Document Page Preview (PDF) or Summary Preview (DOCX) */}
+          {fileType === 'pdf' ? (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+              {/* Page Navigation Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => changePage(-1)}
+                    disabled={currentPage <= 1 || loadingPreview}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="font-bold text-[--color-text]">
+                    Halaman {currentPage} dari {totalPages}
+                  </span>
+                  <button
+                    onClick={() => changePage(1)}
+                    disabled={currentPage >= totalPages || loadingPreview}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[--color-text-3]">
+                    Status Halaman Ini:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleCurrentPageOverride}
+                    className={[
+                      'rounded border px-2.5 py-1 text-xs font-semibold transition-colors',
+                      currentIncluded
+                        ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400'
+                        : 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400',
+                    ].join(' ')}
+                  >
+                    {currentIncluded ? '✓ Diberi Nomor' : '✕ Dilewati (Tanpa Nomor)'}
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-[--color-text-3]">
-                  Status Halaman Ini:
-                </span>
-                <button
-                  type="button"
-                  onClick={toggleCurrentPageOverride}
-                  className={[
-                    'rounded border px-2.5 py-1 text-xs font-semibold transition-colors',
-                    currentIncluded
-                      ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400'
-                      : 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400',
-                  ].join(' ')}
-                >
-                  {currentIncluded ? '✓ Diberi Nomor' : '✕ Dilewati (Tanpa Nomor)'}
-                </button>
+              {/* Live Document Preview with simulated Number Tag */}
+              <div className="relative flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
+                {loadingPreview && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
+                    <Loader2 size={24} className="animate-spin text-[--color-brand]" />
+                  </div>
+                )}
+
+                {pagePreview && (
+                  <div className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
+                    <img
+                      src={pagePreview.dataUrl}
+                      alt={`Page ${currentPage}`}
+                      className="block max-h-[500px] w-auto pointer-events-none"
+                    />
+
+                    {/* Simulated Live Number Overlay Tag */}
+                    {currentIncluded && (
+                      <div
+                        className="absolute rounded bg-blue-500/10 border border-blue-500/60 px-1 py-0.5 pointer-events-none transition-all duration-150"
+                        style={{
+                          left: `${customX}%`,
+                          top: `${customY}%`,
+                          transform: positionPreset.includes('center') ? 'translate(-50%, -50%)' : positionPreset.includes('right') ? 'translate(-100%, -50%)' : 'translate(0%, -50%)',
+                          color: fontColor,
+                          fontSize: `${fontSize}px`,
+                          fontWeight: isBold ? 'bold' : 'normal',
+                          fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
+                        }}
+                      >
+                        {previewNumText}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Live Document Preview with simulated Number Tag */}
-            <div className="relative flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
-              {loadingPreview && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
-                  <Loader2 size={24} className="animate-spin text-[--color-brand]" />
-                </div>
-              )}
-
-              {pagePreview && (
-                <div className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
-                  <img
-                    src={pagePreview.dataUrl}
-                    alt={`Page ${currentPage}`}
-                    className="block max-h-[500px] w-auto pointer-events-none"
-                  />
-
-                  {/* Simulated Live Number Overlay Tag */}
-                  {currentIncluded && (
-                    <div
-                      className="absolute rounded bg-blue-500/10 border border-blue-500/60 px-1 py-0.5 pointer-events-none transition-all duration-150"
-                      style={{
-                        left: `${customX}%`,
-                        top: `${customY}%`,
-                        transform: positionPreset.includes('center') ? 'translate(-50%, -50%)' : positionPreset.includes('right') ? 'translate(-100%, -50%)' : 'translate(0%, -50%)',
-                        color: fontColor,
-                        fontSize: `${fontSize}px`,
-                        fontWeight: isBold ? 'bold' : 'normal',
-                        fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
-                      }}
-                    >
-                      {previewNumText}
-                    </div>
-                  )}
-                </div>
-              )}
+          ) : (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                Pratinjau Dokumen Word (.docx)
+              </span>
+              <div className="rounded border border-[--color-border] bg-[--color-surface-2] p-3 text-xs text-[--color-text-2] font-mono leading-relaxed max-h-40 overflow-auto">
+                {docxTextSummary || 'Membaca dokumen…'}
+              </div>
+              <p className="text-xs text-[--color-text-3]">
+                Field code XML penomoran halaman standar Word (<code className="text-blue-500 font-mono">w:fldSimple w:instr=&quot;PAGE&quot;</code>) akan disematkan di {POSITION_PRESETS.find(p => p.id === positionPreset)?.label.toLowerCase()}.
+              </p>
             </div>
-          </div>
+          )}
 
           {error && (
             <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">
@@ -538,15 +577,15 @@ export default function AddPageNumber() {
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               {processing && <Loader2 size={16} className="animate-spin" />}
-              {processing ? 'Menyematkan Nomor Halaman…' : 'Simpan & Terapkan Nomor Halaman'}
+              {processing ? 'Menyematkan Nomor Halaman…' : `Simpan & Terapkan Nomor Halaman (${fileType.toUpperCase()})`}
             </button>
           )}
 
           {resultBlob && (
             <ResultCard
-              fileName={`${base}_numbered.pdf`}
+              fileName={`${base}_numbered.${outExt}`}
               blob={resultBlob}
-              extraInfo={`Nomor halaman berhasil disematkan — ${fmtBytes(resultBlob.size)}`}
+              extraInfo={`Nomor halaman berhasil disematkan ke ${fileType.toUpperCase()} — ${fmtBytes(resultBlob.size)}`}
               onReset={() => {
                 setResultBlob(null)
                 setFile(null)
