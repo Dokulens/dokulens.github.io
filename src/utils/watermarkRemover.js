@@ -34,38 +34,74 @@ export async function getGeminiEngine() {
 }
 
 /**
- * Create a video frame processor that runs the full library pipeline per frame.
- * This uses the same multi-pass detection, scoring, and removal as single-image mode.
- * Alpha maps are cached after the first call, so subsequent frames are fast.
+ * Create a video frame processor: detect watermark on frame 0,
+ * then fast reverse-alpha-blend on every subsequent frame.
  */
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
-  let frameCount = 0
+  // Detect watermark on frame 0 using full pipeline
+  const tempCanvas = new OffscreenCanvas(videoWidth, videoHeight)
+  const tempCtx = tempCanvas.getContext('2d')
+
   return {
-    async processFrame(frameCanvas) {
-      frameCount++
-      const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas, { debugTimings: true })
-      const timing = resultCanvas.__watermarkTiming
+    /** Call once with the first frame to calibrate detection */
+    async calibrate(frameCanvas) {
+      const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas)
 
-      if (frameCount <= 3) {
-        console.log(`[WM Frame ${frameCount}] meta:`, JSON.stringify(meta?.selectedCandidate ?? meta?.decisionTier ?? 'none'))
-        console.log(`[WM Frame ${frameCount}] timing:`, timing?.processWatermarkImageDataMs, 'ms')
+      // Extract detection results
+      const candidate = meta?.selectedCandidate
+      const position = candidate?.position ?? null
+      const alphaGain = candidate?.config?.alphaGain ?? 1.0
+      const logoSize = candidate?.config?.logoSize ?? candidate?.position?.width ?? 48
 
-        const origCtx = frameCanvas.getContext('2d')
-        const origData = origCtx.getImageData(0, 0, frameCanvas.width, frameCanvas.height)
-        const resCtx = resultCanvas.getContext('2d')
-        const resData = resCtx.getImageData(0, 0, resultCanvas.width, resultCanvas.height)
-        let diff = 0
-        for (let i = 0; i < origData.data.length; i += 4) {
-          if (origData.data[i] !== resData.data[i] || origData.data[i+1] !== resData.data[i+1] || origData.data[i+2] !== resData.data[i+2]) diff++
-        }
-        console.log(`[WM Frame ${frameCount}] pixel diff: ${diff} / ${frameCanvas.width * frameCanvas.height}`)
-      }
+      if (!position) return null
+
+      // Get the alpha map from engine cache
+      const alphaMap = await engine.getAlphaMap(logoSize)
+
+      return { position, alphaMap, alphaGain, logoSize }
+    },
+
+    /** Fast O(n) reverse-alpha-blend using pre-detected params */
+    processFrame(frameCanvas, detected) {
+      if (!detected) return
+      const { position, alphaMap, alphaGain } = detected
+      const { x, y, width: wmW, height: wmH } = position
 
       const ctx = frameCanvas.getContext('2d')
-      ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
-      ctx.drawImage(resultCanvas, 0, 0)
+      const imgData = ctx.getImageData(x, y, wmW, wmH)
+      const pixels = imgData.data
+
+      const ALPHA_NOISE_FLOOR = 3 / 255
+      const ALPHA_THRESHOLD = 0.002
+      const MAX_ALPHA = 0.99
+      const LOGO_VALUE = 255
+
+      for (let row = 0; row < wmH; row++) {
+        for (let col = 0; col < wmW; col++) {
+          const localIdx = row * wmW + col
+          const rawAlpha = alphaMap[localIdx] ?? 0
+          const alphaMagnitude = Math.abs(rawAlpha)
+          const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
+
+          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * alphaGain
+          if (signalAlpha < ALPHA_THRESHOLD) continue
+
+          const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
+          const oneMinusAlpha = 1.0 - alpha
+          if (oneMinusAlpha <= 0.001) continue
+
+          const pixIdx = localIdx * 4
+          for (let ch = 0; ch < 3; ch++) {
+            const watermarked = pixels[pixIdx + ch]
+            const original = (watermarked - alpha * logoValue) / oneMinusAlpha
+            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(original)))
+          }
+        }
+      }
+
+      ctx.putImageData(imgData, x, y)
     }
   }
 }
