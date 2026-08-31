@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head><title>Video Watermark Test</title></head>
+<body style="background:#111;color:#fff;font-family:monospace;padding:20px">
+<h2>Video Watermark Removal Test</h2>
+<input type="file" id="vid" accept="video/*" />
+<canvas id="c1" style="border:1px solid red;max-width:600px"></canvas>
+<canvas id="c2" style="border:1px solid green;max-width:600px"></canvas>
+<div id="log"></div>
+<script type="module">
+  import { removeWatermarkFromImage, createWatermarkEngine } from '/node_modules/@pilio/gemini-watermark-remover/dist/browser.esm.js'
+
+  const log = document.getElementById('log')
+  document.getElementById('vid').onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.src = url
+    video.muted = true
+    video.preload = 'auto'
+
+    await new Promise(r => { video.onloadeddata = r })
+    video.currentTime = 1
+    await new Promise(r => { video.onseeked = r })
+
+    const w = video.videoWidth, h = video.videoHeight
+    log.textContent = `Video: ${w}x${h}\n`
+
+    const c1 = document.getElementById('c1')
+    c1.width = w; c1.height = h
+    const ctx1 = c1.getContext('2d')
+    ctx1.drawImage(video, 0, 0, w, h)
+
+    const origData = ctx1.getImageData(0, 0, w, h)
+    log.textContent += `Frame extracted. Pixel sample [0,0]: ${origData.data.slice(0,4)}\n`
+
+    log.textContent += 'Running removeWatermarkFromImage...\n'
+
+    try {
+      const result = await removeWatermarkFromImage(video)
+      const c2 = document.getElementById('c2')
+      c2.width = w; c2.height = h
+      const ctx2 = c2.getContext('2d')
+      ctx2.drawImage(result.canvas, 0, 0)
+
+      const resultData = ctx2.getImageData(0, 0, w, h)
+      log.textContent += `Done! Result sample [0,0]: ${resultData.data.slice(0,4)}\n`
+      log.textContent += `Meta: ${JSON.stringify(result.meta)}\n`
+
+      let changed = 0
+      for (let i = 0; i < origData.data.length; i += 4) {
+        if (origData.data[i] !== resultData.data[i] ||
+            origData.data[i+1] !== resultData.data[i+1] ||
+            origData.data[i+2] !== resultData.data[i+2]) changed++
+      }
+      log.textContent += `Pixels changed: ${changed} / ${w*h} (${(changed*100/(w*h)).toFixed(2)}%)\n`
+    } catch(err) {
+      log.textContent += `ERROR: ${err.message}\n${err.stack}\n`
+    }
+  }
+</script>
+</body>
+</html>

@@ -41,9 +41,28 @@ export async function getGeminiEngine() {
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
+  let frameCount = 0
   return {
     async processFrame(frameCanvas) {
-      const resultCanvas = await engine.removeWatermarkFromImage(frameCanvas)
+      frameCount++
+      const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas, { debugTimings: true })
+      const timing = resultCanvas.__watermarkTiming
+
+      if (frameCount <= 3) {
+        console.log(`[WM Frame ${frameCount}] meta:`, JSON.stringify(meta?.selectedCandidate ?? meta?.decisionTier ?? 'none'))
+        console.log(`[WM Frame ${frameCount}] timing:`, timing?.processWatermarkImageDataMs, 'ms')
+
+        const origCtx = frameCanvas.getContext('2d')
+        const origData = origCtx.getImageData(0, 0, frameCanvas.width, frameCanvas.height)
+        const resCtx = resultCanvas.getContext('2d')
+        const resData = resCtx.getImageData(0, 0, resultCanvas.width, resultCanvas.height)
+        let diff = 0
+        for (let i = 0; i < origData.data.length; i += 4) {
+          if (origData.data[i] !== resData.data[i] || origData.data[i+1] !== resData.data[i+1] || origData.data[i+2] !== resData.data[i+2]) diff++
+        }
+        console.log(`[WM Frame ${frameCount}] pixel diff: ${diff} / ${frameCanvas.width * frameCanvas.height}`)
+      }
+
       const ctx = frameCanvas.getContext('2d')
       ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
       ctx.drawImage(resultCanvas, 0, 0)
