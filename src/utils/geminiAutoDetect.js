@@ -223,6 +223,67 @@ function reverseAlphaBlend(pixels, alphaMap, wmW, wmH, alphaGain) {
   }
 }
 
+/**
+ * Try multiple alphaGain values, pick the one that produces
+ * the least aggressive change (closest to original).
+ */
+function findBestAlphaGain(imageData, alphaMap, position) {
+  const gains = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0]
+  const { x, y, width: wmW, height: wmH } = position
+
+  let bestGain = 0.6
+  let bestScore = -Infinity
+
+  for (const gain of gains) {
+    // Clone pixel data
+    const pixels = new Uint8ClampedArray(imageData.data)
+
+    reverseAlphaBlend(pixels, alphaMap, wmW, wmH, gain)
+
+    // Score: measure how much the result deviates from "natural"
+    // Low variance in the watermark region = good (we removed the overlay)
+    // But extremely low values (black) = bad (over-corrected)
+    let blackPixels = 0
+    let totalPixels = 0
+    let sumDelta = 0
+
+    for (let row = 0; row < wmH; row++) {
+      for (let col = 0; col < wmW; col++) {
+        const localIdx = row * wmW + col
+        const rawAlpha = alphaMap[localIdx] ?? 0
+        if (Math.abs(rawAlpha) < ALPHA_THRESHOLD) continue
+
+        const pixIdx = localIdx * 4
+        const r = pixels[pixIdx]
+        const g = pixels[pixIdx + 1]
+        const b = pixels[pixIdx + 2]
+        const brightness = (r + g + b) / 3
+
+        totalPixels++
+        if (brightness < 10) blackPixels++
+        sumDelta += Math.abs(r - imageData.data[pixIdx]) +
+                    Math.abs(g - imageData.data[pixIdx + 1]) +
+                    Math.abs(b - imageData.data[pixIdx + 2])
+      }
+    }
+
+    if (totalPixels === 0) continue
+
+    const blackRatio = blackPixels / totalPixels
+    const avgDelta = sumDelta / totalPixels
+
+    // Penalize black pixel ratio heavily, reward moderate change
+    const score = avgDelta * (1 - blackRatio * 3)
+
+    if (score > bestScore) {
+      bestScore = score
+      bestGain = gain
+    }
+  }
+
+  return bestGain
+}
+
 export function calculateWatermarkPosition(imgWidth, imgHeight) {
   const isLarge = imgWidth >= 1024 || imgHeight >= 1024
   const size = isLarge ? 96 : 48
@@ -257,11 +318,14 @@ export async function removeWatermarkFromImage(canvasOrImage, options = {}) {
   const detected = detectWatermarkPositionNCC(canvas)
   const position = { x: detected.x, y: detected.y, width: detected.width, height: detected.height }
   const logoSize = detected.size || (imgWidth >= 1024 || imgHeight >= 1024 ? 96 : 48)
-  const alphaGain = 1.0
 
   const alphaMap = getAlphaMap(logoSize)
 
+  // Auto-detect best alpha gain to avoid over-correction (black artifacts)
   const ctx = canvas.getContext('2d')
+  const probeData = ctx.getImageData(position.x, position.y, position.width, position.height)
+  const alphaGain = findBestAlphaGain(probeData, alphaMap, position)
+
   const imgData = ctx.getImageData(position.x, position.y, position.width, position.height)
   const pixels = imgData.data
 
