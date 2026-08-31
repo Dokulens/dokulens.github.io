@@ -392,7 +392,7 @@ export default function ImageCarver() {
                   className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
                 >
                   <Maximize2 size={13} />
-                  Buka Kanvas Masking (Pop-up & Zoom)
+                  Buka Kanvas Masking (Pop-up Fullscreen)
                 </button>
                 {hasMask && (
                   <div className="flex items-center gap-1.5">
@@ -446,8 +446,8 @@ export default function ImageCarver() {
 
           {isResizing && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-semibold text-[--color-brand]">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Activity size={16} className="animate-pulse" />
                   <span>Memproses Seam Carving… ({progress}%)</span>
                 </div>
@@ -566,111 +566,120 @@ export default function ImageCarver() {
             </div>
           )}
 
-          {/* Pop-up Masking Modal (Image Aspect Ratio Alignment) */}
+          {/* Fullscreen Masking Modal: Fits Screen without scroll unless zoomed */}
           {isMaskModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-5 animate-fade-in">
-              <div className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden max-h-[92vh] max-w-[95vw] w-full lg:w-auto">
-                <div className="flex items-center justify-between border-b border-[--color-border] px-4 sm:px-5 py-3 bg-[--color-surface]">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
-                      <Paintbrush size={16} />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-bold text-[--color-text]">
-                        Kanvas Masking Objek ({originalSize ? `${originalSize.w} × ${originalSize.h} px` : ''})
-                      </h3>
-                      <p className="text-[11px] text-[--color-text-3]">
-                        Warnai area merah pada objek yang ingin dihilangkan dari foto
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={saveModalMask}
-                      className="flex items-center gap-1.5 rounded bg-[--color-brand] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[--color-brand-hover] transition-colors"
-                    >
-                      <Check size={14} /> Selesai & Terapkan
-                    </button>
-                    <button
-                      onClick={() => setIsMaskModalOpen(false)}
-                      className="rounded p-1.5 text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text]"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-4 sm:px-5 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[--color-text-3]">Zoom:</span>
-                    <button
-                      onClick={() => setZoomLevel((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
-                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
-                      title="Zoom Out"
-                    >
-                      <ZoomOut size={14} />
-                    </button>
-                    <span className="w-12 text-center font-mono font-bold text-[--color-text]">
-                      {Math.round(zoomLevel * 100)}%
-                    </span>
-                    <button
-                      onClick={() => setZoomLevel((z) => Math.min(3, Number((z + 0.25).toFixed(2))))}
-                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
-                      title="Zoom In"
-                    >
-                      <ZoomIn size={14} />
-                    </button>
-                    <button
-                      onClick={() => setZoomLevel(1)}
-                      className="text-xs text-[--color-brand] hover:underline ml-1"
-                    >
-                      Reset (100%)
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-[--color-text-3]">Ukuran Kuas:</span>
-                    <input
-                      type="range"
-                      min="6"
-                      max="80"
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-24 sm:w-28"
-                    />
-                    <span className="w-8 font-mono text-xs text-[--color-text]">{brushSize}px</span>
-                  </div>
-
+            <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
+              {/* Modal Header */}
+              <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 px-4 sm:px-6 bg-slate-900/90">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white">
+                    <Paintbrush size={16} />
+                  </span>
                   <div>
-                    <button
-                      onClick={clearModalMask}
-                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                    >
-                      <Trash2 size={13} /> Bersihkan Semua Mask
-                    </button>
+                    <h3 className="text-sm font-bold text-white">
+                      Kanvas Masking Objek ({originalSize ? `${originalSize.w} × ${originalSize.h} px` : ''})
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Warnai area merah pada objek yang ingin dihilangkan dari foto
+                    </p>
                   </div>
                 </div>
 
-                <div className="relative flex-1 overflow-auto bg-neutral-900 p-4 sm:p-6 flex items-center justify-center cursor-crosshair select-none">
-                  <div
-                    className="relative inline-block select-none shadow-2xl origin-center"
-                    style={{ transform: `scale(${zoomLevel})` }}
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={saveModalMask}
+                    className="flex items-center gap-1.5 rounded bg-blue-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
                   >
-                    <img
-                      src={imageSrc}
-                      alt="Mask Target"
-                      className="block max-h-[64vh] max-w-[85vw] object-contain rounded select-none pointer-events-none"
-                    />
-                    <canvas
-                      ref={modalCanvasRef}
-                      onMouseDown={startModalPaint}
-                      onMouseMove={paintModal}
-                      onMouseUp={stopModalPaint}
-                      onMouseLeave={stopModalPaint}
-                      className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
-                    />
-                  </div>
+                    <Check size={14} /> Selesai & Terapkan
+                  </button>
+                  <button
+                    onClick={() => setIsMaskModalOpen(false)}
+                    className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Toolbar */}
+              <div className="flex h-12 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-900/60 px-4 sm:px-6 text-xs">
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-400">Zoom:</span>
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut size={14} />
+                  </button>
+                  <span className="w-12 text-center font-mono font-bold text-white">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.min(3, Number((z + 0.25).toFixed(2))))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    title="Zoom In"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                  <button
+                    onClick={() => setZoomLevel(1)}
+                    className="text-xs text-blue-400 hover:underline ml-1"
+                  >
+                    Reset 100%
+                  </button>
+                </div>
+
+                {/* Brush Size Controls */}
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-400">Ukuran Kuas:</span>
+                  <input
+                    type="range"
+                    min="6"
+                    max="80"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="w-24 sm:w-32"
+                  />
+                  <span className="w-8 font-mono text-xs text-white">{brushSize}px</span>
+                </div>
+
+                {/* Clear button */}
+                <div>
+                  <button
+                    onClick={clearModalMask}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:underline"
+                  >
+                    <Trash2 size={13} /> Bersihkan Semua Mask
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Stage: Fits screen without scroll unless zoomed */}
+              <div className={[
+                'relative flex-1 flex items-center justify-center p-3 sm:p-5 select-none',
+                zoomLevel > 1 ? 'overflow-auto cursor-grab active:cursor-grabbing' : 'overflow-hidden cursor-crosshair'
+              ].join(' ')}>
+                <div
+                  className="relative flex items-center justify-center shadow-2xl transition-transform duration-100 origin-center"
+                  style={{
+                    transform: `scale(${zoomLevel})`,
+                  }}
+                >
+                  <img
+                    src={imageSrc}
+                    alt="Mask Target"
+                    className="block max-h-[76vh] max-w-[92vw] object-contain rounded select-none pointer-events-none"
+                  />
+                  <canvas
+                    ref={modalCanvasRef}
+                    onMouseDown={startModalPaint}
+                    onMouseMove={paintModal}
+                    onMouseUp={stopModalPaint}
+                    onMouseLeave={stopModalPaint}
+                    className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
+                  />
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import {
-  removeGeminiWatermarkPrecision,
+  removeOfficialGeminiWatermark,
   inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
@@ -21,26 +21,22 @@ export default function WatermarkRemover() {
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
-  const [removalMode, setRemovalMode] = useState('alpha')
+  // Removal Mode: 'gemini' (Official Gemini Lossless) | 'inpaint' (Fast-Marching Custom)
+  const [removalMode, setRemovalMode] = useState('gemini')
   const [brushSize, setBrushSize] = useState(24)
-  const [inpaintRadius, setInpaintRadius] = useState(6)
-  const [alphaGain, setAlphaGain] = useState(1.0)
+  const [inpaintRadius, setInpaintRadius] = useState(5)
   const [hasMask, setHasMask] = useState(false)
 
   // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
-  // Pop-up Zoomable Modal
+  // Fullscreen Modal & Zoom
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
 
   // Video processing state
   const [videoDuration, setVideoDuration] = useState(0)
   const [videoBox, setVideoBox] = useState({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })
-
-  // Result compare view
-  const [compareSplit, setCompareSplit] = useState(50) // %
-  const [compareMode, setCompareMode] = useState('side') // 'side' | 'slider'
 
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -52,6 +48,7 @@ export default function WatermarkRemover() {
   const videoRef = useRef(null)
   const maskCanvasRef = useRef(null)
   const modalCanvasRef = useRef(null)
+  const modalImgRef = useRef(null)
   const videoContainerRef = useRef(null)
 
   const isPaintingRef = useRef(false)
@@ -65,6 +62,7 @@ export default function WatermarkRemover() {
     setResultUrl(null)
     setError('')
     setHasMask(false)
+    setZoomLevel(1)
 
     const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name)
     setActiveMedia(isVid ? 'video' : 'image')
@@ -76,26 +74,9 @@ export default function WatermarkRemover() {
       const img = new Image()
       img.onload = () => {
         setOrigDims({ w: img.naturalWidth, h: img.naturalHeight })
-
-        const tempCanvas = document.createElement('canvas')
-        tempCanvas.width = img.naturalWidth
-        tempCanvas.height = img.naturalHeight
-        const tCtx = tempCanvas.getContext('2d')
-        tCtx.drawImage(img, 0, 0)
-        const imgData = tCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight)
-
-        const det = detectGeminiWatermark(img.naturalWidth, img.naturalHeight, imgData)
+        const det = detectGeminiWatermark(img.naturalWidth, img.naturalHeight)
         setDetectedBox(det)
         initMaskCanvas(img.naturalWidth, img.naturalHeight)
-
-        setTimeout(() => {
-          if (maskCanvasRef.current) {
-            const ctx = maskCanvasRef.current.getContext('2d')
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
-            ctx.fillRect(det.x, det.y, det.width, det.height)
-            setHasMask(true)
-          }
-        }, 50)
       }
       img.src = url
     }
@@ -118,7 +99,7 @@ export default function WatermarkRemover() {
     ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
     ctx.fillRect(detectedBox.x, detectedBox.y, detectedBox.width, detectedBox.height)
     setHasMask(true)
-    setRemovalMode('alpha')
+    setRemovalMode('gemini')
   }
 
   const startVideoBoxDrag = (e, handleType) => {
@@ -145,12 +126,8 @@ export default function WatermarkRemover() {
         xPct = Math.max(0, Math.min(100 - wPct, startB.xPct + dxPct))
         yPct = Math.max(0, Math.min(100 - hPct, startB.yPct + dyPct))
       } else {
-        if (h.includes('e')) {
-          wPct = Math.max(4, Math.min(100 - startB.xPct, startB.wPct + dxPct))
-        }
-        if (h.includes('s')) {
-          hPct = Math.max(4, Math.min(100 - startB.yPct, startB.hPct + dyPct))
-        }
+        if (h.includes('e')) wPct = Math.max(4, Math.min(100 - startB.xPct, startB.wPct + dxPct))
+        if (h.includes('s')) hPct = Math.max(4, Math.min(100 - startB.yPct, startB.hPct + dyPct))
         if (h.includes('w')) {
           const maxW = startB.xPct + startB.wPct
           wPct = Math.max(4, Math.min(maxW, startB.wPct - dxPct))
@@ -230,8 +207,9 @@ export default function WatermarkRemover() {
     }
   }, [isModalOpen])
 
+  // Precision Watermark Removal Process for Image
   const processImageWatermark = async () => {
-    if (!mediaSrc || !hasMask) return
+    if (!mediaSrc) return
     setProcessing(true)
     setError('')
     setProgress(20)
@@ -248,27 +226,30 @@ export default function WatermarkRemover() {
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
       ctx.drawImage(img, 0, 0)
 
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const maskCtx = maskCanvasRef.current.getContext('2d')
-      const maskImgData = maskCtx.getImageData(0, 0, canvas.width, canvas.height)
-
       setProgress(50)
 
-      if (removalMode === 'alpha' && detectedBox) {
-        removeGeminiWatermarkPrecision(imgData, detectedBox, {
-          logoValue: 255,
-          alphaGain,
-        })
+      if (removalMode === 'gemini') {
+        // Official Gemini Watermark Engine (Lossless Reverse Alpha Blending from geminiwatermarkremover.io)
+        const result = await removeOfficialGeminiWatermark(imgData, { adaptiveMode: 'auto' })
+        if (result && result.canvas) {
+          ctx.drawImage(result.canvas, 0, 0)
+        } else {
+          // Put processed imgData
+          ctx.putImageData(imgData, 0, 0)
+        }
       } else {
+        // Custom Inpainting for arbitrary logos
+        const maskCtx = maskCanvasRef.current.getContext('2d')
+        const maskImgData = maskCtx.getImageData(0, 0, canvas.width, canvas.height)
         inpaintWatermark(imgData, maskImgData.data, inpaintRadius)
+        ctx.putImageData(imgData, 0, 0)
       }
 
       setProgress(85)
-      ctx.putImageData(imgData, 0, 0)
-
       const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
       setProgress(100)
       setResultBlob(blob)
@@ -280,6 +261,7 @@ export default function WatermarkRemover() {
     }
   }
 
+  // Synchronized Video Watermark Removal
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -398,56 +380,41 @@ export default function WatermarkRemover() {
   return (
     <ToolShell
       title="Hapus Watermark (Foto & Video)"
-      description="Hapus watermark AI (Gemini/Imagen/Midjourney), logo, cap air, dan tanggal dari foto maupun video secara presisi pada kecepatan normal 1.0x dan 100% lokal tanpa kirim file ke server."
+      description="Penghapus watermark AI (Google Gemini / Imagen) lossless berbasis @pilio/gemini-watermark-remover, plus Inpainting untuk logo & teks foto/video."
     >
       <DropZone
         accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.mkv"
         onFiles={handleFile}
         label="Pilih foto atau video untuk dihapus watermark-nya"
-        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — Kecepatan Normal 1.0x"
+        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — 100% Client-Side"
       />
 
       {mediaSrc && (
         <div className="space-y-4 animate-fade-in">
-          {/* Quick Gemini Auto-Detect Banner for Images */}
-          {activeMedia === 'image' && detectedBox && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-brand] bg-[--color-brand-light] p-3 text-xs animate-fade-in">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="shrink-0 text-[--color-brand]" />
-                <span className="text-[--color-brand-text]">
-                  <strong>Watermark Gemini Terdeteksi:</strong> Ditemukan koordinat presisi ({detectedBox.x}, {detectedBox.y}) ukuran {detectedBox.width}×{detectedBox.height} px.
-                </span>
-              </div>
-              <button
-                onClick={autoSelectGeminiWatermark}
-                className="shrink-0 rounded bg-[--color-brand] px-3 py-1 font-bold text-white hover:bg-[--color-brand-hover] transition-colors"
-              >
-                Kunci Posisi Gemini AI
-              </button>
-            </div>
-          )}
-
-          {/* Controls Bar for Image */}
+          {/* Mode Selection */}
           {activeMedia === 'image' && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
               <div>
                 <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  Metode Penghapusan
+                  Pilih Mesin Penghapus Watermark
                 </label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
-                    onClick={() => setRemovalMode('alpha')}
+                    onClick={() => setRemovalMode('gemini')}
                     className={[
-                      'flex flex-col items-start rounded border p-3 text-left transition-all',
-                      removalMode === 'alpha'
+                      'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
+                      removalMode === 'gemini'
                         ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
                         : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
                     ].join(' ')}
                   >
-                    <span className="text-xs font-bold">Reverse Alpha Blending (Lossless) ⭐</span>
-                    <span className="text-[11px] font-normal opacity-80 mt-0.5">
-                      Formula pemulihan warna asli matematis untuk watermark semi-transparan / Gemini AI tanpa merusak ketajaman foto.
+                    <div className="flex items-center gap-1.5 text-xs font-bold">
+                      <Sparkles size={15} className="text-[--color-brand]" />
+                      <span>Gemini AI Lossless Remover (Resmi) ⭐</span>
+                    </div>
+                    <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
+                      Mesin resmi dari <code>geminiwatermarkremover.io</code>. Menghapus watermark AI di pojok kanan bawah secara matematis tanpa merusak kualitas foto.
                     </span>
                   </button>
 
@@ -455,64 +422,51 @@ export default function WatermarkRemover() {
                     type="button"
                     onClick={() => setRemovalMode('inpaint')}
                     className={[
-                      'flex flex-col items-start rounded border p-3 text-left transition-all',
+                      'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
                       removalMode === 'inpaint'
                         ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
                         : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
                     ].join(' ')}
                   >
-                    <span className="text-xs font-bold">Fast-Marching Inpainting (Rekonstruksi)</span>
-                    <span className="text-[11px] font-normal opacity-80 mt-0.5">
-                      Cocok untuk logo padat/teks tebal yang tidak transparan atau watermark bebas di tengah foto.
+                    <div className="flex items-center gap-1.5 text-xs font-bold">
+                      <Paintbrush size={15} className="text-amber-500" />
+                      <span>Kuas Inpainting (Logo / Teks Bebas)</span>
+                    </div>
+                    <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
+                      Tandai area watermark di manapun dengan kuas seleksi pop-up. Algoritma akan merekonstruksi tekstur di sekitarnya.
                     </span>
                   </button>
                 </div>
               </div>
 
-              {removalMode === 'alpha' && (
-                <div className="border-t border-[--color-border] pt-3 text-xs flex items-center justify-between gap-4">
-                  <span className="font-semibold text-[--color-text-2]">Kekuatan Alpha Gain:</span>
+              {removalMode === 'inpaint' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0.8"
-                      max="1.3"
-                      step="0.05"
-                      value={alphaGain}
-                      onChange={(e) => setAlphaGain(Number(e.target.value))}
-                      className="w-32"
-                    />
-                    <span className="font-mono font-bold text-[--color-brand] w-10 text-right">{alphaGain.toFixed(2)}x</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(true)}
+                      className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
+                    >
+                      <Maximize2 size={13} />
+                      Buka Kanvas Seleksi (Pop-up Fullscreen)
+                    </button>
+                    {hasMask && (
+                      <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-bold text-red-600 dark:text-red-400">
+                        ✓ Area Ditandai
+                      </span>
+                    )}
                   </div>
-                </div>
-              )}
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
-                  >
-                    <Maximize2 size={13} />
-                    Buka Kanvas Seleksi (Pop-up & Zoom)
-                  </button>
                   {hasMask && (
-                    <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-bold text-red-600 dark:text-red-400">
-                      ✓ Area Ditandai ({detectedBox ? `${detectedBox.width}×${detectedBox.height}px` : 'Kustom'})
-                    </span>
+                    <button
+                      onClick={clearMask}
+                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
+                    >
+                      <Trash2 size={13} /> Hapus Tanda Merah
+                    </button>
                   )}
                 </div>
-
-                {hasMask && (
-                  <button
-                    onClick={clearMask}
-                    className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                  >
-                    <Trash2 size={13} /> Hapus Tanda Merah
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           )}
 
@@ -544,13 +498,6 @@ export default function WatermarkRemover() {
                 >
                   Preset Kiri Atas
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setVideoBox({ xPct: 82, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
-                >
-                  Preset Kanan Atas
-                </button>
               </div>
             </div>
           )}
@@ -560,9 +507,9 @@ export default function WatermarkRemover() {
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold uppercase tracking-wider text-[--color-text-3]">
-                  {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar & Masking'}
+                  {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar'}
                 </span>
-                {activeMedia === 'image' && (
+                {activeMedia === 'image' && removalMode === 'inpaint' && (
                   <button
                     onClick={() => setIsModalOpen(true)}
                     className="flex items-center gap-1 text-[--color-brand] hover:underline font-semibold"
@@ -581,10 +528,12 @@ export default function WatermarkRemover() {
                       alt="Original"
                       className="block max-h-[420px] w-auto pointer-events-none rounded"
                     />
-                    <canvas
-                      ref={maskCanvasRef}
-                      className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
-                    />
+                    {removalMode === 'inpaint' && (
+                      <canvas
+                        ref={maskCanvasRef}
+                        className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
+                      />
+                    )}
                   </div>
                 ) : (
                   <div ref={videoContainerRef} className="relative inline-block select-none">
@@ -634,7 +583,7 @@ export default function WatermarkRemover() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Sedang memproses rekontruksi frame… ({progress}%)</span>
+                  <span>Sedang memproses rekontruksi watermark… ({progress}%)</span>
                 </div>
                 {activeMedia === 'video' && (
                   <button
@@ -659,16 +608,18 @@ export default function WatermarkRemover() {
           {!resultBlob && (
             <button
               onClick={activeMedia === 'video' ? processVideoWatermark : processImageWatermark}
-              disabled={processing || (activeMedia === 'image' && !hasMask)}
+              disabled={processing || (activeMedia === 'image' && removalMode === 'inpaint' && !hasMask)}
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               {processing && <Loader2 size={16} className="animate-spin" />}
               {processing
                 ? 'Menghapus Watermark…'
                 : activeMedia === 'video'
-                ? 'Hapus Watermark dari Seluruh Video (Kecepatan Normal 1.0x)'
+                ? 'Hapus Watermark dari Seluruh Video'
+                : removalMode === 'gemini'
+                ? 'Hapus Watermark Gemini AI (Lossless)'
                 : hasMask
-                ? 'Hapus Watermark dari Gambar'
+                ? 'Hapus Watermark Terpilih'
                 : 'Tandai Area Watermark untuk Memulai'}
             </button>
           )}
@@ -744,112 +695,121 @@ export default function WatermarkRemover() {
             </div>
           )}
 
-          {/* Pop-up Masking Modal (Rock-Solid Aspect-Ratio Alignment) */}
+          {/* Fullscreen Modal: True Fullscreen Fit (No Scroll unless zoomed) */}
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-5 animate-fade-in">
-              <div className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden max-h-[92vh] max-w-[95vw] w-full lg:w-auto">
-                <div className="flex items-center justify-between border-b border-[--color-border] px-4 sm:px-5 py-3 bg-[--color-surface]">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
-                      <Paintbrush size={16} />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-bold text-[--color-text]">
-                        Kanvas Seleksi Watermark ({origDims.w ? `${origDims.w} × ${origDims.h} px` : ''})
-                      </h3>
-                      <p className="text-[11px] text-[--color-text-3]">
-                        Warnai area merah persis di atas logo/teks watermark yang ingin dihapus
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={saveModalMask}
-                      className="flex items-center gap-1.5 rounded bg-[--color-brand] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[--color-brand-hover] transition-colors"
-                    >
-                      <Check size={14} /> Selesai & Terapkan
-                    </button>
-                    <button
-                      onClick={() => setIsModalOpen(false)}
-                      className="rounded p-1.5 text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text]"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-4 sm:px-5 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[--color-text-3]">Zoom:</span>
-                    <button
-                      onClick={() => setZoomLevel((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
-                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
-                      title="Zoom Out"
-                    >
-                      <ZoomOut size={14} />
-                    </button>
-                    <span className="w-12 text-center font-mono font-bold text-[--color-text]">
-                      {Math.round(zoomLevel * 100)}%
-                    </span>
-                    <button
-                      onClick={() => setZoomLevel((z) => Math.min(3, Number((z + 0.25).toFixed(2))))}
-                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
-                      title="Zoom In"
-                    >
-                      <ZoomIn size={14} />
-                    </button>
-                    <button
-                      onClick={() => setZoomLevel(1)}
-                      className="text-xs text-[--color-brand] hover:underline ml-1"
-                    >
-                      Reset (100%)
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-[--color-text-3]">Ukuran Kuas:</span>
-                    <input
-                      type="range"
-                      min="6"
-                      max="80"
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-24 sm:w-28"
-                    />
-                    <span className="w-8 font-mono text-xs text-[--color-text]">{brushSize}px</span>
-                  </div>
-
+            <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
+              {/* Modal Header */}
+              <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 px-4 sm:px-6 bg-slate-900/90">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white">
+                    <Paintbrush size={16} />
+                  </span>
                   <div>
-                    <button
-                      onClick={clearMask}
-                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                    >
-                      <Trash2 size={13} /> Bersihkan Tanda
-                    </button>
+                    <h3 className="text-sm font-bold text-white">
+                      Kanvas Seleksi Watermark ({origDims.w} × {origDims.h} px)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Warnai area merah persis di atas logo/teks watermark yang ingin dihapus
+                    </p>
                   </div>
                 </div>
 
-                {/* Modal Interactive Canvas Stage with Image Aspect Ratio */}
-                <div className="relative flex-1 overflow-auto bg-neutral-900 p-4 sm:p-6 flex items-center justify-center cursor-crosshair select-none">
-                  <div
-                    className="relative inline-block select-none shadow-2xl origin-center"
-                    style={{ transform: `scale(${zoomLevel})` }}
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={saveModalMask}
+                    className="flex items-center gap-1.5 rounded bg-blue-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
                   >
-                    <img
-                      src={mediaSrc}
-                      alt="Mask Target"
-                      className="block max-h-[64vh] max-w-[85vw] object-contain rounded select-none pointer-events-none"
-                    />
-                    <canvas
-                      ref={modalCanvasRef}
-                      onMouseDown={startModalPaint}
-                      onMouseMove={paintModal}
-                      onMouseUp={stopModalPaint}
-                      onMouseLeave={stopModalPaint}
-                      className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
-                    />
-                  </div>
+                    <Check size={14} /> Selesai & Terapkan
+                  </button>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Toolbar: Zoom & Brush Controls */}
+              <div className="flex h-12 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-900/60 px-4 sm:px-6 text-xs">
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-400">Zoom:</span>
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut size={14} />
+                  </button>
+                  <span className="w-12 text-center font-mono font-bold text-white">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.min(3, Number((z + 0.25).toFixed(2))))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    title="Zoom In"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                  <button
+                    onClick={() => setZoomLevel(1)}
+                    className="text-xs text-blue-400 hover:underline ml-1"
+                  >
+                    Reset 100%
+                  </button>
+                </div>
+
+                {/* Brush Size Controls */}
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-400">Ukuran Kuas:</span>
+                  <input
+                    type="range"
+                    min="6"
+                    max="80"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="w-24 sm:w-32"
+                  />
+                  <span className="w-8 font-mono text-xs text-white">{brushSize}px</span>
+                </div>
+
+                {/* Clear button */}
+                <div>
+                  <button
+                    onClick={clearMask}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:underline"
+                  >
+                    <Trash2 size={13} /> Bersihkan Tanda
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Stage: Fits screen 100% without scroll unless zoomed */}
+              <div className={[
+                'relative flex-1 flex items-center justify-center p-3 sm:p-5 select-none',
+                zoomLevel > 1 ? 'overflow-auto cursor-grab active:cursor-grabbing' : 'overflow-hidden cursor-crosshair'
+              ].join(' ')}>
+                <div
+                  className="relative flex items-center justify-center shadow-2xl transition-transform duration-100 origin-center"
+                  style={{
+                    transform: `scale(${zoomLevel})`,
+                  }}
+                >
+                  <img
+                    ref={modalImgRef}
+                    src={mediaSrc}
+                    alt="Mask Target"
+                    className="block max-h-[76vh] max-w-[92vw] object-contain rounded select-none pointer-events-none"
+                  />
+                  <canvas
+                    ref={modalCanvasRef}
+                    onMouseDown={startModalPaint}
+                    onMouseMove={paintModal}
+                    onMouseUp={stopModalPaint}
+                    onMouseLeave={stopModalPaint}
+                    className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
+                  />
                 </div>
               </div>
             </div>
