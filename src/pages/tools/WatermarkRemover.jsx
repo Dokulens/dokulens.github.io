@@ -340,12 +340,33 @@ export default function WatermarkRemover() {
     const w = video.videoWidth || 1280
     const h = video.videoHeight || 720
 
+    // Detect actual FPS from source video
+    const detectFPS = (vid) => new Promise((resolve) => {
+      const times = []
+      let count = 0
+      const onFrame = (now, metadata) => {
+        times.push(metadata.mediaTime)
+        count++
+        if (count >= 5) {
+          const fps = Math.round((count - 1) / (times[count - 1] - times[0]))
+          resolve(Math.min(Math.max(fps, 1), 120))
+        } else {
+          vid.requestVideoFrameCallback(onFrame)
+        }
+      }
+      vid.requestVideoFrameCallback(onFrame)
+      setTimeout(() => resolve(30), 3000)
+    })
+
+    const fps = await detectFPS(video)
+    console.log('[WM] Detected FPS:', fps)
+
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d')
 
-    const stream = canvas.captureStream(30)
+    const stream = canvas.captureStream(fps)
     try {
       const vidStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null)
       if (vidStream) {
@@ -402,7 +423,6 @@ export default function WatermarkRemover() {
       setProgress(10)
 
       // Process frame-by-frame by seeking (no video.play needed)
-      const fps = 30
       const totalFrames = Math.ceil(video.duration * fps)
       const step = 1 / fps
 
