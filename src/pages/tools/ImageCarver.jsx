@@ -662,12 +662,28 @@ export default function ImageCarver() {
                 zoomLevel > 1 ? 'overflow-auto cursor-grab active:cursor-grabbing' : 'overflow-hidden cursor-crosshair'
               ].join(' ')}>
                 <div
-                  className="relative flex items-center justify-center shadow-2xl transition-transform duration-100 origin-center"
-                  style={{
-                    transform: `scale(${zoomLevel})`,
-                  }}
+                  className="relative inline-flex items-center justify-center shadow-2xl transition-transform duration-100 origin-center"
+                  style={{ transform: `scale(${zoomLevel})` }}
                 >
                   <img
+                    ref={(el) => {
+                      imgRef.current = el
+                      if (el && isMaskModalOpen) {
+                        el.onload = () => {
+                          if (modalCanvasRef.current) {
+                            const canvas = modalCanvasRef.current
+                            canvas.width = el.naturalWidth
+                            canvas.height = el.naturalHeight
+                            const ctx = canvas.getContext('2d')
+                            if (maskCanvasElement) {
+                              ctx.drawImage(maskCanvasElement, 0, 0)
+                            } else {
+                              ctx.clearRect(0, 0, canvas.width, canvas.height)
+                            }
+                          }
+                        }
+                      }
+                    }}
                     src={imageSrc}
                     alt="Mask Target"
                     className="block max-h-[76vh] max-w-[92vw] object-contain rounded select-none pointer-events-none"
@@ -678,7 +694,8 @@ export default function ImageCarver() {
                     onMouseMove={paintModal}
                     onMouseUp={stopModalPaint}
                     onMouseLeave={stopModalPaint}
-                    className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
+                    className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                    style={{ width: '100%', height: '100%' }}
                   />
                 </div>
               </div>

@@ -59,25 +59,39 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
     position: { x, y, width: wmW, height: wmH },
     /**
      * Process a single video frame canvas in-place (fast O(n) reverse alpha blend)
+     * Formula from @pilio/gemini-watermark-remover/src/core/blendModes.js:
+     *   watermarked = α × logo + (1 − α) × original
+     *   original = (watermarked − α × logo) / (1 − α)
+     * Gemini watermark is WHITE (logoValue = 255)
      */
     processFrame(frameCanvas) {
       const ctx = frameCanvas.getContext('2d')
       const imgData = ctx.getImageData(x, y, wmW, wmH)
       const pixels = imgData.data
+      const ALPHA_NOISE_FLOOR = 3 / 255
+      const ALPHA_THRESHOLD = 0.002
+      const MAX_ALPHA = 0.99
+      const LOGO_VALUE = 255
 
       for (let row = 0; row < wmH; row++) {
         for (let col = 0; col < wmW; col++) {
           const localIdx = row * wmW + col
-          const alpha = (alphaMap[localIdx] ?? 0) * alphaGain
-          if (alpha <= 0.001) continue
+          const rawAlpha = alphaMap[localIdx] ?? 0
+          const alphaMagnitude = Math.abs(rawAlpha)
+          const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
+
+          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * alphaGain
+          if (signalAlpha < ALPHA_THRESHOLD) continue
+
+          const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
+          const oneMinusAlpha = 1.0 - alpha
+          if (oneMinusAlpha <= 0.001) continue
 
           const pixIdx = localIdx * 4
-          const blend = Math.min(1, alpha)
-
           for (let ch = 0; ch < 3; ch++) {
-            const val = pixels[pixIdx + ch]
-            const restored = val / (1 - blend + 0.001)
-            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(restored)))
+            const watermarked = pixels[pixIdx + ch]
+            const original = (watermarked - alpha * logoValue) / oneMinusAlpha
+            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(original)))
           }
         }
       }
