@@ -3,7 +3,7 @@ import {
   Sparkles, Wand2, Paintbrush, Trash2, Download,
   Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
   Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2, Move
+  StopCircle, CheckCircle2
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -17,26 +17,24 @@ import {
 import { fmtBytes, stripExt } from '../../utils/helpers'
 
 export default function WatermarkRemover() {
-  const [activeMedia, setActiveMedia] = useState('image') // 'image' | 'video'
+  const [activeMedia, setActiveMedia] = useState('image')
   const [file, setFile] = useState(null)
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
-  // Removal Mode: 'alpha' (Reverse Alpha Lossless) | 'inpaint' (Fast-Marching Telea)
   const [removalMode, setRemovalMode] = useState('inpaint')
   const [brushSize, setBrushSize] = useState(24)
   const [inpaintRadius, setInpaintRadius] = useState(6)
   const [alphaStrength, setAlphaStrength] = useState(1.0)
   const [hasMask, setHasMask] = useState(false)
 
-  // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
-  // Pop-up Zoomable Modal (Image)
+  // Pop-up Zoomable Modal
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
 
-  // Video processing state & Draggable/Resizable Video Selector Box
+  // Video processing state
   const [videoDuration, setVideoDuration] = useState(0)
   const [videoBox, setVideoBox] = useState({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })
 
@@ -54,7 +52,7 @@ export default function WatermarkRemover() {
 
   const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
-  const isDraggingVideoRef = useRef(null) // 'move' | 'nw' | 'ne' | 'se' | 'sw'
+  const isDraggingVideoRef = useRef(null)
   const videoDragStartRef = useRef({ startX: 0, startY: 0, box: { ...videoBox } })
 
   const handleFile = ([f]) => {
@@ -480,21 +478,21 @@ export default function WatermarkRemover() {
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kanan Bawah (Gemini / AI Video)
                 </button>
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 3, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kiri Atas
                 </button>
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 82, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kanan Atas
                 </button>
@@ -542,10 +540,10 @@ export default function WatermarkRemover() {
                     className="block max-h-[420px] w-auto rounded"
                   />
 
-                  {/* Interactive Draggable and Resizable Selection Box on Video */}
+                  {/* Clean Precision Draggable & Resizable Selection Box */}
                   <div
                     onMouseDown={(e) => startVideoBoxDrag(e, 'move')}
-                    className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded shadow-lg select-none"
+                    className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded select-none"
                     style={{
                       left: `${videoBox.xPct}%`,
                       top: `${videoBox.yPct}%`,
@@ -553,10 +551,6 @@ export default function WatermarkRemover() {
                       height: `${videoBox.hPct}%`,
                     }}
                   >
-                    <div className="absolute -top-5 left-0 flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase whitespace-nowrap shadow">
-                      <Move size={10} /> Drag / Resize Area
-                    </div>
-
                     {/* 4 Corner Resize Handles */}
                     <div
                       onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}

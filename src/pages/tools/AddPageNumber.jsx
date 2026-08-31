@@ -4,7 +4,7 @@ import mammoth from 'mammoth'
 import {
   FileText, ChevronLeft, ChevronRight, Hash,
   Sparkles, Sliders, Loader2, Check, RefreshCw,
-  Move, ShieldCheck, FileType
+  ShieldCheck, FileType
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -136,7 +136,7 @@ export default function AddPageNumber() {
     await loadPreview(pdfDocRef.current, target)
   }
 
-  // Draggable tag on preview stage
+  // Draggable tag on preview stage (Pure text bounding without offset icons)
   const startTagDrag = (e) => {
     e.stopPropagation()
     e.preventDefault()
@@ -151,7 +151,7 @@ export default function AddPageNumber() {
     const onMouseMove = (moveEvent) => {
       if (!isDraggingTagRef.current || !previewContainerRef.current) return
       const rect = previewContainerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - dragStartPosRef.current.startX) / rect.width) * 100
+      const dxPct = ((moveEvent.clientX - dragStartPosPosRef.current.startX) / rect.width) * 100
       const dyPct = ((moveEvent.clientY - dragStartPosRef.current.startY) / rect.height) * 100
 
       const newX = Math.max(3, Math.min(97, Math.round(dragStartPosRef.current.origX + dxPct)))
@@ -549,7 +549,7 @@ export default function AddPageNumber() {
                 </div>
               </div>
 
-              {/* Live Document Preview with Draggable simulated Number Tag */}
+              {/* Live Document Preview with Draggable simulated Number Tag without offset icon */}
               <div className="relative flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
                 {loadingPreview && (
                   <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
@@ -565,25 +565,23 @@ export default function AddPageNumber() {
                       className="block max-h-[500px] w-auto pointer-events-none"
                     />
 
-                    {/* Interactive Draggable Number Overlay Tag */}
+                    {/* Precise Draggable Number Tag (1:1 with output PDF) */}
                     {currentIncluded && (
                       <div
                         onMouseDown={startTagDrag}
-                        className="absolute rounded bg-blue-500/15 border-2 border-blue-600 px-2 py-0.5 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md select-none group"
+                        className="absolute rounded bg-blue-500/10 border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
                         style={{
                           left: `${customX}%`,
                           top: `${customY}%`,
                           transform: 'translate(-50%, -50%)',
                           color: fontColor,
-                          fontSize: `${Math.max(10, fontSize)}px`,
+                          fontSize: `${Math.max(9, fontSize)}px`,
                           fontWeight: isBold ? 'bold' : 'normal',
                           fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
+                          lineHeight: 1.1,
                         }}
                       >
-                        <div className="flex items-center gap-1">
-                          <Move size={11} className="text-blue-600 opacity-60 group-hover:opacity-100" />
-                          <span>{previewNumText}</span>
-                        </div>
+                        {previewNumText}
                       </div>
                     )}
                   </div>
