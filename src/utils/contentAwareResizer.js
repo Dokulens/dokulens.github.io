@@ -235,7 +235,7 @@ const deleteSeamV = (img, seam, { h }) => {
   seam.forEach(({ x: seamX, y: seamY }) => {
     for (let y = seamY; y < h - 1; y += 1) {
       const nextPixel = getPixel(img, { x: seamX, y: y + 1 })
-      setPixel(img, { x, y: seamY }, nextPixel)
+      setPixel(img, { x: seamX, y }, nextPixel)
     }
   })
 }

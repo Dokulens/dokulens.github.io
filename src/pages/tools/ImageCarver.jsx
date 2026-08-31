@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   Shrink, Trash2, Download, Eye, Sparkles,
-  MousePointer, RotateCcw, Activity, Layers, Sliders, Check
+  MousePointer, RotateCcw, Activity, Sliders, Maximize2, X,
+  ZoomIn, ZoomOut, Paintbrush, Check, Info
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -20,8 +21,8 @@ import { fmtBytes, stripExt } from '../../utils/helpers'
 export default function ImageCarver() {
   const [imageSrc, setImageSrc] = useState(null)
   const [file, setFile] = useState(null)
-  const [originalSize, setOriginalSize] = useState(null) // { w, h }
-  const [workingSize, setWorkingSize] = useState(null) // { w, h }
+  const [originalSize, setOriginalSize] = useState(null)
+  const [workingSize, setWorkingSize] = useState(null)
   const [resizedImgSrc, setResizedImgSrc] = useState(null)
   const [toWidthScale, setToWidthScale] = useState(75)
   const [toHeightScale, setToHeightScale] = useState(85)
@@ -30,15 +31,22 @@ export default function ImageCarver() {
   const [showSeams, setShowSeams] = useState(true)
   const [isResizing, setIsResizing] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [maskData, setMaskData] = useState(null)
+
+  // Pop-up Mask Modal state
+  const [isMaskModalOpen, setIsMaskModalOpen] = useState(false)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [brushSize, setBrushSize] = useState(24)
   const [hasMask, setHasMask] = useState(false)
+  const [maskCanvasElement, setMaskCanvasElement] = useState(null)
   const [error, setError] = useState('')
 
   const imgRef = useRef(null)
   const workingCanvasRef = useRef(null)
   const energyCanvasRef = useRef(null)
   const seamsCanvasRef = useRef(null)
-  const maskCanvasRef = useRef(null)
+
+  // Modal drawing refs
+  const modalCanvasRef = useRef(null)
   const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
 
@@ -63,57 +71,77 @@ export default function ImageCarver() {
     const w = imgRef.current.naturalWidth
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
-    initMaskCanvas()
   }
 
-  const initMaskCanvas = () => {
-    if (!maskCanvasRef.current || !imgRef.current) return
-    const canvas = maskCanvasRef.current
-    canvas.width = imgRef.current.clientWidth || 400
-    canvas.height = imgRef.current.clientHeight || 300
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    setHasMask(false)
-    setMaskData(null)
-  }
+  // When modal opens, sync mask canvas size to image natural resolution
+  useEffect(() => {
+    if (isMaskModalOpen && modalCanvasRef.current && imgRef.current) {
+      const canvas = modalCanvasRef.current
+      canvas.width = imgRef.current.naturalWidth
+      canvas.height = imgRef.current.naturalHeight
+      const ctx = canvas.getContext('2d')
+      // If we already had mask before, draw it back
+      if (maskCanvasElement) {
+        ctx.drawImage(maskCanvasElement, 0, 0)
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    }
+  }, [isMaskModalOpen])
 
-  // Brush drawing on original image mask
-  const startPaint = (e) => {
-    if (isResizing) return
+  // Brush drawing in pop-up modal
+  const startModalPaint = (e) => {
     isPaintingRef.current = true
-    paint(e)
+    paintModal(e)
   }
 
-  const paint = (e) => {
-    if (!isPaintingRef.current || !maskCanvasRef.current) return
-    const canvas = maskCanvasRef.current
+  const paintModal = (e) => {
+    if (!isPaintingRef.current || !modalCanvasRef.current) return
+    const canvas = modalCanvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (e.clientX - rect.left) * scaleX
+    const y = (e.clientY - rect.top) * scaleY
 
     const ctx = canvas.getContext('2d')
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.75)'
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)'
     ctx.beginPath()
-    ctx.arc(x, y, 12, 0, Math.PI * 2)
+    ctx.arc(x, y, (brushSize * scaleX) / 2, 0, Math.PI * 2)
     ctx.fill()
     setHasMask(true)
   }
 
-  const stopPaint = () => {
-    if (!isPaintingRef.current) return
+  const stopModalPaint = () => {
     isPaintingRef.current = false
-    if (maskCanvasRef.current) {
-      const ctx = maskCanvasRef.current.getContext('2d')
-      setMaskData(ctx.getImageData(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height))
-    }
   }
 
-  const clearMask = () => {
-    initMaskCanvas()
+  const clearModalMask = () => {
+    if (!modalCanvasRef.current) return
+    const canvas = modalCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    setHasMask(false)
+    setMaskCanvasElement(null)
+  }
+
+  const saveModalMask = () => {
+    if (modalCanvasRef.current) {
+      // Save canvas state
+      const clone = document.createElement('canvas')
+      clone.width = modalCanvasRef.current.width
+      clone.height = modalCanvasRef.current.height
+      clone.getContext('2d').drawImage(modalCanvasRef.current, 0, 0)
+      setMaskCanvasElement(clone)
+    }
+    setIsMaskModalOpen(false)
   }
 
   const applyMaskToImageData = (img) => {
-    if (!maskData) return
+    if (!maskCanvasElement) return
+    const maskCtx = maskCanvasElement.getContext('2d')
+    const maskData = maskCtx.getImageData(0, 0, maskCanvasElement.width, maskCanvasElement.height)
+
     const wRatio = maskData.width / img.width
     const hRatio = maskData.height / img.height
 
@@ -140,8 +168,8 @@ export default function ImageCarver() {
     setError('')
 
     const srcImg = imgRef.current
-    let w = useHigherQuality ? srcImg.naturalWidth : (srcImg.clientWidth || 500)
-    let h = useHigherQuality ? srcImg.naturalHeight : (srcImg.clientHeight || 350)
+    let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
+    let h = useHigherQuality ? srcImg.naturalHeight : Math.min(srcImg.naturalHeight, Math.round((600 * srcImg.naturalHeight) / srcImg.naturalWidth))
     const ratio = w / h
 
     if (w > MAX_WIDTH_LIMIT) {
@@ -210,7 +238,7 @@ export default function ImageCarver() {
         setProgress(Math.round((step / steps) * 100))
       }
 
-      const res = await resizeImage({
+      await resizeImage({
         img,
         toWidth,
         toHeight,
@@ -312,8 +340,24 @@ export default function ImageCarver() {
               </div>
             </div>
 
-            {/* Visualization toggles */}
+            {/* Masking modal trigger button */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMaskModalOpen(true)}
+                  className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
+                >
+                  <Maximize2 size={13} />
+                  Buka Kanvas Masking (Pop-up & Zoom)
+                </button>
+                {hasMask && (
+                  <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                    ✓ Mask Objek Aktif
+                  </span>
+                )}
+              </div>
+
               <div className="flex items-center gap-4 text-[--color-text-2]">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -321,7 +365,7 @@ export default function ImageCarver() {
                     checked={showSeams}
                     onChange={(e) => setShowSeams(e.target.checked)}
                   />
-                  <span>Tampilkan Jalur Seam (Merah)</span>
+                  <span>Jalur Seam (Merah)</span>
                 </label>
 
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -330,19 +374,9 @@ export default function ImageCarver() {
                     checked={showEnergyMap}
                     onChange={(e) => setShowEnergyMap(e.target.checked)}
                   />
-                  <span>Tampilkan Energy Map</span>
+                  <span>Energy Map</span>
                 </label>
               </div>
-
-              {hasMask && (
-                <button
-                  onClick={clearMask}
-                  disabled={isResizing}
-                  className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                >
-                  <Trash2 size={13} /> Hapus Mask Merah
-                </button>
-              )}
             </div>
           </div>
 
@@ -381,31 +415,26 @@ export default function ImageCarver() {
 
           {/* Real-time Work Stages Grid */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* 1. Original Image with Mask Canvas */}
+            {/* 1. Original Image View */}
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  1. Gambar Asli & Masking Objek
+                  1. Gambar Asli
                 </span>
-                <span className="flex items-center gap-1 text-[11px] text-[--color-text-3]">
-                  <MousePointer size={12} /> Kuas merah untuk hapus objek
-                </span>
+                <button
+                  onClick={() => setIsMaskModalOpen(true)}
+                  className="text-xs text-[--color-brand] hover:underline flex items-center gap-1 font-medium"
+                >
+                  <Paintbrush size={12} /> Edit Masking
+                </button>
               </div>
-              <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2] cursor-crosshair">
+              <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2]">
                 <img
                   ref={imgRef}
                   src={imageSrc}
                   alt="Original"
                   onLoad={onImgLoad}
-                  className="block max-h-[360px] w-auto pointer-events-none select-none"
-                />
-                <canvas
-                  ref={maskCanvasRef}
-                  onMouseDown={startPaint}
-                  onMouseMove={paint}
-                  onMouseUp={stopPaint}
-                  onMouseLeave={stopPaint}
-                  className="absolute inset-0 block h-full w-full pointer-events-auto opacity-75"
+                  className="block max-h-[360px] w-auto select-none"
                 />
               </div>
             </div>
@@ -436,10 +465,10 @@ export default function ImageCarver() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
                     <Activity size={14} className="text-[--color-brand]" />
-                    3. Dual-Gradient Energy Map (Visualisasi Matriks Gradien Energi)
+                    3. Dual-Gradient Energy Map (Visualisasi Matriks Energi Piksel)
                   </span>
                   <span className="text-[11px] text-[--color-text-3]">
-                    Piksel putih = energi tinggi (dilindungi) | Piksel hitam = energi rendah (dipotong)
+                    Area hitam = energi rendah (kandidat potong) | Area putih = energi tinggi (dilindungi)
                   </span>
                 </div>
                 <div className="flex items-center justify-center min-h-[160px] overflow-hidden rounded border border-[--color-border] bg-black/90 p-2">
@@ -475,6 +504,122 @@ export default function ImageCarver() {
               >
                 <Download size={16} /> Download Gambar Hasil
               </a>
+            </div>
+          )}
+
+          {/* Pop-up Fullscreen Masking & Zoom Modal */}
+          {isMaskModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-fade-in">
+              <div className="flex h-[92vh] w-[95vw] max-w-6xl flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between border-b border-[--color-border] px-5 py-3 bg-[--color-surface]">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
+                      <Paintbrush size={16} />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-[--color-text]">
+                        Kanvas Masking Objek (Hapus Objek Tertarget)
+                      </h3>
+                      <p className="text-[11px] text-[--color-text-3]">
+                        Warnai area merah pada objek yang ingin dihilangkan dari foto
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={saveModalMask}
+                      className="flex items-center gap-1.5 rounded bg-[--color-brand] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[--color-brand-hover] transition-colors"
+                    >
+                      <Check size={14} /> Selesai & Terapkan
+                    </button>
+                    <button
+                      onClick={() => setIsMaskModalOpen(false)}
+                      className="rounded p-1.5 text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text]"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Toolbar: Zoom & Brush Controls */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-5 py-2 text-xs">
+                  {/* Zoom Controls */}
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[--color-text-3]">Zoom:</span>
+                    <button
+                      onClick={() => setZoomLevel((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut size={14} />
+                    </button>
+                    <span className="w-12 text-center font-mono font-bold text-[--color-text]">
+                      {Math.round(zoomLevel * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setZoomLevel((z) => Math.min(3, Number((z + 0.25).toFixed(2))))}
+                      className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]"
+                      title="Zoom In"
+                    >
+                      <ZoomIn size={14} />
+                    </button>
+                    <button
+                      onClick={() => setZoomLevel(1)}
+                      className="text-xs text-[--color-brand] hover:underline ml-1"
+                    >
+                      Reset (100%)
+                    </button>
+                  </div>
+
+                  {/* Brush Size Controls */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-[--color-text-3]">Ukuran Kuas:</span>
+                    <input
+                      type="range"
+                      min="6"
+                      max="80"
+                      value={brushSize}
+                      onChange={(e) => setBrushSize(Number(e.target.value))}
+                      className="w-28"
+                    />
+                    <span className="w-8 font-mono text-xs text-[--color-text]">{brushSize}px</span>
+                  </div>
+
+                  {/* Clear button */}
+                  <div>
+                    <button
+                      onClick={clearModalMask}
+                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
+                    >
+                      <Trash2 size={13} /> Bersihkan Semua Mask
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Interactive Canvas Scrollable Body */}
+                <div className="relative flex-1 overflow-auto bg-neutral-900 p-8 flex items-center justify-center cursor-crosshair select-none">
+                  <div
+                    className="relative inline-block shadow-2xl transition-transform duration-100 origin-center"
+                    style={{ transform: `scale(${zoomLevel})` }}
+                  >
+                    <img
+                      src={imageSrc}
+                      alt="Mask Target"
+                      className="block max-h-[70vh] w-auto max-w-[80vw] object-contain pointer-events-none select-none"
+                    />
+                    <canvas
+                      ref={modalCanvasRef}
+                      onMouseDown={startModalPaint}
+                      onMouseMove={paintModal}
+                      onMouseUp={stopModalPaint}
+                      onMouseLeave={stopModalPaint}
+                      className="absolute inset-0 block h-full w-full pointer-events-auto opacity-75"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
