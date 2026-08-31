@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+:root {
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-light: #eff6ff;
+  --color-brand-text: #1d4ed8;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-surface-3: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-text: #0f172a;
+  --color-text-2: #475569;
+  --color-text-3: #94a3b8;
+  --color-success: #16a34a;
+  --color-success-light: #f0fdf4;
+  --color-danger: #dc2626;
+  --color-danger-light: #fef2f2;
+  --color-warning: #d97706;
+  --color-warning-light: #fffbeb;
+}
+
+.dark {
+  --color-brand: #3b82f6;
+  --color-brand-hover: #60a5fa;
+  --color-brand-light: #1e293b;
+  --color-brand-text: #93c5fd;
+  --color-surface: #0f172a;
+  --color-surface-2: #020617;
+  --color-surface-3: #1e293b;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-text: #f8fafc;
+  --color-text-2: #94a3b8;
+  --color-text-3: #64748b;
+  --color-success: #22c55e;
+  --color-success-light: #052e16;
+  --color-danger: #ef4444;
+  --color-danger-light: #450a0a;
+  --color-warning: #f59e0b;
+  --color-warning-light: #451a03;
+}
+
+* {
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+/* Custom interactive UI classes */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+button:active:not(:disabled), a.btn:active {
+  transform: scale(0.985);
+}
+
+/* Interactive Card Hover */
+.interactive-card {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-brand);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-surface-3); }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-3); }
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-color: var(--color-brand); }
+  50% { border-color: var(--color-brand-hover); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.drop-active {
+  animation: pulseBorder 1s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 25%;
+  height: 100%;
+  background: var(--color-brand);
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+/* Pulsing text hover hint */
+@keyframes tagPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.tag-pulse {
+  animation: tagPulse 1.8s ease-in-out infinite;
+}
