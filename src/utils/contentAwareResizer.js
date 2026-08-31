@@ -1,11 +1,8 @@
-/**
- * Exact implementation of js-image-carver algorithm (by Oleksii Trekhleb).
- * Based on Seam Carving for Content-Aware Image Resizing by Shai Avidan & Ariel Shamir.
- */
+/* eslint-disable no-await-in-loop, no-param-reassign, object-curly-newline */
 
 export const ALPHA_DELETE_THRESHOLD = 244
-export const MAX_WIDTH_LIMIT = 1200
-export const MAX_HEIGHT_LIMIT = 1200
+export const MAX_WIDTH_LIMIT = 1500
+export const MAX_HEIGHT_LIMIT = 1500
 
 export const getPixel = (img, { x, y }) => {
   const i = y * img.width + x
@@ -27,7 +24,11 @@ const getPixelDeleteEnergy = () => {
 }
 
 const matrix = (w, h, filler) => {
-  return new Array(h).fill(null).map(() => new Array(w).fill(filler))
+  return new Array(h)
+    .fill(null)
+    .map(() => {
+      return new Array(w).fill(filler)
+    })
 }
 
 const getPixelEnergy = (left, middle, right) => {
@@ -45,20 +46,20 @@ const getPixelEnergy = (left, middle, right) => {
     rEnergy = (rR - mR) ** 2 + (rG - mG) ** 2 + (rB - mB) ** 2
   }
 
-  return mA > ALPHA_DELETE_THRESHOLD ? lEnergy + rEnergy : getPixelDeleteEnergy()
+  return mA > ALPHA_DELETE_THRESHOLD ? (lEnergy + rEnergy) : getPixelDeleteEnergy()
 }
 
 const getPixelEnergyH = (img, { w }, { x, y }) => {
-  const left = x - 1 >= 0 ? getPixel(img, { x: x - 1, y }) : null
+  const left = (x - 1) >= 0 ? getPixel(img, { x: x - 1, y }) : null
   const middle = getPixel(img, { x, y })
-  const right = x + 1 < w ? getPixel(img, { x: x + 1, y }) : null
+  const right = (x + 1) < w ? getPixel(img, { x: x + 1, y }) : null
   return getPixelEnergy(left, middle, right)
 }
 
 const getPixelEnergyV = (img, { h }, { x, y }) => {
-  const top = y - 1 >= 0 ? getPixel(img, { x, y: y - 1 }) : null
+  const top = (y - 1) >= 0 ? getPixel(img, { x, y: y - 1 }) : null
   const middle = getPixel(img, { x, y })
-  const bottom = y + 1 < h ? getPixel(img, { x, y: y + 1 }) : null
+  const bottom = (y + 1) < h ? getPixel(img, { x, y: y + 1 }) : null
   return getPixelEnergy(top, middle, bottom)
 }
 
@@ -84,7 +85,7 @@ export const calculateEnergyMapV = (img, { w, h }) => {
 
 const reCalculateEnergyMapH = (img, { w, h }, energyMap, seam) => {
   seam.forEach(({ x: seamX, y: seamY }) => {
-    for (let x = seamX; x < w - 1; x += 1) {
+    for (let x = seamX; x < (w - 1); x += 1) {
       energyMap[seamY][x] = energyMap[seamY][x + 1]
     }
     energyMap[seamY][seamX] = getPixelEnergyH(img, { w, h }, { x: seamX, y: seamY })
@@ -94,7 +95,7 @@ const reCalculateEnergyMapH = (img, { w, h }, energyMap, seam) => {
 
 const reCalculateEnergyMapV = (img, { w, h }, energyMap, seam) => {
   seam.forEach(({ x: seamX, y: seamY }) => {
-    for (let y = seamY; y < h - 1; y += 1) {
+    for (let y = seamY; y < (h - 1); y += 1) {
       energyMap[y][seamX] = energyMap[y + 1][seamX]
     }
     energyMap[seamY][seamX] = getPixelEnergyV(img, { w, h }, { x: seamX, y: seamY })
@@ -118,7 +119,7 @@ export const findLowEnergySeamH = (energyMap, { w, h }) => {
     for (let x = 0; x < w; x += 1) {
       let minPrevEnergy = Infinity
       let minPrevX = x
-      for (let i = x - 1; i <= x + 1; i += 1) {
+      for (let i = (x - 1); i <= (x + 1); i += 1) {
         if (i >= 0 && i < w && seamsMap[y - 1][i].energy < minPrevEnergy) {
           minPrevEnergy = seamsMap[y - 1][i].energy
           minPrevX = i
@@ -144,9 +145,12 @@ export const findLowEnergySeamH = (energyMap, { w, h }) => {
   }
 
   const seam = []
-  if (!lastMinCoordinate) return seam
+  if (!lastMinCoordinate) {
+    return seam
+  }
 
   const { x: lastMinX, y: lastMinY } = lastMinCoordinate
+
   let currentSeam = seamsMap[lastMinY][lastMinX]
   while (currentSeam) {
     seam.push(currentSeam.coordinate)
@@ -178,7 +182,7 @@ export const findLowEnergySeamV = (energyMap, { w, h }) => {
     for (let y = 0; y < h; y += 1) {
       let minPrevEnergy = Infinity
       let minPrevY = y
-      for (let i = y - 1; i <= y + 1; i += 1) {
+      for (let i = (y - 1); i <= (y + 1); i += 1) {
         if (i >= 0 && i < h && seamsMap[i][x - 1].energy < minPrevEnergy) {
           minPrevEnergy = seamsMap[i][x - 1].energy
           minPrevY = i
@@ -204,9 +208,12 @@ export const findLowEnergySeamV = (energyMap, { w, h }) => {
   }
 
   const seam = []
-  if (!lastMinCoordinate) return seam
+  if (!lastMinCoordinate) {
+    return seam
+  }
 
   const { x: lastMinX, y: lastMinY } = lastMinCoordinate
+
   let currentSeam = seamsMap[lastMinY][lastMinX]
   while (currentSeam) {
     seam.push(currentSeam.coordinate)
@@ -224,7 +231,7 @@ export const findLowEnergySeamV = (energyMap, { w, h }) => {
 
 const deleteSeamH = (img, seam, { w }) => {
   seam.forEach(({ x: seamX, y: seamY }) => {
-    for (let x = seamX; x < w - 1; x += 1) {
+    for (let x = seamX; x < (w - 1); x += 1) {
       const nextPixel = getPixel(img, { x: x + 1, y: seamY })
       setPixel(img, { x, y: seamY }, nextPixel)
     }
@@ -233,7 +240,7 @@ const deleteSeamH = (img, seam, { w }) => {
 
 const deleteSeamV = (img, seam, { h }) => {
   seam.forEach(({ x: seamX, y: seamY }) => {
-    for (let y = seamY; y < h - 1; y += 1) {
+    for (let y = seamY; y < (h - 1); y += 1) {
       const nextPixel = getPixel(img, { x: seamX, y: y + 1 })
       setPixel(img, { x: seamX, y }, nextPixel)
     }
@@ -242,19 +249,16 @@ const deleteSeamV = (img, seam, { h }) => {
 
 const wait = (time = 0) => new Promise((resolve) => setTimeout(resolve, time))
 
-export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled }) => {
-  const pxToRemoveH = img.width - toWidth
-  const pxToRemoveV = img.height - toHeight
-
-  const size = { w: img.width, h: img.height }
-  const globalSteps = Math.max(0, pxToRemoveH) + Math.max(0, pxToRemoveV)
-  let globalStep = 0
+const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled }) => {
+  const pxToRemove = img.width - toSize
+  if (pxToRemove < 0) {
+    throw new Error('Upsizing is not supported')
+  }
 
   let energyMap = null
   let seam = null
 
-  // 1. Horizontal Reduction (Width)
-  for (let i = 0; i < pxToRemoveH; i += 1) {
+  for (let i = 0; i < pxToRemove; i += 1) {
     if (isCancelled && isCancelled()) break
 
     energyMap = energyMap && seam
@@ -262,28 +266,35 @@ export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCance
       : calculateEnergyMapH(img, size)
 
     seam = findLowEnergySeamH(energyMap, size)
+
     deleteSeamH(img, seam, size)
 
-    globalStep += 1
     if (onIteration) {
       await onIteration({
+        energyMap,
         seam,
         img,
-        size: { ...size },
-        energyMap,
-        step: globalStep,
-        steps: globalSteps,
+        size,
+        step: i,
+        steps: pxToRemove,
       })
     }
 
     size.w -= 1
     await wait(0)
   }
+}
 
-  // 2. Vertical Reduction (Height)
-  energyMap = null
-  seam = null
-  for (let i = 0; i < pxToRemoveV; i += 1) {
+const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }) => {
+  const pxToRemove = img.height - toSize
+  if (pxToRemove < 0) {
+    throw new Error('Upsizing is not supported')
+  }
+
+  let energyMap = null
+  let seam = null
+
+  for (let i = 0; i < pxToRemove; i += 1) {
     if (isCancelled && isCancelled()) break
 
     energyMap = energyMap && seam
@@ -291,47 +302,84 @@ export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCance
       : calculateEnergyMapV(img, size)
 
     seam = findLowEnergySeamV(energyMap, size)
+
     deleteSeamV(img, seam, size)
 
-    globalStep += 1
     if (onIteration) {
       await onIteration({
+        energyMap,
         seam,
         img,
-        size: { ...size },
-        energyMap,
-        step: globalStep,
-        steps: globalSteps,
+        size,
+        step: i,
+        steps: pxToRemove,
       })
     }
 
     size.h -= 1
     await wait(0)
   }
+}
+
+export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled }) => {
+  const pxToRemoveH = img.width - toWidth
+  const pxToRemoveV = img.height - toHeight
+
+  const size = { w: img.width, h: img.height }
+
+  const globalSteps = Math.max(0, pxToRemoveH) + Math.max(0, pxToRemoveV)
+  let globalStep = 0
+
+  const onResizeIteration = async (onIterationArgs) => {
+    const { seam, img: onIterationImg, size: onIterationSize, energyMap } = onIterationArgs
+    globalStep += 1
+
+    if (onIteration) {
+      await onIteration({
+        seam,
+        img: onIterationImg,
+        size: { ...onIterationSize },
+        energyMap,
+        step: globalStep,
+        steps: globalSteps,
+      })
+    }
+  }
+
+  if (toWidth < img.width) {
+    await resizeImageWidth({ img, toSize: toWidth, size, onIteration: onResizeIteration, isCancelled })
+  }
+
+  if (toHeight < img.height) {
+    await resizeImageHeight({ img, toSize: toHeight, size, onIteration: onResizeIteration, isCancelled })
+  }
 
   return { img, size }
 }
 
-/** Normalize 2D Energy Map for visualization canvas rendering */
-export const normalizeEnergyMap = (energyMap, width, height, maxNormalizedEnergy = 255) => {
+const getMaxEnergy = (energyMap, width, height) => {
   let maxEnergy = 0
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      if (energyMap[y][x] !== Infinity && energyMap[y][x] > maxEnergy) {
-        maxEnergy = energyMap[y][x]
+      if (energyMap[y][x] !== Infinity) {
+        maxEnergy = Math.max(maxEnergy, energyMap[y][x])
       }
     }
   }
+  return maxEnergy
+}
 
-  const normalized = matrix(width, height, 0)
-  if (maxEnergy === 0) return normalized
+export const normalizeEnergyMap = (energyMap, width, height, maxNormalizedEnergy = 255) => {
+  const maxEnergy = getMaxEnergy(energyMap, width, height)
+  const normalizedMap = matrix(width, height, 0)
+  if (maxEnergy === 0) return normalizedMap
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const e = energyMap[y][x]
-      normalized[y][x] = e === Infinity || e < 0 ? 0 : Math.floor((e / maxEnergy) * maxNormalizedEnergy)
+      normalizedMap[y][x] = e === Infinity || e < 0 ? 0 : Math.floor((e / maxEnergy) * maxNormalizedEnergy)
     }
   }
 
-  return normalized
+  return normalizedMap
 }

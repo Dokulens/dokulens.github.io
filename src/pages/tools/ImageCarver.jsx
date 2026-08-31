@@ -25,9 +25,9 @@ export default function ImageCarver() {
   const [workingSize, setWorkingSize] = useState(null)
   const [resizedImgSrc, setResizedImgSrc] = useState(null)
 
-  // Sliders default to 100% of original image size
-  const [toWidthScale, setToWidthScale] = useState(100)
-  const [toHeightScale, setToHeightScale] = useState(100)
+  // Sliders default to 80% width and 90% height
+  const [toWidthScale, setToWidthScale] = useState(80)
+  const [toHeightScale, setToHeightScale] = useState(90)
   const [useHigherQuality, setUseHigherQuality] = useState(false)
   const [showEnergyMap, setShowEnergyMap] = useState(true)
   const [showSeams, setShowSeams] = useState(true)
@@ -56,8 +56,8 @@ export default function ImageCarver() {
   const handleFile = ([f]) => {
     setFile(f)
     onReset()
-    setToWidthScale(100)
-    setToHeightScale(100)
+    setToWidthScale(80)
+    setToHeightScale(90)
     setHasMask(false)
     setMaskCanvasElement(null)
     const url = URL.createObjectURL(f)
@@ -84,8 +84,6 @@ export default function ImageCarver() {
     const w = imgRef.current.naturalWidth
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
-    setToWidthScale(100)
-    setToHeightScale(100)
     renderOriginalOverlayMask()
   }
 
@@ -355,7 +353,7 @@ export default function ImageCarver() {
               </div>
             )}
 
-            {/* Scale Sliders (Default 100%) */}
+            {/* Scale Sliders */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs">
@@ -447,13 +445,11 @@ export default function ImageCarver() {
           {!resizedImgSrc && !isResizing && (
             <button
               onClick={startCarving}
-              disabled={isResizing || (toWidthScale === 100 && toHeightScale === 100 && !hasMask)}
+              disabled={isResizing}
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               <Shrink size={16} />
-              {toWidthScale === 100 && toHeightScale === 100 && !hasMask
-                ? 'Ubah slider lebar/tinggi atau beri mask objek untuk mulai carve'
-                : 'Mulai Content-Aware Resize'}
+              Mulai Content-Aware Resize ({toWidthScale}% × {toHeightScale}%)
             </button>
           )}
 
