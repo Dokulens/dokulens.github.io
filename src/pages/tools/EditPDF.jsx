@@ -3,7 +3,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import {
   ChevronLeft, ChevronRight, Trash2,
   ScanText, Loader2, Sparkles, Eye, EyeOff,
-  Pipette, Type
+  Type, RefreshCw
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -12,9 +12,9 @@ import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 
 const FONT_OPTIONS = [
-  { id: 'Helvetica', label: 'Helvetica / Sans-Serif (Standard)', regular: StandardFonts.Helvetica, bold: StandardFonts.HelveticaBold },
-  { id: 'TimesRoman', label: 'Times / Serif (Formal/Legal)', regular: StandardFonts.TimesRoman, bold: StandardFonts.TimesRomanBold },
-  { id: 'Courier', label: 'Courier / Monospace (Code/Table)', regular: StandardFonts.Courier, bold: StandardFonts.CourierBold },
+  { id: 'Helvetica', label: 'Helvetica / Arial (Sans-Serif)', regular: StandardFonts.Helvetica, bold: StandardFonts.HelveticaBold },
+  { id: 'TimesRoman', label: 'Times Roman (Serif / Formal)', regular: StandardFonts.TimesRoman, bold: StandardFonts.TimesRomanBold },
+  { id: 'Courier', label: 'Courier (Monospace / Ketikan Mesin)', regular: StandardFonts.Courier, bold: StandardFonts.CourierBold },
 ]
 
 export default function EditPDF() {
@@ -91,18 +91,30 @@ export default function EditPDF() {
     const xPct = ((e.clientX - rect.left) / rect.width) * 100
     const yPct = ((e.clientY - rect.top) / rect.height) * 100
 
+    const pW = pageData?.pageWidth || 595.28
+    const pH = pageData?.pageHeight || 841.89
+
+    const pdfX = (xPct / 100) * pW
+    const pdfY = pH - (yPct / 100) * pH - 12
+
     const newId = `custom-${currentPage}-${crypto.randomUUID().slice(0, 6)}`
     const newBlock = {
       id: newId,
       page: currentPage,
       originalText: '',
       text: 'Teks Baru',
-      fontSize: 14,
+      fontSize: 12,
       fontFamily: 'Helvetica',
+      pdfX,
+      pdfY,
+      pdfWidth: 60,
+      pdfHeight: 12,
+      pageWidth: pW,
+      pageHeight: pH,
       xPct,
       yPct,
-      wPct: 20,
-      hPct: 4,
+      wPct: 15,
+      hPct: 3,
       isEdited: true,
       isCustom: true,
       color: '#000000',
@@ -152,7 +164,6 @@ export default function EditPDF() {
       const arrayBuf = await readAsArrayBuffer(file)
       const doc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
 
-      // Embed available standard fonts
       const fonts = {
         Helvetica: { regular: await doc.embedFont(StandardFonts.Helvetica), bold: await doc.embedFont(StandardFonts.HelveticaBold) },
         TimesRoman: { regular: await doc.embedFont(StandardFonts.TimesRoman), bold: await doc.embedFont(StandardFonts.TimesRomanBold) },
@@ -175,7 +186,7 @@ export default function EditPDF() {
         const bgColor = block.bgColor ? hexToRgb(block.bgColor) : { r: 1, g: 1, b: 1 }
 
         if (block.isCustom) {
-          // Custom inserted text
+          // Custom inserted text at baseline
           const itemX = (block.xPct / 100) * pWidth
           const itemY = pHeight - (block.yPct / 100) * pHeight - fontSize
 
@@ -187,22 +198,22 @@ export default function EditPDF() {
             color: rgb(textColor.r, textColor.g, textColor.b),
           })
         } else {
-          // Detected text modification:
-          // 1. Cover the old text with the sampled surrounding background color
+          // Detected text in-place modification:
+          // 1. Cover original text with exact bounding rectangle matching baseline & height
           const origX = block.pdfX
           const origY = block.pdfY
-          const origW = Math.max(block.pdfWidth, font.widthOfTextAtSize(block.originalText || '', block.pdfHeight))
-          const origH = block.pdfHeight * 1.2
+          const origW = Math.max(block.pdfWidth, font.widthOfTextAtSize(block.originalText || '', fontSize))
+          const coverHeight = fontSize * 1.25
 
           page.drawRectangle({
-            x: origX - 1,
-            y: origY - 2,
-            width: origW + 3,
-            height: origH + 3,
+            x: origX - 0.5,
+            y: origY - (fontSize * 0.25),
+            width: origW + 1.5,
+            height: coverHeight,
             color: rgb(bgColor.r, bgColor.g, bgColor.b),
           })
 
-          // 2. Draw replacement text cleanly directly on top
+          // 2. Draw replacement text at the exact same baseline coordinate
           if (block.text && block.text.trim()) {
             page.drawText(block.text, {
               x: origX,
@@ -231,8 +242,8 @@ export default function EditPDF() {
 
   return (
     <ToolShell
-      title="Edit PDF (Deteksi Teks & Font)"
-      description="Teks, font, dan warna latar sekitar dokumen dideteksi otomatis. Klik langsung teks untuk mengganti kata."
+      title="Edit PDF (Deteksi Teks & Font Presisi)"
+      description="Teks, font, posisi baseline, dan warna latar sekitar dokumen dideteksi otomatis secara 1:1. Klik langsung teks untuk mengganti kata tanpa pergeseran posisi."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diedit" />
 
@@ -283,7 +294,7 @@ export default function EditPDF() {
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="shrink-0 text-[--color-brand]" />
               <span>
-                <strong>Arahkan kursor & klik teks</strong> pada dokumen. Warna latar sekitar teks otomatis disesuaikan saat Anda mengedit.
+                <strong>Arahkan kursor & klik teks</strong> pada dokumen untuk mengedit kata langsung di posisinya.
               </span>
             </div>
             {editedCount > 0 && (
@@ -317,7 +328,7 @@ export default function EditPDF() {
                   className="block max-h-[650px] w-auto pointer-events-none"
                 />
 
-                {/* Detected & Custom Text Overlays */}
+                {/* Detected & Custom Text Overlays (Exact pixel scale) */}
                 {currentPageBlocks.map((b) => {
                   const isSelected = b.id === selectedId
                   const isHovered = b.id === hoveredId
@@ -333,26 +344,28 @@ export default function EditPDF() {
                         setSelectedId(b.id)
                       }}
                       className={[
-                        'text-block-item absolute cursor-pointer rounded transition-all duration-150',
+                        'text-block-item absolute cursor-pointer rounded transition-all duration-100 select-none',
                         hasChanged ? 'font-semibold ring-1.5 ring-[--color-brand]' : '',
                         !hasChanged && showDetectedBoxes
                           ? isHovered
-                            ? 'bg-blue-500/25 ring-1.5 ring-blue-500 scale-[1.02]'
+                            ? 'bg-blue-500/25 ring-1.5 ring-blue-500'
                             : 'bg-blue-500/10 hover:bg-blue-500/20 ring-0.5 ring-blue-400/40'
                           : '',
-                        isSelected ? 'ring-2 ring-[--color-brand] z-10 scale-[1.02]' : 'z-5',
+                        isSelected ? 'ring-2 ring-[--color-brand] z-10' : 'z-5',
                       ].join(' ')}
                       style={{
                         left: `${b.xPct}%`,
                         top: `${b.yPct}%`,
                         backgroundColor: hasChanged ? b.bgColor || '#ffffff' : undefined,
                         color: hasChanged ? b.color : 'transparent',
-                        fontSize: `${Math.max(9, (b.fontSize || 12) * 0.9)}px`,
+                        fontSize: `${b.fontSize}px`,
                         fontWeight: b.bold ? 'bold' : 'normal',
-                        lineHeight: 1.1,
+                        lineHeight: 1.0,
+                        padding: 0,
+                        margin: 0,
                       }}
                     >
-                      <span className={hasChanged ? 'px-0.5' : 'opacity-0 px-0.5 select-none'}>
+                      <span className={hasChanged ? '' : 'opacity-0 select-none'}>
                         {b.text || ' '}
                       </span>
                     </div>
@@ -437,8 +450,9 @@ export default function EditPDF() {
                   <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">Ukuran Font: {selectedBlock.fontSize}pt</label>
                   <input
                     type="number"
-                    min="6"
+                    min="4"
                     max="72"
+                    step="0.5"
                     value={selectedBlock.fontSize}
                     onChange={(e) => updateBlock(selectedBlock.id, 'fontSize', Number(e.target.value))}
                     className="w-full rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1.5 text-xs outline-none focus:border-[--color-brand]"

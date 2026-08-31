@@ -69,6 +69,9 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
   const viewport = page.getViewport({ scale })
   const textContent = await page.getTextContent()
 
+  const pageWidth = page.view[2] - page.view[0]
+  const pageHeight = page.view[3] - page.view[1]
+
   const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null
 
   const items = []
@@ -77,20 +80,23 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
     if (!item.str || !item.str.trim()) continue
 
     const tx = item.transform
+    // tx = [scaleX, skewY, skewX, scaleY, transX, transY]
     const pdfX = tx[4]
     const pdfY = tx[5]
-    const fontHeight = Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12
-    const pdfWidth = item.width || fontHeight * item.str.length * 0.6
+    const fontHeight = Math.hypot(tx[2], tx[3]) || Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12
+    const pdfWidth = item.width || fontHeight * item.str.length * 0.55
 
+    // Precise Viewport pixel coordinates (top-left)
     const x0 = pdfX * scale
     const y0 = viewport.height - (pdfY * scale) - (fontHeight * scale * 0.85)
-    const w0 = Math.max(12, pdfWidth * scale)
-    const h0 = Math.max(12, fontHeight * scale * 1.15)
+    const w0 = Math.max(8, pdfWidth * scale)
+    const h0 = Math.max(8, fontHeight * scale)
 
-    const xPct = (x0 / viewport.width) * 100
-    const yPct = (y0 / viewport.height) * 100
-    const wPct = (w0 / viewport.width) * 100
-    const hPct = (h0 / viewport.height) * 100
+    // Percentage of page width & height (0 to 100%)
+    const xPct = (pdfX / pageWidth) * 100
+    const yPct = ((pageHeight - pdfY - fontHeight * 0.85) / pageHeight) * 100
+    const wPct = (pdfWidth / pageWidth) * 100
+    const hPct = (fontHeight / pageHeight) * 100
 
     const fontName = (item.fontName || '').toLowerCase()
     const isBold = fontName.includes('bold') || fontName.includes('black') || fontName.includes('heavy') || fontName.includes('bolder') || fontName.includes('700')
@@ -110,15 +116,18 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
       page: pageNum,
       originalText: item.str,
       text: item.str,
-      fontSize: Math.round(fontHeight),
+      fontSize: Math.round(fontHeight * 10) / 10,
+      exactFontSize: fontHeight,
       pdfX,
       pdfY,
       pdfWidth,
       pdfHeight: fontHeight,
+      pageWidth,
+      pageHeight,
       xPct: Math.max(0, Math.min(100, xPct)),
       yPct: Math.max(0, Math.min(100, yPct)),
-      wPct: Math.max(1, Math.min(100, wPct)),
-      hPct: Math.max(1, Math.min(100, hPct)),
+      wPct: Math.max(0.5, Math.min(100, wPct)),
+      hPct: Math.max(0.5, Math.min(100, hPct)),
       fontFamily: fontCategory,
       fontNameRaw: item.fontName || 'Helvetica',
       bold: isBold,
