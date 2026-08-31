@@ -57,17 +57,6 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
         >
           <X size={16} />
         </button>
-
-        {/* Desktop minimize button */}
-        {!isCollapsed && (
-          <button
-            onClick={onToggleCollapse}
-            className="hidden lg:flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
-            title="Minimize Sidebar"
-          >
-            <PanelLeftClose size={15} />
-          </button>
-        )}
       </div>
 
       {/* Nav groups (Scrollbar completely hidden on minimize across Chrome & Firefox) */}

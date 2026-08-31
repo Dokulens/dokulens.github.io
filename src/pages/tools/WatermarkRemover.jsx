@@ -10,6 +10,8 @@ import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import {
   removeOfficialGeminiWatermark,
+  removeGeminiFromFrame,
+  getGeminiEngine,
   inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
@@ -258,7 +260,7 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Synchronized Video Watermark Removal
+  // Synchronized Video Watermark Removal — Gemini engine per-frame
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -273,20 +275,7 @@ export default function WatermarkRemover() {
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-
-    const maskCanvas = document.createElement('canvas')
-    maskCanvas.width = w
-    maskCanvas.height = h
-    const mCtx = maskCanvas.getContext('2d')
-    mCtx.fillStyle = '#ff0000'
-
-    const targetX = Math.round((videoBox.xPct / 100) * w)
-    const targetY = Math.round((videoBox.yPct / 100) * h)
-    const targetW = Math.round((videoBox.wPct / 100) * w)
-    const targetH = Math.round((videoBox.hPct / 100) * h)
-    mCtx.fillRect(targetX, targetY, targetW, targetH)
-    const maskData = mCtx.getImageData(0, 0, w, h).data
+    const ctx = canvas.getContext('2d')
 
     const stream = canvas.captureStream(30)
     try {
@@ -300,7 +289,10 @@ export default function WatermarkRemover() {
     let mimeType = 'video/webm;codecs=vp9'
     if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
 
-    const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 })
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: 12000000,
+    })
     const recordedChunks = []
 
     mediaRecorder.ondataavailable = (e) => {
@@ -308,6 +300,8 @@ export default function WatermarkRemover() {
     }
 
     try {
+      const engine = await getGeminiEngine()
+
       video.currentTime = 0
       video.playbackRate = 1.0
       await video.play()
@@ -331,7 +325,7 @@ export default function WatermarkRemover() {
           }
         }
 
-        const renderFrame = () => {
+        const renderFrame = async () => {
           if (isCancelledRef.current) {
             video.pause()
             try { mediaRecorder.stop() } catch {}
@@ -345,18 +339,23 @@ export default function WatermarkRemover() {
           }
 
           ctx.drawImage(video, 0, 0, w, h)
-          const frameData = ctx.getImageData(0, 0, w, h)
-          inpaintWatermark(frameData, maskData, 3)
-          ctx.putImageData(frameData, 0, 0)
+
+          try {
+            const result = await removeGeminiFromFrame(canvas, engine)
+            if (result && result.canvas) {
+              ctx.clearRect(0, 0, w, h)
+              ctx.drawImage(result.canvas, 0, 0)
+            }
+          } catch {}
 
           if (video.duration > 0) {
             setProgress(Math.round((video.currentTime / video.duration) * 100))
           }
 
           if ('requestVideoFrameCallback' in video) {
-            video.requestVideoFrameCallback(renderFrame)
+            video.requestVideoFrameCallback(() => renderFrame())
           } else {
-            requestAnimationFrame(renderFrame)
+            requestAnimationFrame(() => renderFrame())
           }
         }
 
@@ -501,28 +500,23 @@ export default function WatermarkRemover() {
               <div className="flex items-center justify-between border-b border-[--color-border] pb-3 text-xs">
                 <div className="flex items-center gap-2 font-bold text-[--color-text]">
                   <Video size={16} className="text-[--color-brand]" />
-                  <span>Area Watermark Video (Kecepatan Normal 1.0x)</span>
+                  <span>Penghapusan Watermark Video — Otomatis Gemini AI</span>
                 </div>
                 <span className="text-[11px] text-[--color-text-3]">
                   Durasi: {videoDuration ? `${videoDuration.toFixed(1)} detik` : 'Memuat…'}
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setVideoBox({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
-                >
-                  Preset Kanan Bawah (Gemini / AI Video)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVideoBox({ xPct: 3, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
-                >
-                  Preset Kiri Atas
-                </button>
+              <div className="flex items-start gap-3 rounded border border-[--color-brand]/30 bg-[--color-brand-light] p-3 text-xs">
+                <Sparkles size={16} className="mt-0.5 shrink-0 text-[--color-brand]" />
+                <div>
+                  <p className="font-bold text-[--color-brand]">Mode Otomatis — Engine Gemini Resmi</p>
+                  <p className="mt-0.5 text-[--color-text-2] leading-relaxed">
+                    Watermark AI di pojok kanan bawah akan dideteksi & dihapus secara otomatis dari seluruh frame video menggunakan engine resmi
+                    <code className="mx-0.5 rounded bg-[--color-surface-3] px-1 py-0.5 text-[10px]">@pilio/gemini-watermark-remover</code>.
+                    Tidak perlu seleksi manual — cukup klik "Hapus Watermark Video".
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -561,7 +555,7 @@ export default function WatermarkRemover() {
                     )}
                   </div>
                 ) : (
-                  <div ref={videoContainerRef} className="relative inline-block select-none">
+                  <div className="relative inline-block select-none">
                     <video
                       ref={videoRef}
                       src={mediaSrc}
@@ -569,34 +563,6 @@ export default function WatermarkRemover() {
                       onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
                       className="block max-h-[420px] w-auto rounded"
                     />
-
-                    <div
-                      onMouseDown={(e) => startVideoBoxDrag(e, 'move')}
-                      className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded select-none"
-                      style={{
-                        left: `${videoBox.xPct}%`,
-                        top: `${videoBox.yPct}%`,
-                        width: `${videoBox.wPct}%`,
-                        height: `${videoBox.hPct}%`,
-                      }}
-                    >
-                      <div
-                        onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}
-                        className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-nw-resize"
-                      />
-                      <div
-                        onMouseDown={(e) => startVideoBoxDrag(e, 'ne')}
-                        className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-ne-resize"
-                      />
-                      <div
-                        onMouseDown={(e) => startVideoBoxDrag(e, 'se')}
-                        className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-se-resize"
-                      />
-                      <div
-                        onMouseDown={(e) => startVideoBoxDrag(e, 'sw')}
-                        className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-sw-resize"
-                      />
-                    </div>
                   </div>
                 )}
               </div>

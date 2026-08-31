@@ -5,27 +5,46 @@
 
 import {
   removeWatermarkFromImage,
+  createWatermarkEngine,
   calculateWatermarkPosition,
   detectWatermarkConfig
 } from '@pilio/gemini-watermark-remover/browser'
 
-/**
- * Remove Gemini AI watermark using official @pilio/gemini-watermark-remover engine
- * Used by geminiwatermarkremover.io with reverse alpha blending & subpixel calibration.
- * @param {HTMLImageElement|HTMLCanvasElement} image - The source image element
- * @returns {Promise<{canvas: HTMLCanvasElement|OffscreenCanvas, meta: object}>}
- */
-export async function removeOfficialGeminiWatermark(image, options = {}) {
-  const result = await removeWatermarkFromImage(image, {
-    adaptiveMode: 'auto',
-    ...options,
-  })
-  return result
+let cachedEngine = null
+
+async function getEngine() {
+  if (!cachedEngine) {
+    cachedEngine = await createWatermarkEngine()
+  }
+  return cachedEngine
 }
 
 /**
- * Fast-Marching Telea Inpainting Algorithm for Custom Selected Logos / Watermarks
+ * Remove Gemini AI watermark using official engine
+ * @param {HTMLImageElement|HTMLCanvasElement} image
  */
+export async function removeOfficialGeminiWatermark(image, options = {}) {
+  return await removeWatermarkFromImage(image, {
+    adaptiveMode: 'auto',
+    ...options,
+  })
+}
+
+/**
+ * Remove Gemini watermark from a single video frame canvas (reuses engine for speed)
+ * @param {HTMLCanvasElement} frameCanvas - The video frame canvas
+ * @param {object} engine - Pre-cached WatermarkEngine instance
+ */
+export async function removeGeminiFromFrame(frameCanvas, engine) {
+  return await removeWatermarkFromImage(frameCanvas, {
+    engine,
+    adaptiveMode: 'auto',
+  })
+}
+
+export async function getGeminiEngine() {
+  return await getEngine()
+}
 export function inpaintWatermark(imageData, maskData, radius = 5) {
   const { width, height, data } = imageData
   const totalPixels = width * height
