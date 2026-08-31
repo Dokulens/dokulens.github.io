@@ -251,27 +251,31 @@ export default function WatermarkRemover() {
   }
 
   useEffect(() => {
-    if (isModalOpen && modalCanvasRef.current && maskCanvasRef.current) {
-      const modalCanvas = modalCanvasRef.current
-      modalCanvas.width = origDims.w
-      modalCanvas.height = origDims.h
-      const ctx = modalCanvas.getContext('2d')
-      ctx.drawImage(maskCanvasRef.current, 0, 0)
+    if (!isModalOpen) return
+    if (activeMedia === 'image' && modalCanvasRef.current && modalImgRef.current) {
+      const canvas = modalCanvasRef.current
+      const img = modalImgRef.current
+      const initCanvas = () => {
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        if (maskCanvasRef.current) ctx.drawImage(maskCanvasRef.current, 0, 0)
+      }
+      if (img.complete && img.naturalWidth > 0) initCanvas()
+      else img.onload = initCanvas
     }
-    // Video modal: draw first frame + existing mask
-    if (isModalOpen && videoModalCanvasRef.current && activeMedia === 'video' && videoRef.current) {
+    if (activeMedia === 'video' && videoModalCanvasRef.current && videoRef.current) {
       const vc = videoModalCanvasRef.current
       const vw = videoRef.current.videoWidth || 1280
       const vh = videoRef.current.videoHeight || 720
       vc.width = vw
       vc.height = vh
-      // Draw existing mask if any
-      if (videoMaskSrc) {
-        const ctx = vc.getContext('2d')
-        ctx.drawImage(videoMaskSrc, 0, 0)
-      }
+      const ctx = vc.getContext('2d')
+      ctx.clearRect(0, 0, vw, vh)
+      if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
     }
-  }, [isModalOpen])
+  }, [isModalOpen, activeMedia])
 
   // Precision Watermark Removal Process for Image
   const processImageWatermark = async () => {
@@ -641,7 +645,12 @@ export default function WatermarkRemover() {
                 {activeMedia === 'image' ? (
                   <div className="relative inline-block select-none">
                     <img
-                      ref={imgRef}
+                      ref={(el) => {
+                        imgRef.current = el
+                        if (el && el.complete && el.naturalWidth > 0) {
+                          initMaskCanvas(el.naturalWidth, el.naturalHeight)
+                        }
+                      }}
                       src={mediaSrc}
                       alt="Original"
                       className="block max-h-[420px] w-auto pointer-events-none rounded"
@@ -649,7 +658,8 @@ export default function WatermarkRemover() {
                     {removalMode === 'inpaint' && (
                       <canvas
                         ref={maskCanvasRef}
-                        className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
+                        className="absolute top-0 left-0 block pointer-events-none opacity-80 rounded"
+                        style={{ width: '100%', height: '100%' }}
                       />
                     )}
                   </div>
@@ -666,15 +676,16 @@ export default function WatermarkRemover() {
                       <canvas
                         ref={(el) => {
                           videoMaskCanvasRef.current = el
-                          if (el && videoMaskSrc) {
-                            el.width = videoRef.current?.videoWidth || 1280
-                            el.height = videoRef.current?.videoHeight || 720
+                          if (el && videoMaskSrc && videoRef.current) {
+                            el.width = videoRef.current.videoWidth || 1280
+                            el.height = videoRef.current.videoHeight || 720
                             const ctx = el.getContext('2d')
                             ctx.clearRect(0, 0, el.width, el.height)
                             ctx.drawImage(videoMaskSrc, 0, 0)
                           }
                         }}
-                        className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
+                        className="absolute top-0 left-0 block pointer-events-none opacity-80 rounded"
+                        style={{ width: '100%', height: '100%' }}
                       />
                     )}
                     {removalMode === 'inpaint' && (
@@ -846,52 +857,54 @@ export default function WatermarkRemover() {
                     <span className="text-[11px] font-mono text-gray-500 w-8">{brushSize}px</span>
                   </div>
 
-                  {/* Preview Canvas */}
-                  <div className="relative flex justify-center rounded-lg border border-gray-200 bg-gray-50 p-2 overflow-hidden min-h-[200px] max-h-[50vh]">
-                    {activeMedia === 'video' ? (
-                      <>
-                        <canvas
-                          ref={(el) => {
-                            videoModalImgRef.current = el
-                            if (el && videoRef.current) {
-                              const vw = videoRef.current.videoWidth || 1280
-                              const vh = videoRef.current.videoHeight || 720
-                              el.width = vw
-                              el.height = vh
-                              const c = el.getContext('2d')
-                              const tempVid = document.createElement('video')
-                              tempVid.src = mediaSrc
-                              tempVid.muted = true
-                              tempVid.onloadeddata = () => {
-                                tempVid.currentTime = 0.5
-                                tempVid.onseeked = () => c.drawImage(tempVid, 0, 0, vw, vh)
-                              }
+                {/* Preview Canvas */}
+                <div className="relative flex justify-center rounded-lg border border-gray-200 bg-gray-50 p-2 overflow-hidden min-h-[200px] max-h-[50vh]">
+                  {activeMedia === 'video' ? (
+                    <div className="relative inline-flex items-center justify-center">
+                      <canvas
+                        ref={(el) => {
+                          videoModalImgRef.current = el
+                          if (el && videoRef.current) {
+                            const vw = videoRef.current.videoWidth || 1280
+                            const vh = videoRef.current.videoHeight || 720
+                            el.width = vw
+                            el.height = vh
+                            const c = el.getContext('2d')
+                            const tempVid = document.createElement('video')
+                            tempVid.src = mediaSrc
+                            tempVid.muted = true
+                            tempVid.onloadeddata = () => {
+                              tempVid.currentTime = 0.5
+                              tempVid.onseeked = () => c.drawImage(tempVid, 0, 0, vw, vh)
                             }
-                          }}
-                          className="block max-h-[46vh] w-auto rounded pointer-events-none"
-                        />
-                        <canvas
-                          ref={videoModalCanvasRef}
-                          onMouseDown={startVideoModalPaint}
-                          onMouseMove={paintVideoModal}
-                          onMouseUp={stopVideoModalPaint}
-                          onMouseLeave={stopVideoModalPaint}
-                          className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[46vh] w-auto rounded pointer-events-none" />
-                        <canvas
-                          ref={modalCanvasRef}
-                          onMouseDown={startModalPaint}
-                          onMouseMove={paintModal}
-                          onMouseUp={stopModalPaint}
-                          onMouseLeave={stopModalPaint}
-                          className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80 rounded"
-                        />
-                      </>
-                    )}
+                          }
+                        }}
+                        className="block max-h-[46vh] max-w-full rounded pointer-events-none"
+                      />
+                      <canvas
+                        ref={videoModalCanvasRef}
+                        onMouseDown={startVideoModalPaint}
+                        onMouseMove={paintVideoModal}
+                        onMouseUp={stopVideoModalPaint}
+                        onMouseLeave={stopVideoModalPaint}
+                        className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative inline-flex items-center justify-center">
+                      <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[46vh] max-w-full rounded pointer-events-none" />
+                      <canvas
+                        ref={modalCanvasRef}
+                        onMouseDown={startModalPaint}
+                        onMouseMove={paintModal}
+                        onMouseUp={stopModalPaint}
+                        onMouseLeave={stopModalPaint}
+                        className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </div>
+                  )}
                   </div>
                 </div>
 
