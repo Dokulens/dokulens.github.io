@@ -1,7 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist'
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url'
 
-// Use CDN worker matching installed version to avoid bundling issues
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+// Use local bundled worker for 100% offline PWA support
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
 
 export { pdfjsLib }
 
@@ -29,7 +30,6 @@ export async function renderPageToDataUrl(pdfDoc, pageNum, scale = 1.5) {
 /** Sample dominant background color around a rectangle from canvas pixels */
 function sampleBackgroundColor(ctx, x, y, w, h, canvasW, canvasH) {
   try {
-    // Sample a few pixels around top, bottom, left, right edges of the bounding box
     const samplePoints = [
       { sx: Math.max(0, x - 3), sy: Math.max(0, y - 3) },
       { sx: Math.min(canvasW - 1, x + w + 3), sy: Math.max(0, y - 3) },
@@ -42,7 +42,6 @@ function sampleBackgroundColor(ctx, x, y, w, h, canvasW, canvasH) {
     let rSum = 0, gSum = 0, bSum = 0, count = 0
     for (const pt of samplePoints) {
       const p = ctx.getImageData(Math.floor(pt.sx), Math.floor(pt.sy), 1, 1).data
-      // Ignore if alpha is 0
       if (p[3] > 0) {
         rSum += p[0]
         gSum += p[1]
@@ -59,7 +58,7 @@ function sampleBackgroundColor(ctx, x, y, w, h, canvasW, canvasH) {
       return { hex, r: r / 255, g: g / 255, b: b / 255 }
     }
   } catch {
-    // Fallback to white if cross-origin or canvas read fails
+    // Fallback
   }
   return { hex: '#ffffff', r: 1, g: 1, b: 1 }
 }
@@ -78,25 +77,21 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
     if (!item.str || !item.str.trim()) continue
 
     const tx = item.transform
-    // tx = [scaleX, skewY, skewX, scaleY, transX, transY]
     const pdfX = tx[4]
     const pdfY = tx[5]
     const fontHeight = Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12
     const pdfWidth = item.width || fontHeight * item.str.length * 0.6
 
-    // Viewport coordinates (origin top-left)
     const x0 = pdfX * scale
     const y0 = viewport.height - (pdfY * scale) - (fontHeight * scale * 0.85)
     const w0 = Math.max(12, pdfWidth * scale)
     const h0 = Math.max(12, fontHeight * scale * 1.15)
 
-    // Percentage of viewport
     const xPct = (x0 / viewport.width) * 100
     const yPct = (y0 / viewport.height) * 100
     const wPct = (w0 / viewport.width) * 100
     const hPct = (h0 / viewport.height) * 100
 
-    // Font family and weight/italic analysis from pdf fontName
     const fontName = (item.fontName || '').toLowerCase()
     const isBold = fontName.includes('bold') || fontName.includes('black') || fontName.includes('heavy') || fontName.includes('bolder') || fontName.includes('700')
     const isItalic = fontName.includes('italic') || fontName.includes('oblique')
@@ -108,7 +103,6 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
       fontCategory = 'Courier'
     }
 
-    // Sample background color surrounding the text
     const bg = ctx ? sampleBackgroundColor(ctx, x0, y0, w0, h0, viewport.width, viewport.height) : { hex: '#ffffff', r: 1, g: 1, b: 1 }
 
     items.push({

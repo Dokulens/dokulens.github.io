@@ -30,24 +30,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6MB for heavy PDF/Word engines
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/pdf\.js\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'pdfjs-cdn-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2,wasm}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8MB for heavy PDF/Word engines & worker
       },
     }),
   ],
