@@ -138,10 +138,10 @@ function detectWatermarkPositionNCC(canvas) {
     const searchRight = imgW - size
     const searchBottom = imgH - size
 
-    // Gemini watermark is in bottom-right region; search there
-    const startX = Math.max(0, Math.round(imgW * 0.5))
-    const startY = Math.max(0, Math.round(imgH * 0.5))
-    const step = 4
+    // Gemini watermark is always in the very bottom-right corner
+    const startX = Math.max(0, imgW - size - Math.round(imgW * 0.15))
+    const startY = Math.max(0, imgH - size - Math.round(imgH * 0.15))
+    const step = 2
 
     for (let y = startY; y <= searchBottom; y += step) {
       for (let x = startX; x <= searchRight; x += step) {
@@ -174,8 +174,8 @@ function detectWatermarkPositionNCC(canvas) {
     }
   }
 
-  // Fallback to fixed position if NCC finds nothing
-  if (!bestPos || bestScore < 0.1) {
+  // Fallback to fixed position if NCC finds nothing or low confidence
+  if (!bestPos || bestScore < 0.3) {
     return { ...calculateWatermarkPosition(imgW, imgH), score: bestScore, size: bestSize }
   }
 
