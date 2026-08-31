@@ -4,7 +4,6 @@ export const NAV_GROUPS = [
     label: 'PDF Tools',
     items: [
       { path: 'edit-pdf',        label: 'Edit PDF (Teks & Anotasi)',    icon: 'FilePenLine',  desc: 'Deteksi & ganti teks otomatis pada dokumen PDF' },
-      { path: 'add-page-number', label: 'Tambah Nomor Halaman',         icon: 'Hash',         desc: 'Nomor halaman otomatis, deteksi posisi & font' },
       { path: 'merge-pdf',       label: 'Merge PDF',                   icon: 'Combine',      desc: 'Gabung beberapa PDF jadi satu' },
       { path: 'split-pdf',       label: 'Split PDF',                   icon: 'Scissors',     desc: 'Pisah halaman PDF jadi file terpisah' },
       { path: 'compress-pdf',    label: 'Compress PDF',                icon: 'PackageOpen',  desc: 'Kurangi ukuran file PDF' },
@@ -16,6 +15,7 @@ export const NAV_GROUPS = [
   {
     label: 'Word & Dokumen',
     items: [
+      { path: 'add-page-number', label: 'Tambah Nomor Halaman',         icon: 'Hash',         desc: 'Nomor halaman otomatis untuk PDF & Word (.docx)' },
       { path: 'pdf-to-docx',     label: 'PDF → Word (.docx)',          icon: 'FileText',     desc: 'Ubah file PDF jadi dokumen Word yang bisa diedit' },
       { path: 'docx-to-pdf',     label: 'Word (.docx) → PDF',          icon: 'FileType',     desc: 'Konversi file Word docx menjadi PDF' },
     ],
