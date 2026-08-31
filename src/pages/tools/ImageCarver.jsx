@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Shrink, Trash2, Download, Eye, Sparkles,
   MousePointer, RotateCcw, Activity, Sliders, Maximize2, X,
-  ZoomIn, ZoomOut, Paintbrush, Check, Info
+  ZoomIn, ZoomOut, Paintbrush, Check, AlertTriangle, StopCircle
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -24,8 +24,10 @@ export default function ImageCarver() {
   const [originalSize, setOriginalSize] = useState(null)
   const [workingSize, setWorkingSize] = useState(null)
   const [resizedImgSrc, setResizedImgSrc] = useState(null)
-  const [toWidthScale, setToWidthScale] = useState(75)
-  const [toHeightScale, setToHeightScale] = useState(85)
+
+  // Sliders default to 100% of original image size
+  const [toWidthScale, setToWidthScale] = useState(100)
+  const [toHeightScale, setToHeightScale] = useState(100)
   const [useHigherQuality, setUseHigherQuality] = useState(false)
   const [showEnergyMap, setShowEnergyMap] = useState(true)
   const [showSeams, setShowSeams] = useState(true)
@@ -41,6 +43,7 @@ export default function ImageCarver() {
   const [error, setError] = useState('')
 
   const imgRef = useRef(null)
+  const origOverlayCanvasRef = useRef(null)
   const workingCanvasRef = useRef(null)
   const energyCanvasRef = useRef(null)
   const seamsCanvasRef = useRef(null)
@@ -53,6 +56,10 @@ export default function ImageCarver() {
   const handleFile = ([f]) => {
     setFile(f)
     onReset()
+    setToWidthScale(100)
+    setToHeightScale(100)
+    setHasMask(false)
+    setMaskCanvasElement(null)
     const url = URL.createObjectURL(f)
     setImageSrc(url)
   }
@@ -66,12 +73,39 @@ export default function ImageCarver() {
     setIsResizing(false)
   }
 
+  const cancelCarving = () => {
+    isCancelledRef.current = true
+    setIsResizing(false)
+    setProgress(0)
+  }
+
   const onImgLoad = () => {
     if (!imgRef.current) return
     const w = imgRef.current.naturalWidth
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
+    setToWidthScale(100)
+    setToHeightScale(100)
+    renderOriginalOverlayMask()
   }
+
+  // Render mask on the original image card overlay
+  const renderOriginalOverlayMask = () => {
+    if (!origOverlayCanvasRef.current || !imgRef.current) return
+    const canvas = origOverlayCanvasRef.current
+    canvas.width = imgRef.current.clientWidth || 400
+    canvas.height = imgRef.current.clientHeight || 300
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    if (maskCanvasElement) {
+      ctx.drawImage(maskCanvasElement, 0, 0, canvas.width, canvas.height)
+    }
+  }
+
+  useEffect(() => {
+    renderOriginalOverlayMask()
+  }, [maskCanvasElement, originalSize])
 
   // When modal opens, sync mask canvas size to image natural resolution
   useEffect(() => {
@@ -80,7 +114,6 @@ export default function ImageCarver() {
       canvas.width = imgRef.current.naturalWidth
       canvas.height = imgRef.current.naturalHeight
       const ctx = canvas.getContext('2d')
-      // If we already had mask before, draw it back
       if (maskCanvasElement) {
         ctx.drawImage(maskCanvasElement, 0, 0)
       } else {
@@ -127,7 +160,6 @@ export default function ImageCarver() {
 
   const saveModalMask = () => {
     if (modalCanvasRef.current) {
-      // Save canvas state
       const clone = document.createElement('canvas')
       clone.width = modalCanvasRef.current.width
       clone.height = modalCanvasRef.current.height
@@ -281,13 +313,15 @@ export default function ImageCarver() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[--color-border] pb-3 text-xs">
               <div className="flex items-center gap-2">
                 <Sliders size={15} className="text-[--color-brand]" />
-                <span className="font-bold text-[--color-text]">Skala Target:</span>
+                <span className="font-bold text-[--color-text]">Ukuran Target:</span>
                 <span className="text-[--color-text-2]">
-                  Lebar <strong>{toWidthScale}%</strong> × Tinggi <strong>{toHeightScale}%</strong>
+                  {originalSize
+                    ? `${Math.round((toWidthScale * originalSize.w) / 100)} × ${Math.round((toHeightScale * originalSize.h) / 100)} px (${toWidthScale}% × ${toHeightScale}%)`
+                    : `${toWidthScale}% × ${toHeightScale}%`}
                 </span>
                 {originalSize && (
                   <span className="text-[--color-text-3]">
-                    (Asli: {originalSize.w} × {originalSize.h} px)
+                    (Ukuran Asli: {originalSize.w} × {originalSize.h} px)
                   </span>
                 )}
               </div>
@@ -305,12 +339,24 @@ export default function ImageCarver() {
               </div>
             </div>
 
-            {/* Scale Sliders */}
+            {/* High Quality Warning Banner */}
+            {useHigherQuality && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 animate-fade-in">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  <strong>Peringatan Performa:</strong> Mode Kualitas Tinggi (Full Resolusi) memproses seluruh piksel asli foto tanpa downscaling. Proses komputasi pada CPU browser akan lebih berat dan memerlukan waktu lebih lama.
+                </span>
+              </div>
+            )}
+
+            {/* Scale Sliders (Default 100%) */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs">
                   <span className="font-semibold text-[--color-text-2]">Lebar (Width)</span>
-                  <span className="font-bold text-[--color-brand]">{toWidthScale}%</span>
+                  <span className="font-bold text-[--color-brand]">
+                    {toWidthScale}% {originalSize ? `(${Math.round((toWidthScale * originalSize.w) / 100)} px)` : ''}
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -326,7 +372,9 @@ export default function ImageCarver() {
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs">
                   <span className="font-semibold text-[--color-text-2]">Tinggi (Height)</span>
-                  <span className="font-bold text-[--color-brand]">{toHeightScale}%</span>
+                  <span className="font-bold text-[--color-brand]">
+                    {toHeightScale}% {originalSize ? `(${Math.round((toHeightScale * originalSize.h) / 100)} px)` : ''}
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -352,9 +400,18 @@ export default function ImageCarver() {
                   Buka Kanvas Masking (Pop-up & Zoom)
                 </button>
                 {hasMask && (
-                  <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
-                    ✓ Mask Objek Aktif
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                      ✓ Mask Objek Aktif
+                    </span>
+                    <button
+                      onClick={clearModalMask}
+                      className="text-xs text-[--color-text-3] hover:text-[--color-danger]"
+                      title="Hapus Mask"
+                    >
+                      (Hapus)
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -381,28 +438,33 @@ export default function ImageCarver() {
           </div>
 
           {/* Action button & Progress */}
-          {!resizedImgSrc && (
+          {!resizedImgSrc && !isResizing && (
             <button
               onClick={startCarving}
-              disabled={isResizing}
+              disabled={isResizing || (toWidthScale === 100 && toHeightScale === 100 && !hasMask)}
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
-              {isResizing ? (
-                <>
-                  <Activity size={16} className="animate-pulse" />
-                  Memproses Seam Carving ({progress}%)…
-                </>
-              ) : (
-                <>
-                  <Shrink size={16} />
-                  Mulai Content-Aware Resize
-                </>
-              )}
+              <Shrink size={16} />
+              {toWidthScale === 100 && toHeightScale === 100 && !hasMask
+                ? 'Ubah slider lebar/tinggi atau beri mask objek untuk mulai carve'
+                : 'Mulai Content-Aware Resize'}
             </button>
           )}
 
           {isResizing && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[--color-brand]">
+                  <Activity size={16} className="animate-pulse" />
+                  <span>Memproses Seam Carving… ({progress}%)</span>
+                </div>
+                <button
+                  onClick={cancelCarving}
+                  className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  <StopCircle size={14} /> Batal / Hentikan Proses
+                </button>
+              </div>
               <ProgressBar value={progress} label={`Menghitung energi piksel & memotong seams… ${progress}%`} />
             </div>
           )}
@@ -415,17 +477,17 @@ export default function ImageCarver() {
 
           {/* Real-time Work Stages Grid */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* 1. Original Image View */}
+            {/* 1. Original Image View with Masked Area Overlay */}
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  1. Gambar Asli
+                  1. Gambar Asli & Area Masking
                 </span>
                 <button
                   onClick={() => setIsMaskModalOpen(true)}
                   className="text-xs text-[--color-brand] hover:underline flex items-center gap-1 font-medium"
                 >
-                  <Paintbrush size={12} /> Edit Masking
+                  <Paintbrush size={12} /> {hasMask ? 'Ubah Masking' : 'Beri Masking Objek'}
                 </button>
               </div>
               <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2]">
@@ -435,6 +497,11 @@ export default function ImageCarver() {
                   alt="Original"
                   onLoad={onImgLoad}
                   className="block max-h-[360px] w-auto select-none"
+                />
+                {/* Live Mask Overlay Canvas on Original Image Card */}
+                <canvas
+                  ref={origOverlayCanvasRef}
+                  className="absolute inset-0 block h-full w-full pointer-events-none opacity-80"
                 />
               </div>
             </div>
