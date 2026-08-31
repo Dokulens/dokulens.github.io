@@ -73,7 +73,18 @@ button:active:not(:disabled), a.btn:active {
   border-color: var(--color-brand);
 }
 
-/* Custom scrollbar */
+/* Hide scrollbar completely across Chrome, Safari, Firefox, Edge */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Standard Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--color-surface-3); }
 ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }

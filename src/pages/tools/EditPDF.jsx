@@ -3,7 +3,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import {
   ChevronLeft, ChevronRight, Trash2,
   ScanText, Loader2, Sparkles, Eye, EyeOff,
-  Type, RefreshCw
+  Type, RefreshCw, Check
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -12,9 +12,9 @@ import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 
 const FONT_OPTIONS = [
-  { id: 'Helvetica', label: 'Helvetica / Arial (Sans-Serif)', regular: StandardFonts.Helvetica, bold: StandardFonts.HelveticaBold },
-  { id: 'TimesRoman', label: 'Times Roman (Serif / Formal)', regular: StandardFonts.TimesRoman, bold: StandardFonts.TimesRomanBold },
-  { id: 'Courier', label: 'Courier (Monospace / Ketikan Mesin)', regular: StandardFonts.Courier, bold: StandardFonts.CourierBold },
+  { id: 'Helvetica', label: 'Helvetica / Arial (Modern Sans-Serif)', css: 'font-sans' },
+  { id: 'TimesRoman', label: 'Times Roman (Formal / Skripsi / Serif)', css: 'font-serif' },
+  { id: 'Courier', label: 'Courier (Monospace / Ketikan Mesin)', css: 'font-mono' },
 ]
 
 export default function EditPDF() {
@@ -105,6 +105,7 @@ export default function EditPDF() {
       text: 'Teks Baru',
       fontSize: 12,
       fontFamily: 'Helvetica',
+      fontNameRaw: 'Helvetica',
       pdfX,
       pdfY,
       pdfWidth: 60,
@@ -134,7 +135,7 @@ export default function EditPDF() {
           const updated = { ...b, [field]: value }
           if (field === 'text') {
             updated.isEdited = value !== b.originalText
-          } else if (field === 'fontSize' || field === 'color' || field === 'bold' || field === 'fontFamily' || field === 'bgColor') {
+          } else if (field === 'fontSize' || field === 'color' || field === 'bold' || field === 'italic' || field === 'fontFamily' || field === 'bgColor') {
             updated.isEdited = true
           }
           return updated
@@ -164,10 +165,26 @@ export default function EditPDF() {
       const arrayBuf = await readAsArrayBuffer(file)
       const doc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
 
+      // Embed full font variants (regular, bold, italic, bold-italic)
       const fonts = {
-        Helvetica: { regular: await doc.embedFont(StandardFonts.Helvetica), bold: await doc.embedFont(StandardFonts.HelveticaBold) },
-        TimesRoman: { regular: await doc.embedFont(StandardFonts.TimesRoman), bold: await doc.embedFont(StandardFonts.TimesRomanBold) },
-        Courier: { regular: await doc.embedFont(StandardFonts.Courier), bold: await doc.embedFont(StandardFonts.CourierBold) },
+        Helvetica: {
+          regular: await doc.embedFont(StandardFonts.Helvetica),
+          bold: await doc.embedFont(StandardFonts.HelveticaBold),
+          italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+          boldItalic: await doc.embedFont(StandardFonts.HelveticaBoldOblique),
+        },
+        TimesRoman: {
+          regular: await doc.embedFont(StandardFonts.TimesRoman),
+          bold: await doc.embedFont(StandardFonts.TimesRomanBold),
+          italic: await doc.embedFont(StandardFonts.TimesRomanItalic),
+          boldItalic: await doc.embedFont(StandardFonts.TimesRomanBoldItalic),
+        },
+        Courier: {
+          regular: await doc.embedFont(StandardFonts.Courier),
+          bold: await doc.embedFont(StandardFonts.CourierBold),
+          italic: await doc.embedFont(StandardFonts.CourierOblique),
+          boldItalic: await doc.embedFont(StandardFonts.CourierBoldOblique),
+        },
       }
 
       const pages = doc.getPages()
@@ -180,13 +197,17 @@ export default function EditPDF() {
         const { width: pWidth, height: pHeight } = page.getSize()
 
         const fontSet = fonts[block.fontFamily] || fonts.Helvetica
-        const font = block.bold ? fontSet.bold : fontSet.regular
+        let font = fontSet.regular
+        if (block.bold && block.italic) font = fontSet.boldItalic
+        else if (block.bold) font = fontSet.bold
+        else if (block.italic) font = fontSet.italic
+
         const fontSize = Number(block.fontSize) || 12
         const textColor = hexToRgb(block.color || '#000000')
         const bgColor = block.bgColor ? hexToRgb(block.bgColor) : { r: 1, g: 1, b: 1 }
 
         if (block.isCustom) {
-          // Custom inserted text at baseline
+          // Custom inserted text
           const itemX = (block.xPct / 100) * pWidth
           const itemY = pHeight - (block.yPct / 100) * pHeight - fontSize
 
@@ -198,13 +219,13 @@ export default function EditPDF() {
             color: rgb(textColor.r, textColor.g, textColor.b),
           })
         } else {
-          // Detected text in-place modification:
-          // 1. Cover original text with exact bounding rectangle matching baseline & height
+          // Detected text in-place modification
           const origX = block.pdfX
           const origY = block.pdfY
           const origW = Math.max(block.pdfWidth, font.widthOfTextAtSize(block.originalText || '', fontSize))
           const coverHeight = fontSize * 1.25
 
+          // 1. Cover old text precisely
           page.drawRectangle({
             x: origX - 0.5,
             y: origY - (fontSize * 0.25),
@@ -213,7 +234,7 @@ export default function EditPDF() {
             color: rgb(bgColor.r, bgColor.g, bgColor.b),
           })
 
-          // 2. Draw replacement text at the exact same baseline coordinate
+          // 2. Draw replacement text at exact baseline
           if (block.text && block.text.trim()) {
             page.drawText(block.text, {
               x: origX,
@@ -243,7 +264,7 @@ export default function EditPDF() {
   return (
     <ToolShell
       title="Edit PDF (Deteksi Teks & Font Presisi)"
-      description="Teks, font, posisi baseline, dan warna latar sekitar dokumen dideteksi otomatis secara 1:1. Klik langsung teks untuk mengganti kata tanpa pergeseran posisi."
+      description="Teks, jenis font asli, ukuran (pt), ketebalan (bold/italic), dan warna latar terdeteksi otomatis secara presisi. Klik langsung kata pada dokumen untuk menggantinya."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diedit" />
 
@@ -294,7 +315,7 @@ export default function EditPDF() {
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="shrink-0 text-[--color-brand]" />
               <span>
-                <strong>Arahkan kursor & klik teks</strong> pada dokumen untuk mengedit kata langsung di posisinya.
+                <strong>Klik teks apapun</strong> pada dokumen untuk mengubah isi kata. Ukuran & jenis font asli otomatis terisi.
               </span>
             </div>
             {editedCount > 0 && (
@@ -328,7 +349,7 @@ export default function EditPDF() {
                   className="block max-h-[650px] w-auto pointer-events-none"
                 />
 
-                {/* Detected & Custom Text Overlays (Exact pixel scale) */}
+                {/* Detected & Custom Text Overlays (Exact Font Matching) */}
                 {currentPageBlocks.map((b) => {
                   const isSelected = b.id === selectedId
                   const isHovered = b.id === hoveredId
@@ -360,6 +381,8 @@ export default function EditPDF() {
                         color: hasChanged ? b.color : 'transparent',
                         fontSize: `${b.fontSize}px`,
                         fontWeight: b.bold ? 'bold' : 'normal',
+                        fontStyle: b.italic ? 'italic' : 'normal',
+                        fontFamily: b.fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : b.fontFamily === 'Courier' ? 'Courier New, monospace' : 'Arial, sans-serif',
                         lineHeight: 1.0,
                         padding: 0,
                         margin: 0,
@@ -375,7 +398,7 @@ export default function EditPDF() {
             )}
           </div>
 
-          {/* Inline Edit Panel */}
+          {/* Inline Edit Panel with Automatic Font Detection Values */}
           {selectedBlock && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
               <div className="flex items-center justify-between border-b border-[--color-border] pb-2.5">
@@ -387,8 +410,8 @@ export default function EditPDF() {
                     {selectedBlock.isCustom ? 'Teks Kustom Baru' : 'Edit Teks Terdeteksi'}
                   </span>
                   {!selectedBlock.isCustom && (
-                    <span className="rounded bg-[--color-surface-3] px-2 py-0.5 text-[10px] text-[--color-text-3]">
-                      Font: {selectedBlock.fontFamily} ({selectedBlock.fontNameRaw})
+                    <span className="rounded bg-[--color-surface-3] px-2 py-0.5 text-[10px] font-semibold text-[--color-text-2]">
+                      Font Terdeteksi: <strong>{selectedBlock.fontNameRaw}</strong> ({selectedBlock.fontSize}pt {selectedBlock.bold ? 'Bold' : ''} {selectedBlock.italic ? 'Italic' : ''})
                     </span>
                   )}
                 </div>
@@ -447,7 +470,9 @@ export default function EditPDF() {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">Ukuran Font: {selectedBlock.fontSize}pt</label>
+                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
+                    Ukuran Font: {selectedBlock.fontSize}pt
+                  </label>
                   <input
                     type="number"
                     min="4"
@@ -486,7 +511,7 @@ export default function EditPDF() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 pt-1 text-xs text-[--color-text-2]">
+              <div className="flex items-center gap-5 pt-1 text-xs text-[--color-text-2]">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -494,6 +519,15 @@ export default function EditPDF() {
                     onChange={(e) => updateBlock(selectedBlock.id, 'bold', e.target.checked)}
                   />
                   <span>Tebal (Bold)</span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedBlock.italic}
+                    onChange={(e) => updateBlock(selectedBlock.id, 'italic', e.target.checked)}
+                  />
+                  <span>Miring (Italic)</span>
                 </label>
               </div>
             </div>

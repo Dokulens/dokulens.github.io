@@ -21,7 +21,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
   return (
     <div
-      className="flex h-full flex-col bg-[--color-surface] select-none transition-all duration-200"
+      className="flex h-full flex-col bg-[--color-surface] select-none transition-all duration-200 overflow-hidden"
       style={{ backgroundColor: 'var(--color-surface)' }}
     >
       {/* Brand Header */}
@@ -70,10 +70,10 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
         )}
       </div>
 
-      {/* Nav groups */}
+      {/* Nav groups (Scrollbar completely hidden on minimize across Chrome & Firefox) */}
       <nav className={[
         'flex-1 overflow-y-auto overflow-x-hidden space-y-3',
-        isCollapsed ? 'p-2 flex flex-col items-center' : 'p-3'
+        isCollapsed ? 'p-2 flex flex-col items-center no-scrollbar' : 'p-3'
       ].join(' ')}>
         {/* Landing / Home link */}
         <div className="relative group w-full flex justify-center">
@@ -117,7 +117,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
           )}
         </div>
 
-        {NAV_GROUPS.map((group, gIdx) => (
+        {NAV_GROUPS.map((group) => (
           <div key={group.label} className={isCollapsed ? 'w-full flex flex-col items-center space-y-1' : 'space-y-1'}>
             {/* Divider or Group Label */}
             {isCollapsed ? (

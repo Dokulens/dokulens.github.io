@@ -63,7 +63,7 @@ function sampleBackgroundColor(ctx, x, y, w, h, canvasW, canvasH) {
   return { hex: '#ffffff', r: 1, g: 1, b: 1 }
 }
 
-/** Extract all text items from a PDF page with bounding box, font detection, and background color sampling */
+/** Extract all text items from a PDF page with bounding box, precise font detection, and background color sampling */
 export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas = null) {
   const page = await pdfDoc.getPage(pageNum)
   const viewport = page.getViewport({ scale })
@@ -71,6 +71,7 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
 
   const pageWidth = page.view[2] - page.view[0]
   const pageHeight = page.view[3] - page.view[1]
+  const styles = textContent.styles || {}
 
   const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null
 
@@ -83,7 +84,7 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
     // tx = [scaleX, skewY, skewX, scaleY, transX, transY]
     const pdfX = tx[4]
     const pdfY = tx[5]
-    const fontHeight = Math.hypot(tx[2], tx[3]) || Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12
+    const fontHeight = Math.hypot(tx[2], tx[3]) || Math.hypot(tx[0], tx[1]) || item.height || 12
     const pdfWidth = item.width || fontHeight * item.str.length * 0.55
 
     // Precise Viewport pixel coordinates (top-left)
@@ -98,25 +99,38 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
     const wPct = (pdfWidth / pageWidth) * 100
     const hPct = (fontHeight / pageHeight) * 100
 
+    // Font Style & Family Inspection from pdfjs styles mapping and item metadata
+    const styleObj = styles[item.fontName] || {}
+    const styleFamily = (styleObj.fontFamily || '').toLowerCase()
     const fontName = (item.fontName || '').toLowerCase()
-    const isBold = fontName.includes('bold') || fontName.includes('black') || fontName.includes('heavy') || fontName.includes('bolder') || fontName.includes('700')
-    const isItalic = fontName.includes('italic') || fontName.includes('oblique')
+    const combinedFontKey = `${styleFamily} ${fontName}`
+
+    const isBold = combinedFontKey.includes('bold') || combinedFontKey.includes('black') || combinedFontKey.includes('heavy') || combinedFontKey.includes('bolder') || combinedFontKey.includes('700') || combinedFontKey.includes('w7') || combinedFontKey.includes('w8') || combinedFontKey.includes('w9')
+    const isItalic = combinedFontKey.includes('italic') || combinedFontKey.includes('oblique')
 
     let fontCategory = 'Helvetica'
-    if (fontName.includes('times') || fontName.includes('serif') || fontName.includes('roman') || fontName.includes('georgia') || fontName.includes('cambria')) {
+    let humanFontName = styleObj.fontFamily || item.fontName || 'Helvetica'
+
+    if (combinedFontKey.includes('times') || combinedFontKey.includes('serif') || combinedFontKey.includes('roman') || combinedFontKey.includes('georgia') || combinedFontKey.includes('cambria') || combinedFontKey.includes('garamond') || combinedFontKey.includes('palatino')) {
       fontCategory = 'TimesRoman'
-    } else if (fontName.includes('courier') || fontName.includes('mono') || fontName.includes('consolas')) {
+      humanFontName = styleObj.fontFamily || 'Times New Roman'
+    } else if (combinedFontKey.includes('courier') || combinedFontKey.includes('mono') || combinedFontKey.includes('consolas') || combinedFontKey.includes('menlo') || combinedFontKey.includes('typewriter')) {
       fontCategory = 'Courier'
+      humanFontName = styleObj.fontFamily || 'Courier New'
+    } else {
+      fontCategory = 'Helvetica'
+      humanFontName = styleObj.fontFamily || 'Arial / Helvetica'
     }
 
     const bg = ctx ? sampleBackgroundColor(ctx, x0, y0, w0, h0, viewport.width, viewport.height) : { hex: '#ffffff', r: 1, g: 1, b: 1 }
+    const preciseSize = Math.round(fontHeight * 10) / 10
 
     items.push({
       id: `detected-${pageNum}-${idx}-${crypto.randomUUID().slice(0, 6)}`,
       page: pageNum,
       originalText: item.str,
       text: item.str,
-      fontSize: Math.round(fontHeight * 10) / 10,
+      fontSize: preciseSize,
       exactFontSize: fontHeight,
       pdfX,
       pdfY,
@@ -129,7 +143,7 @@ export async function extractPageTextItems(pdfDoc, pageNum, scale = 1.5, canvas 
       wPct: Math.max(0.5, Math.min(100, wPct)),
       hPct: Math.max(0.5, Math.min(100, hPct)),
       fontFamily: fontCategory,
-      fontNameRaw: item.fontName || 'Helvetica',
+      fontNameRaw: humanFontName,
       bold: isBold,
       italic: isItalic,
       color: '#000000',
