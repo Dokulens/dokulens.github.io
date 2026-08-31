@@ -52,6 +52,142 @@ function getAlphaMap(size) {
   return _alphaCache[size]
 }
 
+// --- NCC Template Matching Helpers ---
+
+function toGrayscale(imageData, regionX, regionY, regionW, regionH, fullWidth) {
+  const pixels = imageData.data
+  const gray = new Float32Array(regionW * regionH)
+  for (let r = 0; r < regionH; r++) {
+    for (let c = 0; c < regionW; c++) {
+      const idx = ((regionY + r) * fullWidth + (regionX + c)) * 4
+      gray[r * regionW + c] = (pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114) / 255
+    }
+  }
+  return gray
+}
+
+function sobelMagnitude(gray, w, h) {
+  const mag = new Float32Array(w * h)
+  for (let r = 1; r < h - 1; r++) {
+    for (let c = 1; c < w - 1; c++) {
+      const idx = r * w + c
+      const gx = -gray[(r - 1) * w + (c - 1)] - 2 * gray[r * w + (c - 1)] - gray[(r + 1) * w + (c - 1)]
+        + gray[(r - 1) * w + (c + 1)] + 2 * gray[r * w + (c + 1)] + gray[(r + 1) * w + (c + 1)]
+      const gy = -gray[(r - 1) * w + (c - 1)] - 2 * gray[(r - 1) * w + c] - gray[(r - 1) * w + (c + 1)]
+        + gray[(r + 1) * w + (c - 1)] + 2 * gray[(r + 1) * w + c] + gray[(r + 1) * w + (c + 1)]
+      mag[idx] = Math.sqrt(gx * gx + gy * gy)
+    }
+  }
+  return mag
+}
+
+function meanAndVariance(arr) {
+  let sum = 0
+  for (let i = 0; i < arr.length; i++) sum += arr[i]
+  const mean = sum / arr.length
+  let variance = 0
+  for (let i = 0; i < arr.length; i++) {
+    const d = arr[i] - mean
+    variance += d * d
+  }
+  variance /= arr.length
+  return { mean, variance }
+}
+
+function ncc(a, b) {
+  if (a.length !== b.length) return 0
+  const statsA = meanAndVariance(a)
+  const statsB = meanAndVariance(b)
+  const den = Math.sqrt(statsA.variance * statsB.variance) * a.length
+  if (den < EPSILON) return 0
+  let num = 0
+  for (let i = 0; i < a.length; i++) {
+    num += (a[i] - statsA.mean) * (b[i] - statsB.mean)
+  }
+  return num / den
+}
+
+function scoreCandidate(imageData, alphaMap, templateGrad, x, y, size, imgW) {
+  const gray = toGrayscale(imageData, x, y, size, size, imgW)
+  const grad = sobelMagnitude(gray, size, size)
+  const spatial = ncc(gray, alphaMap)
+  const gradient = ncc(grad, templateGrad)
+  return spatial * 0.5 + gradient * 0.3
+}
+
+function detectWatermarkPositionNCC(canvas) {
+  const ctx = canvas.getContext('2d')
+  const imgW = canvas.width
+  const imgH = canvas.height
+  const imageData = ctx.getImageData(0, 0, imgW, imgH)
+
+  const sizes = [48]
+  if (imgW >= 1024 || imgH >= 1024) sizes.push(96)
+
+  let bestScore = -1
+  let bestPos = null
+  let bestSize = 48
+
+  for (const size of sizes) {
+    const alphaMap = getAlphaMap(size)
+    const templateGrad = sobelMagnitude(alphaMap, size, size)
+
+    const marginX = Math.round(imgW * 0.03)
+    const marginY = Math.round(imgH * 0.03)
+    const searchRight = imgW - size
+    const searchBottom = imgH - size
+
+    // Gemini watermark is in bottom-right region; search there
+    const startX = Math.max(0, Math.round(imgW * 0.5))
+    const startY = Math.max(0, Math.round(imgH * 0.5))
+    const step = 4
+
+    for (let y = startY; y <= searchBottom; y += step) {
+      for (let x = startX; x <= searchRight; x += step) {
+        const score = scoreCandidate(imageData, alphaMap, templateGrad, x, y, size, imgW)
+        if (score > bestScore) {
+          bestScore = score
+          bestPos = { x, y }
+          bestSize = size
+        }
+      }
+    }
+
+    // Refine around best position with step=1
+    if (bestPos) {
+      const refineRange = 8
+      const rx0 = Math.max(0, bestPos.x - refineRange)
+      const ry0 = Math.max(0, bestPos.y - refineRange)
+      const rx1 = Math.min(searchRight, bestPos.x + refineRange)
+      const ry1 = Math.min(searchBottom, bestPos.y + refineRange)
+      for (let y = ry0; y <= ry1; y += 1) {
+        for (let x = rx0; x <= rx1; x += 1) {
+          const score = scoreCandidate(imageData, alphaMap, templateGrad, x, y, size, imgW)
+          if (score > bestScore) {
+            bestScore = score
+            bestPos = { x, y }
+            bestSize = size
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback to fixed position if NCC finds nothing
+  if (!bestPos || bestScore < 0.1) {
+    return { ...calculateWatermarkPosition(imgW, imgH), score: bestScore, size: bestSize }
+  }
+
+  return {
+    x: bestPos.x,
+    y: bestPos.y,
+    width: bestSize,
+    height: bestSize,
+    score: bestScore,
+    size: bestSize
+  }
+}
+
 function toCanvas(canvasOrImage) {
   if (canvasOrImage instanceof HTMLCanvasElement || canvasOrImage instanceof OffscreenCanvas) {
     return canvasOrImage
@@ -90,6 +226,9 @@ export function calculateWatermarkPosition(imgWidth, imgHeight) {
   const isLarge = imgWidth >= 1024 || imgHeight >= 1024
   const size = isLarge ? 96 : 48
   const margin = Math.round(Math.min(imgWidth, imgHeight) * 0.05)
+  // The Gemini watermark sits at the bottom-right corner.
+  // The alpha map grid's bottom-right corner aligns with the image bottom-right
+  // minus the margin. The diamond is centered in the grid.
   return {
     x: Math.max(0, imgWidth - size - margin),
     y: Math.max(0, imgHeight - size - margin),
@@ -113,8 +252,11 @@ export async function removeWatermarkFromImage(canvasOrImage, options = {}) {
   const imgWidth = canvas.width
   const imgHeight = canvas.height
 
-  const position = calculateWatermarkPosition(imgWidth, imgHeight)
-  const { logoSize, alphaGain } = detectWatermarkConfig(imgWidth, imgHeight)
+  // Use NCC template matching to find actual position
+  const detected = detectWatermarkPositionNCC(canvas)
+  const position = { x: detected.x, y: detected.y, width: detected.width, height: detected.height }
+  const logoSize = detected.size || (imgWidth >= 1024 || imgHeight >= 1024 ? 96 : 48)
+  const alphaGain = 1.0
 
   const alphaMap = getAlphaMap(logoSize)
 
@@ -131,7 +273,8 @@ export async function removeWatermarkFromImage(canvasOrImage, options = {}) {
     meta: {
       selectedCandidate: {
         position,
-        config: { alphaGain, logoSize }
+        config: { alphaGain, logoSize },
+        score: detected.score
       }
     }
   }
