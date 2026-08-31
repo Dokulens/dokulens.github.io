@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import * as Icons from 'lucide-react'
 import { NAV_GROUPS } from '../navConfig'
+import PWAInstallBanner from './PWAInstallBanner'
 
 function NavIcon({ name, active }) {
   const Comp = Icons[name]
@@ -117,14 +118,15 @@ export default function Sidebar({ onClose }) {
         ))}
       </nav>
 
-      {/* Footer Info */}
-      <div className="border-t border-[--color-border] p-3">
+      {/* Footer Info & PWA status */}
+      <div className="border-t border-[--color-border] p-3 space-y-2">
+        <PWAInstallBanner />
         <div className="rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-[11px] text-[--color-text-3]">
           <p className="font-semibold text-[--color-text-2] flex items-center gap-1 mb-0.5">
             <Icons.ShieldCheck size={13} className="text-[--color-success]" />
-            100% Client-Side
+            100% Offline & Privat
           </p>
-          <p className="leading-snug">File tidak pernah dikirim ke server manapun.</p>
+          <p className="leading-snug">Semua file diproses lokal di browser perangkat Anda.</p>
         </div>
       </div>
     </div>
