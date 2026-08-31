@@ -8,9 +8,9 @@ function NavIcon({ name, size = 20 }) {
 }
 
 const FEATURES = [
-  { icon: 'ShieldCheck', title: '100% Client-Side', desc: 'File tidak pernah dikirim ke server. Semua proses terjadi langsung di browser perangkat Anda.' },
-  { icon: 'Zap', title: 'Cepat & Ringan', desc: 'Tanpa proses antrean upload. Hasil dokumen selesai diproses dalam hitungan detik.' },
-  { icon: 'Sparkles', title: 'Lengkap & Gratis', desc: 'Semua alat pengolah PDF, dokumen Word, dan gambar tersedia gratis tanpa batasan akun.' },
+  { icon: 'ShieldCheck', title: '100% Client-Side & Offline', desc: 'File tidak pernah dikirim ke server. Semua proses terjadi langsung di browser perangkat Anda.' },
+  { icon: 'Zap', title: 'Cepat & Tanpa Antrean', desc: 'Tanpa proses antrean upload. Hasil dokumen selesai diproses dalam hitungan detik.' },
+  { icon: 'Sparkles', title: 'Lengkap & Gratis', desc: 'Semua alat pengolah PDF, dokumen Word, dan editor gambar tersedia gratis tanpa batasan akun.' },
 ]
 
 export default function Landing() {
@@ -26,7 +26,7 @@ export default function Landing() {
           Studio Olah Dokumen & Gambar
         </h1>
         <p className="mx-auto max-w-2xl text-sm sm:text-base text-[--color-text-2] leading-relaxed">
-          Edit, gabung, kompresi, ubah PDF ↔ Word, dan konversi format gambar langsung di browser. Cepat, privat, dan tanpa registrasi.
+          Edit, tambah nomor halaman, gabung, kompresi, ubah PDF ↔ Word, crop & rotasi, dan content-aware image carver langsung di browser.
         </p>
       </section>
 
