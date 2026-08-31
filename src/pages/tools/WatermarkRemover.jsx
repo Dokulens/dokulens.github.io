@@ -3,16 +3,18 @@ import {
   Sparkles, Wand2, Paintbrush, Trash2, Download,
   Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
   Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2
+  StopCircle, CheckCircle2, SlidersHorizontal
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import {
-  reverseAlphaBlend,
+  removeGeminiWatermarkPrecision,
   inpaintWatermark,
-  detectGeminiWatermark
+  detectGeminiWatermark,
+  getGeminiCandidateConfigs,
+  findBestGeminiAnchor
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 
@@ -22,12 +24,13 @@ export default function WatermarkRemover() {
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
-  const [removalMode, setRemovalMode] = useState('inpaint')
+  const [removalMode, setRemovalMode] = useState('alpha') // Default to precision Reverse Alpha for Gemini
   const [brushSize, setBrushSize] = useState(24)
   const [inpaintRadius, setInpaintRadius] = useState(6)
-  const [alphaStrength, setAlphaStrength] = useState(1.0)
+  const [alphaGain, setAlphaGain] = useState(1.0)
   const [hasMask, setHasMask] = useState(false)
 
+  // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
   // Pop-up Zoomable Modal
@@ -71,9 +74,28 @@ export default function WatermarkRemover() {
       const img = new Image()
       img.onload = () => {
         setOrigDims({ w: img.naturalWidth, h: img.naturalHeight })
-        const det = detectGeminiWatermark(img.naturalWidth, img.naturalHeight)
+
+        // Extract image data to run anchor search
+        const tempCanvas = document.createElement('canvas')
+        tempCanvas.width = img.naturalWidth
+        tempCanvas.height = img.naturalHeight
+        const tCtx = tempCanvas.getContext('2d')
+        tCtx.drawImage(img, 0, 0)
+        const imgData = tCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight)
+
+        const det = detectGeminiWatermark(img.naturalWidth, img.naturalHeight, imgData)
         setDetectedBox(det)
         initMaskCanvas(img.naturalWidth, img.naturalHeight)
+
+        // Automatically mark the detected Gemini watermark
+        setTimeout(() => {
+          if (maskCanvasRef.current) {
+            const ctx = maskCanvasRef.current.getContext('2d')
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
+            ctx.fillRect(det.x, det.y, det.width, det.height)
+            setHasMask(true)
+          }
+        }, 50)
       }
       img.src = url
     }
@@ -92,6 +114,7 @@ export default function WatermarkRemover() {
     if (!detectedBox || !maskCanvasRef.current) return
     const canvas = maskCanvasRef.current
     const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
     ctx.fillRect(detectedBox.x, detectedBox.y, detectedBox.width, detectedBox.height)
     setHasMask(true)
@@ -209,6 +232,7 @@ export default function WatermarkRemover() {
     }
   }, [isModalOpen])
 
+  // Precision Watermark Removal Process
   const processImageWatermark = async () => {
     if (!mediaSrc || !hasMask) return
     setProcessing(true)
@@ -237,14 +261,13 @@ export default function WatermarkRemover() {
       setProgress(50)
 
       if (removalMode === 'alpha' && detectedBox) {
-        reverseAlphaBlend(imgData, maskImgData.data, {
-          x: detectedBox.x,
-          y: detectedBox.y,
-          width: detectedBox.width,
-          height: detectedBox.height,
-          strength: alphaStrength,
+        // High-Precision Reverse Alpha Blending
+        removeGeminiWatermarkPrecision(imgData, detectedBox, {
+          logoValue: 255,
+          alphaGain,
         })
       } else {
+        // Fast Marching Inpainting Mode (Arbitrary Watermarks)
         inpaintWatermark(imgData, maskImgData.data, inpaintRadius)
       }
 
@@ -361,7 +384,7 @@ export default function WatermarkRemover() {
   return (
     <ToolShell
       title="Hapus Watermark (Foto & Video)"
-      description="Hapus logo, cap air, tanggal kamera, dan watermark AI (Gemini/Imagen/Midjourney) dari foto maupun video langsung di browser dengan algoritma Reverse Alpha Blending & Inpainting."
+      description="Hapus watermark AI (Gemini/Imagen/Midjourney), logo, cap air, dan tanggal dari foto maupun video secara presisi dan 100% lokal tanpa kirim file ke server."
     >
       <DropZone
         accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.mkv"
@@ -378,14 +401,14 @@ export default function WatermarkRemover() {
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="shrink-0 text-[--color-brand]" />
                 <span className="text-[--color-brand-text]">
-                  <strong>Watermark AI Terdeteksi:</strong> Ditemukan posisi cap air AI ({detectedBox.width}×{detectedBox.height} px) di sudut kanan bawah.
+                  <strong>Watermark Gemini Terdeteksi:</strong> Ditemukan koordinat presisi ({detectedBox.x}, {detectedBox.y}) ukuran {detectedBox.width}×{detectedBox.height} px.
                 </span>
               </div>
               <button
                 onClick={autoSelectGeminiWatermark}
                 className="shrink-0 rounded bg-[--color-brand] px-3 py-1 font-bold text-white hover:bg-[--color-brand-hover] transition-colors"
               >
-                Pilih Otomatis (Gemini AI)
+                Kunci Posisi Gemini AI
               </button>
             </div>
           )}
@@ -395,25 +418,9 @@ export default function WatermarkRemover() {
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
               <div>
                 <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  Metode Penghapusan Watermark
+                  Metode Penghapusan
                 </label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setRemovalMode('inpaint')}
-                    className={[
-                      'flex flex-col items-start rounded border p-3 text-left transition-all',
-                      removalMode === 'inpaint'
-                        ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                        : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                    ].join(' ')}
-                  >
-                    <span className="text-xs font-bold">Fast-Marching Inpainting (Rekomendasi)</span>
-                    <span className="text-[11px] font-normal opacity-80 mt-0.5">
-                      Cocok untuk logo padat, cap teks, tanggal kamera, dan watermark bebas.
-                    </span>
-                  </button>
-
                   <button
                     type="button"
                     onClick={() => setRemovalMode('alpha')}
@@ -424,13 +431,47 @@ export default function WatermarkRemover() {
                         : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
                     ].join(' ')}
                   >
-                    <span className="text-xs font-bold">Reverse Alpha Blending (Lossless)</span>
+                    <span className="text-xs font-bold">Reverse Alpha Blending (Lossless) ⭐</span>
                     <span className="text-[11px] font-normal opacity-80 mt-0.5">
-                      Pemulihan warna matematis murni untuk watermark semi-transparan / Gemini AI.
+                      Formula pemulihan warna asli matematis untuk watermark semi-transparan / Gemini AI tanpa merusak ketajaman foto.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRemovalMode('inpaint')}
+                    className={[
+                      'flex flex-col items-start rounded border p-3 text-left transition-all',
+                      removalMode === 'inpaint'
+                        ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
+                        : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
+                    ].join(' ')}
+                  >
+                    <span className="text-xs font-bold">Fast-Marching Inpainting (Rekonstruksi)</span>
+                    <span className="text-[11px] font-normal opacity-80 mt-0.5">
+                      Cocok untuk logo padat/teks tebal yang tidak transparan atau watermark bebas di tengah foto.
                     </span>
                   </button>
                 </div>
               </div>
+
+              {removalMode === 'alpha' && (
+                <div className="border-t border-[--color-border] pt-3 text-xs flex items-center justify-between gap-4">
+                  <span className="font-semibold text-[--color-text-2]">Kekuatan Alpha Gain:</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0.8"
+                      max="1.3"
+                      step="0.05"
+                      value={alphaGain}
+                      onChange={(e) => setAlphaGain(Number(e.target.value))}
+                      className="w-32"
+                    />
+                    <span className="font-mono font-bold text-[--color-brand] w-10 text-right">{alphaGain.toFixed(2)}x</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
                 <div className="flex items-center gap-2">
@@ -444,7 +485,7 @@ export default function WatermarkRemover() {
                   </button>
                   {hasMask && (
                     <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-bold text-red-600 dark:text-red-400">
-                      ✓ Area Ditandai
+                      ✓ Area Ditandai ({detectedBox ? `${detectedBox.width}×${detectedBox.height}px` : 'Kustom'})
                     </span>
                   )}
                 </div>
@@ -478,21 +519,21 @@ export default function WatermarkRemover() {
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kanan Bawah (Gemini / AI Video)
                 </button>
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 3, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kiri Atas
                 </button>
                 <button
                   type="button"
                   onClick={() => setVideoBox({ xPct: 82, yPct: 3, wPct: 15, hPct: 15 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kanan Atas
                 </button>
@@ -551,7 +592,6 @@ export default function WatermarkRemover() {
                       height: `${videoBox.hPct}%`,
                     }}
                   >
-                    {/* 4 Corner Resize Handles */}
                     <div
                       onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}
                       className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-nw-resize"
