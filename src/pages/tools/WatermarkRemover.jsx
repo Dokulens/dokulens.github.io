@@ -829,36 +829,36 @@ export default function WatermarkRemover() {
           {/* Simple Modal: Masking Selector */}
           {isModalOpen && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-              <div className="relative w-[92%] max-w-[700px] rounded-xl bg-[--color-surface] text-[--color-text] shadow-2xl overflow-hidden border border-[--color-border]">
+              <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[--color-border]">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
                       <Paintbrush size={16} />
                     </div>
                     <div>
                       <p className="text-sm font-bold leading-tight">Masking Watermark</p>
-                      <p className="text-[11px] text-[--color-text-2]">{origDims.w} × {origDims.h} px</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{origDims.w} × {origDims.h} px</p>
                     </div>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-2] hover:text-[--color-text]">
+                  <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200">
                     <X size={18} />
                   </button>
                 </div>
 
                 {/* Body */}
                 <div className="px-5 py-4 space-y-3">
-                  <p className="text-xs text-[--color-text-2]">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
 
                   {/* Brush Size */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[--color-text-2]">Kuas:</span>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
                     <input type="range" min="6" max="80" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
-                    <span className="text-[11px] font-mono text-[--color-text-3] w-8">{brushSize}px</span>
+                    <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
                   </div>
 
                   {/* Preview Canvas */}
-                  <div className="relative flex justify-center rounded-lg border border-[--color-border] bg-[--color-surface-2] p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
+                  <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
                     {activeMedia === 'video' ? (
                       <div className="relative inline-flex items-center justify-center">
                         <canvas
@@ -909,7 +909,7 @@ export default function WatermarkRemover() {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-[--color-border] bg-[--color-surface-2]">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
                   <button onClick={activeMedia === 'video' ? clearVideoMask : clearMask} className="text-xs text-red-500 hover:underline font-semibold">
                     <Trash2 size={12} className="inline mr-1" />Hapus Tanda
                   </button>
