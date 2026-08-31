@@ -1,248 +1,234 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  Loader2, Wand2, Paintbrush, ShieldCheck, Eraser,
-  RotateCcw, Download, Eye, Layers, Sparkles
+  Shrink, Trash2, Download, Eye, Sparkles,
+  MousePointer, RotateCcw, Activity, Layers, Sliders, Check
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import {
-  calculateEnergyMap, findVerticalSeam, removeVerticalSeam,
-  transposeImageData, transposeMask
-} from '../../utils/seamCarving'
+  resizeImage,
+  normalizeEnergyMap,
+  getPixel,
+  setPixel,
+  ALPHA_DELETE_THRESHOLD,
+  MAX_WIDTH_LIMIT,
+  MAX_HEIGHT_LIMIT,
+} from '../../utils/contentAwareResizer'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 
 export default function ImageCarver() {
+  const [imageSrc, setImageSrc] = useState(null)
   const [file, setFile] = useState(null)
-  const [origImgData, setOrigImgData] = useState(null)
-  const [currentImgData, setCurrentImgData] = useState(null)
-  const [targetWidth, setTargetWidth] = useState(0)
-  const [targetHeight, setTargetHeight] = useState(0)
-  const [brushMode, setBrushMode] = useState('remove') // 'remove' | 'protect' | 'eraser'
-  const [brushSize, setBrushSize] = useState(20)
+  const [originalSize, setOriginalSize] = useState(null) // { w, h }
+  const [workingSize, setWorkingSize] = useState(null) // { w, h }
+  const [resizedImgSrc, setResizedImgSrc] = useState(null)
+  const [toWidthScale, setToWidthScale] = useState(75)
+  const [toHeightScale, setToHeightScale] = useState(85)
+  const [useHigherQuality, setUseHigherQuality] = useState(false)
+  const [showEnergyMap, setShowEnergyMap] = useState(true)
   const [showSeams, setShowSeams] = useState(true)
-  const [processing, setProcessing] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [progressText, setProgressText] = useState('')
-  const [resultBlob, setResultBlob] = useState(null)
+  const [maskData, setMaskData] = useState(null)
+  const [hasMask, setHasMask] = useState(false)
   const [error, setError] = useState('')
 
-  const canvasRef = useRef(null)
+  const imgRef = useRef(null)
+  const workingCanvasRef = useRef(null)
+  const energyCanvasRef = useRef(null)
+  const seamsCanvasRef = useRef(null)
   const maskCanvasRef = useRef(null)
   const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
 
   const handleFile = ([f]) => {
     setFile(f)
-    setResultBlob(null)
-    setError('')
-    setProgress(0)
-
+    onReset()
     const url = URL.createObjectURL(f)
-    const img = new Image()
-    img.onload = () => {
-      // Limit max processing resolution for smooth in-browser responsiveness
-      const MAX_DIM = 800
-      let w = img.naturalWidth
-      let h = img.naturalHeight
-      if (w > MAX_DIM || h > MAX_DIM) {
-        if (w > h) {
-          h = Math.round((h * MAX_DIM) / w)
-          w = MAX_DIM
-        } else {
-          w = Math.round((w * MAX_DIM) / h)
-          h = MAX_DIM
-        }
-      }
-
-      const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, w, h)
-      const data = ctx.getImageData(0, 0, w, h)
-
-      setOrigImgData(data)
-      setCurrentImgData(data)
-      setTargetWidth(w)
-      setTargetHeight(h)
-
-      // Initialize drawing canvas
-      initCanvases(data)
-      URL.revokeObjectURL(url)
-    }
-    img.src = url
+    setImageSrc(url)
   }
 
-  const initCanvases = (imgData) => {
-    if (!canvasRef.current || !maskCanvasRef.current) return
-    const { width, height } = imgData
-
-    canvasRef.current.width = width
-    canvasRef.current.height = height
-    const ctx = canvasRef.current.getContext('2d')
-    ctx.putImageData(imgData, 0, 0)
-
-    maskCanvasRef.current.width = width
-    maskCanvasRef.current.height = height
-    const mCtx = maskCanvasRef.current.getContext('2d')
-    mCtx.clearRect(0, 0, width, height)
+  const onReset = () => {
+    setResizedImgSrc(null)
+    setWorkingSize(null)
+    setProgress(0)
+    setError('')
+    isCancelledRef.current = true
+    setIsResizing(false)
   }
 
-  // Sync canvas render
-  useEffect(() => {
-    if (currentImgData && canvasRef.current) {
-      canvasRef.current.width = currentImgData.width
-      canvasRef.current.height = currentImgData.height
-      const ctx = canvasRef.current.getContext('2d')
-      ctx.putImageData(currentImgData, 0, 0)
-    }
-  }, [currentImgData])
+  const onImgLoad = () => {
+    if (!imgRef.current) return
+    const w = imgRef.current.naturalWidth
+    const h = imgRef.current.naturalHeight
+    setOriginalSize({ w, h })
+    initMaskCanvas()
+  }
 
-  // Brush drawing on mask layer
-  const handleMouseDown = (e) => {
+  const initMaskCanvas = () => {
+    if (!maskCanvasRef.current || !imgRef.current) return
+    const canvas = maskCanvasRef.current
+    canvas.width = imgRef.current.clientWidth || 400
+    canvas.height = imgRef.current.clientHeight || 300
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    setHasMask(false)
+    setMaskData(null)
+  }
+
+  // Brush drawing on original image mask
+  const startPaint = (e) => {
+    if (isResizing) return
     isPaintingRef.current = true
-    paintBrush(e)
+    paint(e)
   }
 
-  const handleMouseMove = (e) => {
-    if (!isPaintingRef.current) return
-    paintBrush(e)
-  }
+  const paint = (e) => {
+    if (!isPaintingRef.current || !maskCanvasRef.current) return
+    const canvas = maskCanvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
-  const handleMouseUp = () => {
-    isPaintingRef.current = false
-  }
-
-  const paintBrush = (e) => {
-    if (!maskCanvasRef.current) return
-    const rect = maskCanvasRef.current.getBoundingClientRect()
-    const scaleX = maskCanvasRef.current.width / rect.width
-    const scaleY = maskCanvasRef.current.height / rect.height
-    const x = (e.clientX - rect.left) * scaleX
-    const y = (e.clientY - rect.top) * scaleY
-
-    const ctx = maskCanvasRef.current.getContext('2d')
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.75)'
     ctx.beginPath()
-    ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2)
+    ctx.arc(x, y, 12, 0, Math.PI * 2)
+    ctx.fill()
+    setHasMask(true)
+  }
 
-    if (brushMode === 'remove') {
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.75)' // Red mask for object removal
-      ctx.fill()
-    } else if (brushMode === 'protect') {
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.75)' // Green mask to protect areas
-      ctx.fill()
-    } else if (brushMode === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.fill()
-      ctx.globalCompositeOperation = 'source-over'
+  const stopPaint = () => {
+    if (!isPaintingRef.current) return
+    isPaintingRef.current = false
+    if (maskCanvasRef.current) {
+      const ctx = maskCanvasRef.current.getContext('2d')
+      setMaskData(ctx.getImageData(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height))
     }
   }
 
   const clearMask = () => {
-    if (!maskCanvasRef.current) return
-    const ctx = maskCanvasRef.current.getContext('2d')
-    ctx.clearRect(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height)
+    initMaskCanvas()
   }
 
-  const resetAll = () => {
-    if (!origImgData) return
-    setCurrentImgData(origImgData)
-    setTargetWidth(origImgData.width)
-    setTargetHeight(origImgData.height)
-    setResultBlob(null)
-    clearMask()
+  const applyMaskToImageData = (img) => {
+    if (!maskData) return
+    const wRatio = maskData.width / img.width
+    const hRatio = maskData.height / img.height
+
+    for (let y = 0; y < img.height; y += 1) {
+      for (let x = 0; x < img.width; x += 1) {
+        const maskX = Math.floor(x * wRatio)
+        const maskY = Math.floor(y * hRatio)
+        const maskIdx = (maskY * maskData.width + maskX) * 4
+        const maskAlpha = maskData.data[maskIdx + 3]
+
+        if (maskAlpha > 30) {
+          const pixel = getPixel(img, { x, y })
+          setPixel(img, { x, y }, [pixel[0], pixel[1], pixel[2], ALPHA_DELETE_THRESHOLD])
+        }
+      }
+    }
   }
 
-  const runSeamCarving = async () => {
-    if (!currentImgData || processing) return
-    setProcessing(true)
-    setError('')
+  const startCarving = async () => {
+    if (!imgRef.current || isResizing) return
+    onReset()
+    setIsResizing(true)
     isCancelledRef.current = false
+    setError('')
+
+    const srcImg = imgRef.current
+    let w = useHigherQuality ? srcImg.naturalWidth : (srcImg.clientWidth || 500)
+    let h = useHigherQuality ? srcImg.naturalHeight : (srcImg.clientHeight || 350)
+    const ratio = w / h
+
+    if (w > MAX_WIDTH_LIMIT) {
+      w = MAX_WIDTH_LIMIT
+      h = Math.floor(w / ratio)
+    }
+    if (h > MAX_HEIGHT_LIMIT) {
+      h = MAX_HEIGHT_LIMIT
+      w = Math.floor(h * ratio)
+    }
+
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = w
+    tempCanvas.height = h
+    const tempCtx = tempCanvas.getContext('2d')
+    tempCtx.drawImage(srcImg, 0, 0, w, h)
+
+    const img = tempCtx.getImageData(0, 0, w, h)
+    applyMaskToImageData(img)
+
+    const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
+    const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
+
+    setWorkingSize({ w, h })
 
     try {
-      let workingImg = new ImageData(
-        new Uint8ClampedArray(currentImgData.data),
-        currentImgData.width,
-        currentImgData.height
-      )
+      const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps }) => {
+        // 1. Render working canvas
+        if (workingCanvasRef.current) {
+          workingCanvasRef.current.width = size.w
+          workingCanvasRef.current.height = size.h
+          const ctx = workingCanvasRef.current.getContext('2d')
+          ctx.putImageData(currentImg, 0, 0, 0, 0, size.w, size.h)
+        }
 
-      const mCtx = maskCanvasRef.current.getContext('2d')
-      let workingMask = mCtx.getImageData(0, 0, workingImg.width, workingImg.height).data
+        // 2. Render seam line on seams canvas
+        if (showSeams && seamsCanvasRef.current) {
+          seamsCanvasRef.current.width = size.w
+          seamsCanvasRef.current.height = size.h
+          const sCtx = seamsCanvasRef.current.getContext('2d')
+          sCtx.clearRect(0, 0, size.w, size.h)
+          sCtx.fillStyle = 'rgba(239, 68, 68, 0.95)'
+          seam.forEach(({ x, y }) => {
+            sCtx.fillRect(x, y, 1, 1)
+          })
+        }
 
-      const deltaW = workingImg.width - targetWidth
-      const deltaH = workingImg.height - targetHeight
-      const totalSteps = Math.max(0, deltaW) + Math.max(0, deltaH)
-      let stepCount = 0
+        // 3. Render normalized Energy Map
+        if (showEnergyMap && energyCanvasRef.current && energyMap) {
+          energyCanvasRef.current.width = size.w
+          energyCanvasRef.current.height = size.h
+          const eCtx = energyCanvasRef.current.getContext('2d')
+          const eImgData = eCtx.getImageData(0, 0, size.w, size.h)
+          const normalized = normalizeEnergyMap(energyMap, size.w, size.h)
 
-      // 1. Remove Vertical Seams (Reduce Width)
-      for (let i = 0; i < deltaW; i++) {
-        if (isCancelledRef.current) break
-        const energy = calculateEnergyMap(workingImg, workingMask)
-        const seam = findVerticalSeam(energy, workingImg.width, workingImg.height)
-
-        // Draw seam visualization on canvas if enabled
-        if (showSeams && canvasRef.current) {
-          const ctx = canvasRef.current.getContext('2d')
-          ctx.fillStyle = '#ef4444'
-          for (let y = 0; y < workingImg.height; y++) {
-            ctx.fillRect(seam[y], y, 1, 1)
+          for (let ey = 0; ey < size.h; ey += 1) {
+            for (let ex = 0; ex < size.w; ex += 1) {
+              const val = normalized[ey][ex]
+              setPixel(eImgData, { x: ex, y: ey }, [val, val, val, 255])
+            }
           }
+          eCtx.putImageData(eImgData, 0, 0)
         }
 
-        const res = removeVerticalSeam(workingImg, seam, workingMask)
-        workingImg = res.imgData
-        workingMask = res.maskData
-
-        stepCount++
-        if (i % 2 === 0) {
-          setProgress(Math.round((stepCount / totalSteps) * 100))
-          setProgressText(`Memproses seam carving lebar (${workingImg.width}px)…`)
-          setCurrentImgData(workingImg)
-          await new Promise((r) => setTimeout(r, 0)) // yield to event loop
-        }
+        setWorkingSize({ w: size.w, h: size.h })
+        setProgress(Math.round((step / steps) * 100))
       }
 
-      // 2. Remove Horizontal Seams (Reduce Height) via transposing
-      if (deltaH > 0) {
-        workingImg = transposeImageData(workingImg)
-        workingMask = transposeMask(workingMask, workingImg.height, workingImg.width)
+      const res = await resizeImage({
+        img,
+        toWidth,
+        toHeight,
+        onIteration,
+        isCancelled: () => isCancelledRef.current,
+      })
 
-        for (let i = 0; i < deltaH; i++) {
-          if (isCancelledRef.current) break
-          const energy = calculateEnergyMap(workingImg, workingMask)
-          const seam = findVerticalSeam(energy, workingImg.width, workingImg.height)
-
-          const res = removeVerticalSeam(workingImg, seam, workingMask)
-          workingImg = res.imgData
-          workingMask = res.maskData
-
-          stepCount++
-          if (i % 2 === 0) {
-            setProgress(Math.round((stepCount / totalSteps) * 100))
-            setProgressText(`Memproses seam carving tinggi (${workingImg.height}px)…`)
-            await new Promise((r) => setTimeout(r, 0))
+      if (!isCancelledRef.current && workingCanvasRef.current) {
+        workingCanvasRef.current.toBlob((blob) => {
+          if (blob) {
+            setResizedImgSrc(URL.createObjectURL(blob))
           }
-        }
-
-        workingImg = transposeImageData(workingImg)
+        }, 'image/png')
       }
-
-      setCurrentImgData(workingImg)
-      setProgress(100)
-
-      // Create output blob
-      const outCanvas = document.createElement('canvas')
-      outCanvas.width = workingImg.width
-      outCanvas.height = workingImg.height
-      outCanvas.getContext('2d').putImageData(workingImg, 0, 0)
-
-      const blob = await new Promise((res) => outCanvas.toBlob(res, 'image/png'))
-      setResultBlob(blob)
     } catch (e) {
       setError(`Gagal: ${e.message}`)
     } finally {
-      setProcessing(false)
+      setIsResizing(false)
     }
   }
 
@@ -250,171 +236,140 @@ export default function ImageCarver() {
 
   return (
     <ToolShell
-      title="Image Carver (Content-Aware Editor)"
-      description="Teknologi Seam Carving untuk resize foto pintar tanpa mendistorsi objek utama, serta hapus objek yang tidak diinginkan dengan kuas cerdas."
+      title="Image Carver (Content-Aware Seam Carving)"
+      description="Implementasi lengkap algoritma Seam Carving murni di browser (terinspirasi dari js-image-carver). Kecilkan resolusi gambar tanpa merusak proporsi objek utama & hapus objek foto dengan kuas seleksi."
     >
       <DropZone
         accept="image/*,.jpg,.jpeg,.png,.webp"
         onFiles={handleFile}
-        label="Pilih foto / gambar untuk di-carve"
-        hint="JPG, PNG, WebP — resize cerdas & hapus objek"
+        label="Pilih foto untuk di-carve"
+        hint="JPG, PNG, WebP — Content-Aware Image Resizing"
       />
 
-      {origImgData && (
+      {imageSrc && (
         <div className="space-y-4 animate-fade-in">
           {/* Controls Bar */}
           <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[--color-border] pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[--color-border] pb-3 text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  Dimensi Target:
+                <Sliders size={15} className="text-[--color-brand]" />
+                <span className="font-bold text-[--color-text]">Skala Target:</span>
+                <span className="text-[--color-text-2]">
+                  Lebar <strong>{toWidthScale}%</strong> × Tinggi <strong>{toHeightScale}%</strong>
                 </span>
-                <span className="text-xs font-semibold text-[--color-text]">
-                  {targetWidth} x {targetHeight} px
-                </span>
-                <span className="text-[10px] text-[--color-text-3]">
-                  (Asli: {origImgData.width} x {origImgData.height})
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={resetAll}
-                  disabled={processing}
-                  className="flex items-center gap-1 text-xs text-[--color-text-2] hover:text-[--color-text] disabled:opacity-40"
-                >
-                  <RotateCcw size={13} /> Reset Asli
-                </button>
-              </div>
-            </div>
-
-            {/* Target Width Slider */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-[--color-text-2]">
-                    Kecilkan Lebar (Width)
-                  </label>
-                  <span className="text-xs font-bold text-[--color-brand]">{targetWidth} px</span>
-                </div>
-                <input
-                  type="range"
-                  min={Math.round(origImgData.width * 0.3)}
-                  max={origImgData.width}
-                  value={targetWidth}
-                  disabled={processing}
-                  onChange={(e) => setTargetWidth(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-[--color-text-2]">
-                    Kecilkan Tinggi (Height)
-                  </label>
-                  <span className="text-xs font-bold text-[--color-brand]">{targetHeight} px</span>
-                </div>
-                <input
-                  type="range"
-                  min={Math.round(origImgData.height * 0.3)}
-                  max={origImgData.height}
-                  value={targetHeight}
-                  disabled={processing}
-                  onChange={(e) => setTargetHeight(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            {/* Brush selection for content-aware object removal/protection */}
-            <div className="pt-2 border-t border-[--color-border] flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-[--color-text-3]">Kuas Masking:</span>
-                <button
-                  type="button"
-                  onClick={() => setBrushMode('remove')}
-                  className={[
-                    'flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium transition-colors',
-                    brushMode === 'remove'
-                      ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 font-semibold'
-                      : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
-                >
-                  <Wand2 size={13} />
-                  Hapus Objek (Merah)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBrushMode('protect')}
-                  className={[
-                    'flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium transition-colors',
-                    brushMode === 'protect'
-                      ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-400 font-semibold'
-                      : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
-                >
-                  <ShieldCheck size={13} />
-                  Lindungi Objek (Hijau)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBrushMode('eraser')}
-                  className={[
-                    'flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition-colors',
-                    brushMode === 'eraser'
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                      : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
-                >
-                  <Eraser size={13} />
-                  Penghapus
-                </button>
+                {originalSize && (
+                  <span className="text-[--color-text-3]">
+                    (Asli: {originalSize.w} × {originalSize.h} px)
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[--color-text-3]">Ukuran Kuas:</span>
+                <label className="flex items-center gap-1.5 text-xs text-[--color-text-2] cursor-pointer">
                   <input
-                    type="range"
-                    min="6"
-                    max="60"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(Number(e.target.value))}
-                    className="w-20"
+                    type="checkbox"
+                    checked={useHigherQuality}
+                    onChange={(e) => setUseHigherQuality(e.target.checked)}
+                    disabled={isResizing}
                   />
-                </div>
-                <button
-                  onClick={clearMask}
-                  className="text-xs text-[--color-text-3] hover:text-[--color-danger]"
-                >
-                  Hapus Kuas
-                </button>
+                  <span>Kualitas Tinggi (Full Resolusi)</span>
+                </label>
               </div>
             </div>
-          </div>
 
-          {/* Interactive Canvas Canvas Area */}
-          <div className="relative flex justify-center rounded-lg border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[350px]">
-            <div
-              className="relative inline-block border border-[--color-border] shadow-xs cursor-crosshair select-none bg-black/5"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-            >
-              {/* Base image canvas */}
-              <canvas ref={canvasRef} className="block max-h-[500px] w-auto pointer-events-none" />
-              {/* Overlay mask canvas */}
-              <canvas
-                ref={maskCanvasRef}
-                className="absolute inset-0 block h-full w-full pointer-events-auto opacity-80"
-              />
+            {/* Scale Sliders */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className="flex justify-between items-center mb-1 text-xs">
+                  <span className="font-semibold text-[--color-text-2]">Lebar (Width)</span>
+                  <span className="font-bold text-[--color-brand]">{toWidthScale}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="100"
+                  value={toWidthScale}
+                  disabled={isResizing}
+                  onChange={(e) => setToWidthScale(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1 text-xs">
+                  <span className="font-semibold text-[--color-text-2]">Tinggi (Height)</span>
+                  <span className="font-bold text-[--color-brand]">{toHeightScale}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="100"
+                  value={toHeightScale}
+                  disabled={isResizing}
+                  onChange={(e) => setToHeightScale(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Visualization toggles */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
+              <div className="flex items-center gap-4 text-[--color-text-2]">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showSeams}
+                    onChange={(e) => setShowSeams(e.target.checked)}
+                  />
+                  <span>Tampilkan Jalur Seam (Merah)</span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showEnergyMap}
+                    onChange={(e) => setShowEnergyMap(e.target.checked)}
+                  />
+                  <span>Tampilkan Energy Map</span>
+                </label>
+              </div>
+
+              {hasMask && (
+                <button
+                  onClick={clearMask}
+                  disabled={isResizing}
+                  className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
+                >
+                  <Trash2 size={13} /> Hapus Mask Merah
+                </button>
+              )}
             </div>
           </div>
 
-          {processing && (
+          {/* Action button & Progress */}
+          {!resizedImgSrc && (
+            <button
+              onClick={startCarving}
+              disabled={isResizing}
+              className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
+            >
+              {isResizing ? (
+                <>
+                  <Activity size={16} className="animate-pulse" />
+                  Memproses Seam Carving ({progress}%)…
+                </>
+              ) : (
+                <>
+                  <Shrink size={16} />
+                  Mulai Content-Aware Resize
+                </>
+              )}
+            </button>
+          )}
+
+          {isResizing && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
-              <ProgressBar value={progress} label={progressText} />
+              <ProgressBar value={progress} label={`Menghitung energi piksel & memotong seams… ${progress}%`} />
             </div>
           )}
 
@@ -424,37 +379,97 @@ export default function ImageCarver() {
             </p>
           )}
 
-          {origImgData && !resultBlob && (
-            <button
-              onClick={runSeamCarving}
-              disabled={processing || (targetWidth === currentImgData?.width && targetHeight === currentImgData?.height)}
-              className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-all active:scale-[0.99]"
-            >
-              {processing && <Loader2 size={16} className="animate-spin" />}
-              {processing ? 'Menghitung Jalur Seams & Memotong…' : 'Mulai Content-Aware Carve (Resize / Hapus Objek)'}
-            </button>
-          )}
+          {/* Real-time Work Stages Grid */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* 1. Original Image with Mask Canvas */}
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                  1. Gambar Asli & Masking Objek
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-[--color-text-3]">
+                  <MousePointer size={12} /> Kuas merah untuk hapus objek
+                </span>
+              </div>
+              <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2] cursor-crosshair">
+                <img
+                  ref={imgRef}
+                  src={imageSrc}
+                  alt="Original"
+                  onLoad={onImgLoad}
+                  className="block max-h-[360px] w-auto pointer-events-none select-none"
+                />
+                <canvas
+                  ref={maskCanvasRef}
+                  onMouseDown={startPaint}
+                  onMouseMove={paint}
+                  onMouseUp={stopPaint}
+                  onMouseLeave={stopPaint}
+                  className="absolute inset-0 block h-full w-full pointer-events-auto opacity-75"
+                />
+              </div>
+            </div>
 
-          {resultBlob && (
+            {/* 2. Real-time Live Resized Canvas + Seams */}
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                  2. Preview Proses Carving {workingSize ? `(${workingSize.w} × ${workingSize.h} px)` : ''}
+                </span>
+                {isResizing && (
+                  <span className="text-[11px] font-bold text-[--color-brand] animate-pulse">
+                    ● Real-Time
+                  </span>
+                )}
+              </div>
+              <div className="relative flex items-center justify-center min-h-[260px] overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2] p-2">
+                <canvas ref={workingCanvasRef} className="block max-h-[360px] w-auto border border-dashed border-gray-400" />
+                {showSeams && (
+                  <canvas ref={seamsCanvasRef} className="absolute inset-0 block h-full w-full pointer-events-none" />
+                )}
+              </div>
+            </div>
+
+            {/* 3. Live Mathematical Energy Map Canvas */}
+            {showEnergyMap && (
+              <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 lg:col-span-2 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
+                    <Activity size={14} className="text-[--color-brand]" />
+                    3. Dual-Gradient Energy Map (Visualisasi Matriks Gradien Energi)
+                  </span>
+                  <span className="text-[11px] text-[--color-text-3]">
+                    Piksel putih = energi tinggi (dilindungi) | Piksel hitam = energi rendah (dipotong)
+                  </span>
+                </div>
+                <div className="flex items-center justify-center min-h-[160px] overflow-hidden rounded border border-[--color-border] bg-black/90 p-2">
+                  <canvas ref={energyCanvasRef} className="block max-h-[300px] w-auto" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Download Result Card */}
+          {resizedImgSrc && (
             <div className="rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4 animate-fade-in">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1">
-                    <Sparkles size={16} /> Hasil Seam Carving Selesai!
+                  <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
+                    <Sparkles size={16} /> Content-Aware Resize Berhasil!
                   </p>
                   <p className="mt-0.5 text-sm text-[--color-text-2]">
-                    Ukuran baru: {currentImgData.width} x {currentImgData.height} px ({fmtBytes(resultBlob.size)})
+                    Ukuran baru: {workingSize?.w} × {workingSize?.h} px
                   </p>
                 </div>
                 <button
-                  onClick={resetAll}
+                  onClick={onReset}
                   className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]"
                 >
                   ✕
                 </button>
               </div>
               <a
-                href={URL.createObjectURL(resultBlob)}
+                href={resizedImgSrc}
                 download={`${base}_carved.png`}
                 className="mt-3 flex items-center justify-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
               >
