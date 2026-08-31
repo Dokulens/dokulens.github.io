@@ -22,9 +22,16 @@ export const NAV_GROUPS = [
   {
     label: 'Gambar & Media',
     items: [
+      { path: 'image-carver', label: 'Image Carver (Seam Carving)', icon: 'Wand2',      desc: 'Content-aware resize & hapus objek pada foto' },
       { path: 'image-to-pdf', label: 'Gambar → PDF',             icon: 'ImagePlus',    desc: 'Gabung JPG/PNG/WebP jadi PDF' },
       { path: 'pdf-to-image', label: 'PDF → Gambar',             icon: 'FileImage',    desc: 'Ekspor halaman PDF sebagai gambar' },
       { path: 'image-convert',label: 'Konversi & Resize Gambar', icon: 'RefreshCw',    desc: 'WebP, JPG, PNG, AVIF, BMP, ICO & kompresi' },
+    ],
+  },
+  {
+    label: 'Informasi',
+    items: [
+      { path: 'about',        label: 'Tentang & Open-Source',    icon: 'Info',         desc: 'Daftar teknologi & pustaka open-source' },
     ],
   },
 ]
