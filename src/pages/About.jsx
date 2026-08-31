@@ -2,9 +2,23 @@ import { ExternalLink, Code2, ShieldCheck, Cpu, HardDrive, Sparkles } from 'luci
 
 const LIBRARIES = [
   {
+    name: 'gemini-watermark-remover & Inpainting',
+    category: 'Watermark Removal & Inpainting',
+    desc: 'Algoritma Reverse Alpha Blending matematis murni untuk menghilangkan cap air AI (Gemini/Imagen) tanpa distorsi, plus Fast-Marching Telea inpainting untuk logo dan cap umum.',
+    link: 'https://github.com/GargantuaX/gemini-watermark-remover',
+    license: 'MIT',
+  },
+  {
+    name: 'js-image-carver (Seam Carving Algorithm)',
+    category: 'Content-Aware Image Resizing',
+    desc: 'Algoritma Dual-Gradient Energy & Dynamic Programming untuk resize foto cerdas tanpa distorsi dan penghapusan objek bertarget.',
+    link: 'https://github.com/trekhleb/js-image-carver',
+    license: 'MIT',
+  },
+  {
     name: 'pdf-lib & @cantoo/pdf-lib',
     category: 'Manipulasi & Enkripsi PDF',
-    desc: 'Membuat, menggabungkan, membagi, memutar, memberi watermark, dan menerapkan enkripsi password dokumen PDF standar.',
+    desc: 'Membuat, menggabungkan, membagi, memutar, memberi watermark, nomor halaman, dan menerapkan enkripsi password dokumen PDF standar.',
     link: 'https://github.com/cantoo-scribe/pdf-lib',
     license: 'MIT',
   },
@@ -30,16 +44,9 @@ const LIBRARIES = [
     license: 'BSD-2-Clause',
   },
   {
-    name: 'js-image-carver (Seam Carving Algorithm)',
-    category: 'Content-Aware Image Resizing',
-    desc: 'Algoritma Dual-Gradient Energy & Dynamic Programming untuk resize foto cerdas tanpa distorsi dan penghapusan objek bertarget.',
-    link: 'https://github.com/trekhleb/js-image-carver',
-    license: 'MIT',
-  },
-  {
     name: 'jszip',
     category: 'Kompresi & Arsip File',
-    desc: 'Membuat arsip berkas ZIP secara otomatis di browser untuk ekspor banyak halaman atau batch berkas gambar.',
+    desc: 'Membuat arsip berkas ZIP secara otomatis di browser untuk ekspor banyak halaman atau batch berkas gambar dan injeksi XML docx.',
     link: 'https://github.com/Stuk/jszip',
     license: 'MIT / GPLv3',
   },
