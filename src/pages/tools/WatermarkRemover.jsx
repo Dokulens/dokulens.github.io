@@ -10,8 +10,7 @@ import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import {
   removeOfficialGeminiWatermark,
-  removeGeminiFromFrame,
-  getGeminiEngine,
+  createVideoFrameProcessor,
   inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
@@ -260,7 +259,7 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Synchronized Video Watermark Removal — Gemini engine per-frame
+  // Synchronized Video Watermark Removal — detect once, blend fast per-frame
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -300,13 +299,20 @@ export default function WatermarkRemover() {
     }
 
     try {
-      const engine = await getGeminiEngine()
+      setProgress(5)
+      const processor = await createVideoFrameProcessor(w, h)
+      if (!processor) {
+        setError('Tidak bisa mendeteksi watermark pada video ini')
+        setProcessing(false)
+        return
+      }
 
       video.currentTime = 0
       video.playbackRate = 1.0
       await video.play()
 
       mediaRecorder.start(250)
+      setProgress(10)
 
       await new Promise((resolve, reject) => {
         let isDone = false
@@ -325,7 +331,7 @@ export default function WatermarkRemover() {
           }
         }
 
-        const renderFrame = async () => {
+        const renderFrame = () => {
           if (isCancelledRef.current) {
             video.pause()
             try { mediaRecorder.stop() } catch {}
@@ -339,23 +345,16 @@ export default function WatermarkRemover() {
           }
 
           ctx.drawImage(video, 0, 0, w, h)
-
-          try {
-            const result = await removeGeminiFromFrame(canvas, engine)
-            if (result && result.canvas) {
-              ctx.clearRect(0, 0, w, h)
-              ctx.drawImage(result.canvas, 0, 0)
-            }
-          } catch {}
+          processor.processFrame(canvas)
 
           if (video.duration > 0) {
-            setProgress(Math.round((video.currentTime / video.duration) * 100))
+            setProgress(10 + Math.round((video.currentTime / video.duration) * 90))
           }
 
           if ('requestVideoFrameCallback' in video) {
-            video.requestVideoFrameCallback(() => renderFrame())
+            video.requestVideoFrameCallback(renderFrame)
           } else {
-            requestAnimationFrame(() => renderFrame())
+            requestAnimationFrame(renderFrame)
           }
         }
 

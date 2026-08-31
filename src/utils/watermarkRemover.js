@@ -20,8 +20,7 @@ async function getEngine() {
 }
 
 /**
- * Remove Gemini AI watermark using official engine
- * @param {HTMLImageElement|HTMLCanvasElement} image
+ * Remove Gemini AI watermark using official engine (for single images)
  */
 export async function removeOfficialGeminiWatermark(image, options = {}) {
   return await removeWatermarkFromImage(image, {
@@ -30,21 +29,64 @@ export async function removeOfficialGeminiWatermark(image, options = {}) {
   })
 }
 
-/**
- * Remove Gemini watermark from a single video frame canvas (reuses engine for speed)
- * @param {HTMLCanvasElement} frameCanvas - The video frame canvas
- * @param {object} engine - Pre-cached WatermarkEngine instance
- */
-export async function removeGeminiFromFrame(frameCanvas, engine) {
-  return await removeWatermarkFromImage(frameCanvas, {
-    engine,
-    adaptiveMode: 'auto',
-  })
-}
-
 export async function getGeminiEngine() {
   return await getEngine()
 }
+
+/**
+ * Create a fast video frame processor.
+ * Runs full detection on frame 0, then lightweight reverse-alpha-blend on every subsequent frame.
+ * This avoids the heavy multi-pass pipeline per frame.
+ */
+export async function createVideoFrameProcessor(videoWidth, videoHeight) {
+  const engine = await getEngine()
+  const config = detectWatermarkConfig(videoWidth, videoHeight)
+  const position = calculateWatermarkPosition(videoWidth, videoHeight, config)
+  if (!position) return null
+
+  const size = config?.logoSize || position.width
+  const alphaMap = await engine.getAlphaMap(size)
+
+  let alphaGain = 1.0
+  try {
+    const info = engine.getWatermarkInfo(videoWidth, videoHeight)
+    if (info?.config?.alphaGain) alphaGain = info.config.alphaGain
+  } catch {}
+
+  const { x, y, width: wmW, height: wmH } = position
+
+  return {
+    position: { x, y, width: wmW, height: wmH },
+    /**
+     * Process a single video frame canvas in-place (fast O(n) reverse alpha blend)
+     */
+    processFrame(frameCanvas) {
+      const ctx = frameCanvas.getContext('2d')
+      const imgData = ctx.getImageData(x, y, wmW, wmH)
+      const pixels = imgData.data
+
+      for (let row = 0; row < wmH; row++) {
+        for (let col = 0; col < wmW; col++) {
+          const localIdx = row * wmW + col
+          const alpha = (alphaMap[localIdx] ?? 0) * alphaGain
+          if (alpha <= 0.001) continue
+
+          const pixIdx = localIdx * 4
+          const blend = Math.min(1, alpha)
+
+          for (let ch = 0; ch < 3; ch++) {
+            const val = pixels[pixIdx + ch]
+            const restored = val / (1 - blend + 0.001)
+            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(restored)))
+          }
+        }
+      }
+
+      ctx.putImageData(imgData, x, y)
+    }
+  }
+}
+
 export function inpaintWatermark(imageData, maskData, radius = 5) {
   const { width, height, data } = imageData
   const totalPixels = width * height
