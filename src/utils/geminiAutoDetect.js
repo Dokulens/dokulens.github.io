@@ -7,6 +7,7 @@ const ALPHA_NOISE_FLOOR = 3 / 255
 const ALPHA_THRESHOLD = 0.002
 const MAX_ALPHA = 0.99
 const LOGO_VALUE = 255
+const EPSILON = 1e-10
 
 // Embedded base64-encoded Float32Arrays from GargantuaX
 const ALPHA_MAP_B64 = {
