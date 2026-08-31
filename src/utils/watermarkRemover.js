@@ -70,7 +70,7 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
       const LOGO_VALUE = 255
 
       // Use lower alpha gain to avoid black artifacts
-      const adjustedGain = alphaGain * 0.75
+      const adjustedGain = alphaGain * 0.9
 
       for (let row = 0; row < wmH; row++) {
         for (let col = 0; col < wmW; col++) {
