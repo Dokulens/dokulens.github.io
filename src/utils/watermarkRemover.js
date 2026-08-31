@@ -4,34 +4,22 @@
  */
 
 import {
-  createWatermarkEngine,
-  removeWatermarkFromImageData,
+  removeWatermarkFromImage,
   calculateWatermarkPosition,
   detectWatermarkConfig
-} from '@pilio/gemini-watermark-remover'
-
-let cachedEngine = null
-
-async function getEngine() {
-  if (!cachedEngine) {
-    cachedEngine = await createWatermarkEngine()
-  }
-  return cachedEngine
-}
+} from '@pilio/gemini-watermark-remover/browser'
 
 /**
  * Remove Gemini AI watermark using official @pilio/gemini-watermark-remover engine
  * Used by geminiwatermarkremover.io with reverse alpha blending & subpixel calibration.
+ * @param {HTMLImageElement|HTMLCanvasElement} image - The source image element
+ * @returns {Promise<{canvas: HTMLCanvasElement|OffscreenCanvas, meta: object}>}
  */
-export async function removeOfficialGeminiWatermark(imageData, options = {}) {
-  const engine = await getEngine()
-  // Run high-precision removal
-  const result = await removeWatermarkFromImageData(imageData, {
-    engine,
+export async function removeOfficialGeminiWatermark(image, options = {}) {
+  const result = await removeWatermarkFromImage(image, {
     adaptiveMode: 'auto',
     ...options,
   })
-
   return result
 }
 

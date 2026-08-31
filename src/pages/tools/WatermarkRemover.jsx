@@ -229,19 +229,16 @@ export default function WatermarkRemover() {
       const ctx = canvas.getContext('2d', { willReadFrequently: true })
       ctx.drawImage(img, 0, 0)
 
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       setProgress(50)
 
       if (removalMode === 'gemini') {
-        // Official Gemini Watermark Engine (Lossless Reverse Alpha Blending from geminiwatermarkremover.io)
-        const result = await removeOfficialGeminiWatermark(imgData, { adaptiveMode: 'auto' })
+        const result = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto' })
         if (result && result.canvas) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
           ctx.drawImage(result.canvas, 0, 0)
-        } else {
-          // Put processed imgData
-          ctx.putImageData(imgData, 0, 0)
         }
       } else {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
         // Custom Inpainting for arbitrary logos
         const maskCtx = maskCanvasRef.current.getContext('2d')
         const maskImgData = maskCtx.getImageData(0, 0, canvas.width, canvas.height)
@@ -438,6 +435,34 @@ export default function WatermarkRemover() {
                   </button>
                 </div>
               </div>
+
+              {removalMode === 'gemini' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={autoSelectGeminiWatermark}
+                      className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
+                    >
+                      <Sparkles size={13} />
+                      Auto Select Gemini Watermark
+                    </button>
+                    {hasMask && (
+                      <span className="rounded bg-green-500/10 px-2 py-1 text-xs font-bold text-green-600 dark:text-green-400">
+                        ✓ Area Terdeteksi
+                      </span>
+                    )}
+                  </div>
+                  {hasMask && (
+                    <button
+                      onClick={clearMask}
+                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
+                    >
+                      <Trash2 size={13} /> Hapus Tanda
+                    </button>
+                  )}
+                </div>
+              )}
 
               {removalMode === 'inpaint' && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
