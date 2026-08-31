@@ -270,7 +270,7 @@ export default function ImageCarver() {
         setProgress(Math.round((step / steps) * 100))
       }
 
-      await resizeImage({
+      const res = await resizeImage({
         img,
         toWidth,
         toHeight,
@@ -278,8 +278,14 @@ export default function ImageCarver() {
         isCancelled: () => isCancelledRef.current,
       })
 
-      if (!isCancelledRef.current && workingCanvasRef.current) {
-        workingCanvasRef.current.toBlob((blob) => {
+      if (!isCancelledRef.current) {
+        const outCanvas = document.createElement('canvas')
+        outCanvas.width = res.size.w
+        outCanvas.height = res.size.h
+        const outCtx = outCanvas.getContext('2d')
+        outCtx.putImageData(res.img, 0, 0, 0, 0, res.size.w, res.size.h)
+
+        outCanvas.toBlob((blob) => {
           if (blob) {
             setResizedImgSrc(URL.createObjectURL(blob))
           }
