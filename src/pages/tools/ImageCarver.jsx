@@ -25,7 +25,6 @@ export default function ImageCarver() {
   const [workingSize, setWorkingSize] = useState(null)
   const [resizedImgSrc, setResizedImgSrc] = useState(null)
 
-  // Sliders default to 80% width and 90% height
   const [toWidthScale, setToWidthScale] = useState(80)
   const [toHeightScale, setToHeightScale] = useState(90)
   const [useHigherQuality, setUseHigherQuality] = useState(false)
@@ -34,7 +33,6 @@ export default function ImageCarver() {
   const [isResizing, setIsResizing] = useState(false)
   const [progress, setProgress] = useState(0)
 
-  // Pop-up Mask Modal state
   const [isMaskModalOpen, setIsMaskModalOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [brushSize, setBrushSize] = useState(24)
@@ -48,7 +46,6 @@ export default function ImageCarver() {
   const energyCanvasRef = useRef(null)
   const seamsCanvasRef = useRef(null)
 
-  // Modal drawing refs
   const modalCanvasRef = useRef(null)
   const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
@@ -87,7 +84,6 @@ export default function ImageCarver() {
     renderOriginalOverlayMask()
   }
 
-  // Render mask on the original image card overlay
   const renderOriginalOverlayMask = () => {
     if (!origOverlayCanvasRef.current || !imgRef.current) return
     const canvas = origOverlayCanvasRef.current
@@ -105,7 +101,6 @@ export default function ImageCarver() {
     renderOriginalOverlayMask()
   }, [maskCanvasElement, originalSize])
 
-  // When modal opens, sync mask canvas size to image natural resolution
   useEffect(() => {
     if (isMaskModalOpen && modalCanvasRef.current && imgRef.current) {
       const canvas = modalCanvasRef.current
@@ -120,7 +115,6 @@ export default function ImageCarver() {
     }
   }, [isMaskModalOpen])
 
-  // Brush drawing in pop-up modal
   const startModalPaint = (e) => {
     isPaintingRef.current = true
     paintModal(e)
@@ -227,7 +221,6 @@ export default function ImageCarver() {
 
     try {
       const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps }) => {
-        // 1. Render working canvas
         if (workingCanvasRef.current) {
           workingCanvasRef.current.width = size.w
           workingCanvasRef.current.height = size.h
@@ -235,7 +228,6 @@ export default function ImageCarver() {
           ctx.putImageData(currentImg, 0, 0, 0, 0, size.w, size.h)
         }
 
-        // 2. Render seam line on seams canvas
         if (showSeams && seamsCanvasRef.current) {
           seamsCanvasRef.current.width = size.w
           seamsCanvasRef.current.height = size.h
@@ -247,7 +239,6 @@ export default function ImageCarver() {
           })
         }
 
-        // 3. Render normalized Energy Map
         if (showEnergyMap && energyCanvasRef.current && energyMap) {
           energyCanvasRef.current.width = size.w
           energyCanvasRef.current.height = size.h
@@ -297,10 +288,6 @@ export default function ImageCarver() {
   }
 
   const base = file ? stripExt(file.name) : 'image'
-
-  // Calculate modal container width / height according to natural image aspect ratio
-  const imgRatio = originalSize ? originalSize.w / originalSize.h : 1
-  const isLandscape = imgRatio >= 1
 
   return (
     <ToolShell
@@ -504,7 +491,6 @@ export default function ImageCarver() {
                   onLoad={onImgLoad}
                   className="block max-h-[360px] w-auto select-none"
                 />
-                {/* Live Mask Overlay Canvas on Original Image Card */}
                 <canvas
                   ref={origOverlayCanvasRef}
                   className="absolute inset-0 block h-full w-full pointer-events-none opacity-80"
@@ -580,17 +566,10 @@ export default function ImageCarver() {
             </div>
           )}
 
-          {/* Pop-up Masking Modal (Responsive to Image Aspect Ratio) */}
+          {/* Pop-up Masking Modal (Image Aspect Ratio Alignment) */}
           {isMaskModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-6 animate-fade-in">
-              <div
-                className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden transition-all"
-                style={{
-                  width: isLandscape ? 'min(94vw, 1100px)' : 'min(90vw, 750px)',
-                  height: 'min(90vh, 850px)',
-                }}
-              >
-                {/* Modal Header */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-5 animate-fade-in">
+              <div className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden max-h-[92vh] max-w-[95vw] w-full lg:w-auto">
                 <div className="flex items-center justify-between border-b border-[--color-border] px-4 sm:px-5 py-3 bg-[--color-surface]">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
@@ -622,9 +601,7 @@ export default function ImageCarver() {
                   </div>
                 </div>
 
-                {/* Modal Toolbar: Zoom & Brush Controls */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border] bg-[--color-surface-2] px-4 sm:px-5 py-2 text-xs">
-                  {/* Zoom Controls */}
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[--color-text-3]">Zoom:</span>
                     <button
@@ -652,7 +629,6 @@ export default function ImageCarver() {
                     </button>
                   </div>
 
-                  {/* Brush Size Controls */}
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-[--color-text-3]">Ukuran Kuas:</span>
                     <input
@@ -666,7 +642,6 @@ export default function ImageCarver() {
                     <span className="w-8 font-mono text-xs text-[--color-text]">{brushSize}px</span>
                   </div>
 
-                  {/* Clear button */}
                   <div>
                     <button
                       onClick={clearModalMask}
@@ -677,19 +652,15 @@ export default function ImageCarver() {
                   </div>
                 </div>
 
-                {/* Modal Interactive Canvas Stage with Image Aspect-Ratio Container */}
                 <div className="relative flex-1 overflow-auto bg-neutral-900 p-4 sm:p-6 flex items-center justify-center cursor-crosshair select-none">
                   <div
-                    className="relative inline-block shadow-2xl transition-transform duration-100 origin-center"
-                    style={{
-                      transform: `scale(${zoomLevel})`,
-                      aspectRatio: originalSize ? `${originalSize.w} / ${originalSize.h}` : 'auto',
-                    }}
+                    className="relative inline-block select-none shadow-2xl origin-center"
+                    style={{ transform: `scale(${zoomLevel})` }}
                   >
                     <img
                       src={imageSrc}
                       alt="Mask Target"
-                      className="block max-h-[62vh] w-auto max-w-[85vw] object-contain pointer-events-none select-none rounded"
+                      className="block max-h-[64vh] max-w-[85vw] object-contain rounded select-none pointer-events-none"
                     />
                     <canvas
                       ref={modalCanvasRef}

@@ -3,11 +3,10 @@ import {
   Sparkles, Wand2, Paintbrush, Trash2, Download,
   Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
   Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2, SlidersHorizontal
+  StopCircle, CheckCircle2, SlidersHorizontal, ArrowLeftRight
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
-import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import {
   removeGeminiWatermarkPrecision,
@@ -39,14 +38,18 @@ export default function WatermarkRemover() {
   const [videoDuration, setVideoDuration] = useState(0)
   const [videoBox, setVideoBox] = useState({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })
 
+  // Result compare view
+  const [compareSplit, setCompareSplit] = useState(50) // %
+  const [compareMode, setCompareMode] = useState('side') // 'side' | 'slider'
+
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [resultBlob, setResultBlob] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
   const [error, setError] = useState('')
 
   const imgRef = useRef(null)
   const videoRef = useRef(null)
-  const previewCanvasRef = useRef(null)
   const maskCanvasRef = useRef(null)
   const modalCanvasRef = useRef(null)
   const videoContainerRef = useRef(null)
@@ -59,6 +62,7 @@ export default function WatermarkRemover() {
   const handleFile = ([f]) => {
     setFile(f)
     setResultBlob(null)
+    setResultUrl(null)
     setError('')
     setHasMask(false)
 
@@ -117,7 +121,6 @@ export default function WatermarkRemover() {
     setRemovalMode('alpha')
   }
 
-  // Draggable / Resizable Box handler for Video
   const startVideoBoxDrag = (e, handleType) => {
     e.stopPropagation()
     e.preventDefault()
@@ -173,7 +176,6 @@ export default function WatermarkRemover() {
     window.addEventListener('mouseup', onMouseUp)
   }
 
-  // Brush drawing in pop-up modal
   const startModalPaint = (e) => {
     isPaintingRef.current = true
     paintModal(e)
@@ -228,7 +230,6 @@ export default function WatermarkRemover() {
     }
   }, [isModalOpen])
 
-  // Precision Watermark Removal Process for Image
   const processImageWatermark = async () => {
     if (!mediaSrc || !hasMask) return
     setProcessing(true)
@@ -271,6 +272,7 @@ export default function WatermarkRemover() {
       const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
       setProgress(100)
       setResultBlob(blob)
+      setResultUrl(URL.createObjectURL(blob))
     } catch (e) {
       setError(`Gagal: ${e.message}`)
     } finally {
@@ -278,7 +280,6 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Normal Speed Synchronized Video Watermark Removal
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -295,7 +296,6 @@ export default function WatermarkRemover() {
     canvas.height = h
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
 
-    // Build static watermark mask for the selected video region
     const maskCanvas = document.createElement('canvas')
     maskCanvas.width = w
     maskCanvas.height = h
@@ -309,26 +309,17 @@ export default function WatermarkRemover() {
     mCtx.fillRect(targetX, targetY, targetW, targetH)
     const maskData = mCtx.getImageData(0, 0, w, h).data
 
-    // 30 FPS stream for normal video playback
     const stream = canvas.captureStream(30)
-
-    // Capture audio if supported
     try {
       const vidStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null)
       if (vidStream) {
         const audioTracks = vidStream.getAudioTracks()
-        if (audioTracks.length > 0) {
-          stream.addTrack(audioTracks[0])
-        }
+        if (audioTracks.length > 0) stream.addTrack(audioTracks[0])
       }
-    } catch {
-      // Audio fallback
-    }
+    } catch {}
 
     let mimeType = 'video/webm;codecs=vp9'
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm'
-    }
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
 
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 })
     const recordedChunks = []
@@ -338,7 +329,6 @@ export default function WatermarkRemover() {
     }
 
     try {
-      // Reset video to start at 1.0x playback rate
       video.currentTime = 0
       video.playbackRate = 1.0
       await video.play()
@@ -356,6 +346,7 @@ export default function WatermarkRemover() {
           mediaRecorder.onstop = () => {
             const videoBlob = new Blob(recordedChunks, { type: mimeType })
             setResultBlob(videoBlob)
+            setResultUrl(URL.createObjectURL(videoBlob))
             setProgress(100)
             resolve()
           }
@@ -403,7 +394,6 @@ export default function WatermarkRemover() {
   }
 
   const base = file ? stripExt(file.name) : 'media'
-  const isLandscape = origDims.w >= origDims.h
 
   return (
     <ToolShell
@@ -565,85 +555,86 @@ export default function WatermarkRemover() {
             </div>
           )}
 
-          {/* Interactive Preview Container */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold uppercase tracking-wider text-[--color-text-3]">
-                {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar & Masking'}
-              </span>
-              {activeMedia === 'image' && (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center gap-1 text-[--color-brand] hover:underline font-semibold"
-                >
-                  <Paintbrush size={12} /> {hasMask ? 'Ubah Seleksi' : 'Tandai Watermark'}
-                </button>
-              )}
-            </div>
-
-            <div className="relative flex justify-center rounded border border-[--color-border] bg-neutral-900 p-2 overflow-hidden min-h-[300px]">
-              {activeMedia === 'image' ? (
-                <div className="relative inline-block select-none">
-                  <img
-                    ref={imgRef}
-                    src={mediaSrc}
-                    alt="Original"
-                    className="block max-h-[420px] w-auto pointer-events-none rounded"
-                  />
-                  <canvas
-                    ref={maskCanvasRef}
-                    className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
-                  />
-                </div>
-              ) : (
-                <div ref={videoContainerRef} className="relative inline-block select-none">
-                  <video
-                    ref={videoRef}
-                    src={mediaSrc}
-                    controls
-                    onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
-                    className="block max-h-[420px] w-auto rounded"
-                  />
-
-                  {/* Clean Precision Draggable & Resizable Selection Box */}
-                  <div
-                    onMouseDown={(e) => startVideoBoxDrag(e, 'move')}
-                    className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded select-none"
-                    style={{
-                      left: `${videoBox.xPct}%`,
-                      top: `${videoBox.yPct}%`,
-                      width: `${videoBox.wPct}%`,
-                      height: `${videoBox.hPct}%`,
-                    }}
+          {/* Interactive Preview Container (Before Processing) */}
+          {!resultUrl && (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold uppercase tracking-wider text-[--color-text-3]">
+                  {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar & Masking'}
+                </span>
+                {activeMedia === 'image' && (
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-1 text-[--color-brand] hover:underline font-semibold"
                   >
-                    <div
-                      onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}
-                      className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-nw-resize"
+                    <Paintbrush size={12} /> {hasMask ? 'Ubah Seleksi' : 'Tandai Watermark'}
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex justify-center rounded border border-[--color-border] bg-neutral-900 p-2 overflow-hidden min-h-[300px]">
+                {activeMedia === 'image' ? (
+                  <div className="relative inline-block select-none">
+                    <img
+                      ref={imgRef}
+                      src={mediaSrc}
+                      alt="Original"
+                      className="block max-h-[420px] w-auto pointer-events-none rounded"
                     />
-                    <div
-                      onMouseDown={(e) => startVideoBoxDrag(e, 'ne')}
-                      className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-ne-resize"
-                    />
-                    <div
-                      onMouseDown={(e) => startVideoBoxDrag(e, 'se')}
-                      className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-se-resize"
-                    />
-                    <div
-                      onMouseDown={(e) => startVideoBoxDrag(e, 'sw')}
-                      className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-sw-resize"
+                    <canvas
+                      ref={maskCanvasRef}
+                      className="absolute inset-0 block h-full w-full pointer-events-none opacity-80 rounded"
                     />
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div ref={videoContainerRef} className="relative inline-block select-none">
+                    <video
+                      ref={videoRef}
+                      src={mediaSrc}
+                      controls
+                      onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
+                      className="block max-h-[420px] w-auto rounded"
+                    />
+
+                    <div
+                      onMouseDown={(e) => startVideoBoxDrag(e, 'move')}
+                      className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded select-none"
+                      style={{
+                        left: `${videoBox.xPct}%`,
+                        top: `${videoBox.yPct}%`,
+                        width: `${videoBox.wPct}%`,
+                        height: `${videoBox.hPct}%`,
+                      }}
+                    >
+                      <div
+                        onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}
+                        className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-nw-resize"
+                      />
+                      <div
+                        onMouseDown={(e) => startVideoBoxDrag(e, 'ne')}
+                        className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-ne-resize"
+                      />
+                      <div
+                        onMouseDown={(e) => startVideoBoxDrag(e, 'se')}
+                        className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-se-resize"
+                      />
+                      <div
+                        onMouseDown={(e) => startVideoBoxDrag(e, 'sw')}
+                        className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-sw-resize"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {processing && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Sedang memproses video pada kecepatan normal 1.0x… ({progress}%)</span>
+                  <span>Sedang memproses rekontruksi frame… ({progress}%)</span>
                 </div>
                 {activeMedia === 'video' && (
                   <button
@@ -682,52 +673,81 @@ export default function WatermarkRemover() {
             </button>
           )}
 
-          {/* Result Card */}
-          {resultBlob && (
-            <div className="rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4 animate-fade-in space-y-3">
-              <div className="flex items-start justify-between">
+          {/* Real-time Before & After Compare Preview & Result Card */}
+          {resultUrl && (
+            <div className="rounded-lg border border-[--color-success-light] bg-[--color-surface] p-4 animate-fade-in space-y-4 shadow-sm">
+              <div className="flex items-start justify-between border-b border-[--color-border] pb-3">
                 <div>
-                  <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
-                    <CheckCircle2 size={16} /> Watermark Berhasil Dihapus!
+                  <p className="text-sm font-bold text-[--color-success] flex items-center gap-1.5">
+                    <CheckCircle2 size={17} /> Watermark Berhasil Dihapus!
                   </p>
                   <p className="mt-0.5 text-xs text-[--color-text-2]">
-                    File bersih: {base}_clean.{activeMedia === 'video' ? 'webm' : 'png'} ({fmtBytes(resultBlob.size)})
+                    Pratinjau perbandingan langsung Sebelum vs Sesudah ({fmtBytes(resultBlob.size)})
                   </p>
                 </div>
                 <button
-                  onClick={() => { setResultBlob(null); setHasMask(false) }}
-                  className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]"
+                  onClick={() => { setResultBlob(null); setResultUrl(null) }}
+                  className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text]"
                 >
-                  ✕
+                  <X size={16} />
                 </button>
               </div>
 
-              {activeMedia === 'video' && (
-                <div className="flex justify-center bg-black/80 p-2 rounded">
-                  <video src={URL.createObjectURL(resultBlob)} controls className="max-h-60 rounded" />
+              {/* Side-by-Side Comparison Stage */}
+              {activeMedia === 'image' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                      Sebelum (Ada Watermark)
+                    </span>
+                    <div className="flex justify-center bg-neutral-900 p-2 rounded-lg overflow-hidden border border-[--color-border]">
+                      <img src={mediaSrc} alt="Before" className="max-h-72 w-auto object-contain rounded" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold text-[--color-brand] uppercase tracking-wider block">
+                      Sesudah (Watermark Bersih)
+                    </span>
+                    <div className="flex justify-center bg-neutral-900 p-2 rounded-lg overflow-hidden border-2 border-[--color-brand]/40">
+                      <img src={resultUrl} alt="After Cleaned" className="max-h-72 w-auto object-contain rounded" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-bold text-[--color-brand] uppercase tracking-wider">
+                    Video Bersih Hasil Penghapusan
+                  </span>
+                  <div className="flex justify-center bg-black/90 p-3 rounded-lg w-full">
+                    <video src={resultUrl} controls autoPlay loop className="max-h-80 w-auto rounded shadow-lg" />
+                  </div>
                 </div>
               )}
 
-              <a
-                href={URL.createObjectURL(resultBlob)}
-                download={`${base}_clean.${activeMedia === 'video' ? 'webm' : 'png'}`}
-                className="flex items-center justify-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
-              >
-                <Download size={16} /> Download {activeMedia === 'video' ? 'Video' : 'Gambar'} Hasil
-              </a>
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  onClick={() => { setResultBlob(null); setResultUrl(null) }}
+                  className="rounded border border-[--color-border] px-3 py-1.5 text-xs font-semibold text-[--color-text-2] hover:bg-[--color-surface-3]"
+                >
+                  Edit / Proses Ulang
+                </button>
+
+                <a
+                  href={resultUrl}
+                  download={`${base}_clean.${activeMedia === 'video' ? 'webm' : 'png'}`}
+                  className="flex items-center justify-center gap-2 rounded bg-[--color-success] px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity no-underline shadow-sm"
+                >
+                  <Download size={16} /> Download {activeMedia === 'video' ? 'Video' : 'Gambar'} Bersih
+                </a>
+              </div>
             </div>
           )}
 
-          {/* Pop-up Masking Modal for Image */}
+          {/* Pop-up Masking Modal (Rock-Solid Aspect-Ratio Alignment) */}
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-6 animate-fade-in">
-              <div
-                className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden transition-all"
-                style={{
-                  width: isLandscape ? 'min(94vw, 1100px)' : 'min(90vw, 750px)',
-                  height: 'min(90vh, 850px)',
-                }}
-              >
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-3 sm:p-5 animate-fade-in">
+              <div className="flex flex-col rounded-xl border border-[--color-border] bg-[--color-surface] shadow-2xl overflow-hidden max-h-[92vh] max-w-[95vw] w-full lg:w-auto">
                 <div className="flex items-center justify-between border-b border-[--color-border] px-4 sm:px-5 py-3 bg-[--color-surface]">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
@@ -810,18 +830,16 @@ export default function WatermarkRemover() {
                   </div>
                 </div>
 
+                {/* Modal Interactive Canvas Stage with Image Aspect Ratio */}
                 <div className="relative flex-1 overflow-auto bg-neutral-900 p-4 sm:p-6 flex items-center justify-center cursor-crosshair select-none">
                   <div
-                    className="relative inline-block shadow-2xl transition-transform duration-100 origin-center"
-                    style={{
-                      transform: `scale(${zoomLevel})`,
-                      aspectRatio: origDims.w ? `${origDims.w} / ${origDims.h}` : 'auto',
-                    }}
+                    className="relative inline-block select-none shadow-2xl origin-center"
+                    style={{ transform: `scale(${zoomLevel})` }}
                   >
                     <img
                       src={mediaSrc}
                       alt="Mask Target"
-                      className="block max-h-[62vh] w-auto max-w-[85vw] object-contain pointer-events-none select-none rounded"
+                      className="block max-h-[64vh] max-w-[85vw] object-contain rounded select-none pointer-events-none"
                     />
                     <canvas
                       ref={modalCanvasRef}
