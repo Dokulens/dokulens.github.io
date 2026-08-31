@@ -69,6 +69,9 @@ export default function AddPageNumber() {
   const [error, setError] = useState('')
 
   const pdfDocRef = useRef(null)
+  const previewContainerRef = useRef(null)
+  const isDraggingTagRef = useRef(false)
+  const dragStartPosRef = useRef({ startX: 0, startY: 0, origX: 50, origY: 95 })
 
   const handleFile = async ([f]) => {
     setFile(f)
@@ -131,6 +134,42 @@ export default function AddPageNumber() {
     if (target < 1 || target > totalPages || !pdfDocRef.current) return
     setCurrentPage(target)
     await loadPreview(pdfDocRef.current, target)
+  }
+
+  // Draggable tag on preview stage
+  const startTagDrag = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    isDraggingTagRef.current = true
+    dragStartPosRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: customX,
+      origY: customY,
+    }
+
+    const onMouseMove = (moveEvent) => {
+      if (!isDraggingTagRef.current || !previewContainerRef.current) return
+      const rect = previewContainerRef.current.getBoundingClientRect()
+      const dxPct = ((moveEvent.clientX - dragStartPosRef.current.startX) / rect.width) * 100
+      const dyPct = ((moveEvent.clientY - dragStartPosRef.current.startY) / rect.height) * 100
+
+      const newX = Math.max(3, Math.min(97, Math.round(dragStartPosRef.current.origX + dxPct)))
+      const newY = Math.max(3, Math.min(97, Math.round(dragStartPosRef.current.origY + dyPct)))
+
+      setCustomX(newX)
+      setCustomY(newY)
+      setPositionPreset('custom')
+    }
+
+    const onMouseUp = () => {
+      isDraggingTagRef.current = false
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
   }
 
   const autoDetectExistingPageNumber = async (doc) => {
@@ -225,7 +264,6 @@ export default function AddPageNumber() {
       const arrayBuf = await readAsArrayBuffer(file)
 
       if (fileType === 'docx') {
-        // DOCX numbering injection
         const blob = await addPageNumberToDocx(arrayBuf, {
           position: positionPreset,
           format: formatId,
@@ -237,7 +275,6 @@ export default function AddPageNumber() {
         })
         setResultBlob(blob)
       } else {
-        // PDF numbering injection
         const doc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
         const fontObj = FONT_OPTIONS.find((f) => f.id === fontFamily) || FONT_OPTIONS[0]
         const font = await doc.embedFont(isBold ? fontObj.boldRef : fontObj.ref)
@@ -512,7 +549,7 @@ export default function AddPageNumber() {
                 </div>
               </div>
 
-              {/* Live Document Preview with simulated Number Tag */}
+              {/* Live Document Preview with Draggable simulated Number Tag */}
               <div className="relative flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
                 {loadingPreview && (
                   <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
@@ -521,28 +558,32 @@ export default function AddPageNumber() {
                 )}
 
                 {pagePreview && (
-                  <div className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
+                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
                     <img
                       src={pagePreview.dataUrl}
                       alt={`Page ${currentPage}`}
                       className="block max-h-[500px] w-auto pointer-events-none"
                     />
 
-                    {/* Simulated Live Number Overlay Tag */}
+                    {/* Interactive Draggable Number Overlay Tag */}
                     {currentIncluded && (
                       <div
-                        className="absolute rounded bg-blue-500/10 border border-blue-500/60 px-1 py-0.5 pointer-events-none transition-all duration-150"
+                        onMouseDown={startTagDrag}
+                        className="absolute rounded bg-blue-500/15 border-2 border-blue-600 px-2 py-0.5 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md select-none group"
                         style={{
                           left: `${customX}%`,
                           top: `${customY}%`,
-                          transform: positionPreset.includes('center') ? 'translate(-50%, -50%)' : positionPreset.includes('right') ? 'translate(-100%, -50%)' : 'translate(0%, -50%)',
+                          transform: 'translate(-50%, -50%)',
                           color: fontColor,
-                          fontSize: `${fontSize}px`,
+                          fontSize: `${Math.max(10, fontSize)}px`,
                           fontWeight: isBold ? 'bold' : 'normal',
                           fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
                         }}
                       >
-                        {previewNumText}
+                        <div className="flex items-center gap-1">
+                          <Move size={11} className="text-blue-600 opacity-60 group-hover:opacity-100" />
+                          <span>{previewNumText}</span>
+                        </div>
                       </div>
                     )}
                   </div>

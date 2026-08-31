@@ -3,7 +3,7 @@ import {
   Sparkles, Wand2, Paintbrush, Trash2, Download,
   Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
   Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2
+  StopCircle, CheckCircle2, Move
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -36,11 +36,9 @@ export default function WatermarkRemover() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
 
-  // Video processing state
-  const [isPlaying, setIsPlaying] = useState(false)
+  // Video processing state & Draggable/Resizable Video Selector Box
   const [videoDuration, setVideoDuration] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [videoBox, setVideoBox] = useState({ xPct: 85, yPct: 85, wPct: 12, hPct: 12 })
+  const [videoBox, setVideoBox] = useState({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })
 
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -52,15 +50,18 @@ export default function WatermarkRemover() {
   const previewCanvasRef = useRef(null)
   const maskCanvasRef = useRef(null)
   const modalCanvasRef = useRef(null)
+  const videoContainerRef = useRef(null)
+
   const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
+  const isDraggingVideoRef = useRef(null) // 'move' | 'nw' | 'ne' | 'se' | 'sw'
+  const videoDragStartRef = useRef({ startX: 0, startY: 0, box: { ...videoBox } })
 
   const handleFile = ([f]) => {
     setFile(f)
     setResultBlob(null)
     setError('')
     setHasMask(false)
-    setIsPlaying(false)
 
     const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name)
     setActiveMedia(isVid ? 'video' : 'image')
@@ -97,6 +98,62 @@ export default function WatermarkRemover() {
     ctx.fillRect(detectedBox.x, detectedBox.y, detectedBox.width, detectedBox.height)
     setHasMask(true)
     setRemovalMode('alpha')
+  }
+
+  // Draggable / Resizable Box handler for Video
+  const startVideoBoxDrag = (e, handleType) => {
+    e.stopPropagation()
+    e.preventDefault()
+    isDraggingVideoRef.current = handleType
+    videoDragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      box: { ...videoBox },
+    }
+
+    const onMouseMove = (moveEvent) => {
+      if (!isDraggingVideoRef.current || !videoContainerRef.current) return
+      const rect = videoContainerRef.current.getBoundingClientRect()
+      const dxPct = ((moveEvent.clientX - videoDragStartRef.current.startX) / rect.width) * 100
+      const dyPct = ((moveEvent.clientY - videoDragStartRef.current.startY) / rect.height) * 100
+      const startB = videoDragStartRef.current.box
+
+      let { xPct, yPct, wPct, hPct } = startB
+      const h = isDraggingVideoRef.current
+
+      if (h === 'move') {
+        xPct = Math.max(0, Math.min(100 - wPct, startB.xPct + dxPct))
+        yPct = Math.max(0, Math.min(100 - hPct, startB.yPct + dyPct))
+      } else {
+        if (h.includes('e')) {
+          wPct = Math.max(4, Math.min(100 - startB.xPct, startB.wPct + dxPct))
+        }
+        if (h.includes('s')) {
+          hPct = Math.max(4, Math.min(100 - startB.yPct, startB.hPct + dyPct))
+        }
+        if (h.includes('w')) {
+          const maxW = startB.xPct + startB.wPct
+          wPct = Math.max(4, Math.min(maxW, startB.wPct - dxPct))
+          xPct = maxW - wPct
+        }
+        if (h.includes('n')) {
+          const maxH = startB.yPct + startB.hPct
+          hPct = Math.max(4, Math.min(maxH, startB.hPct - dyPct))
+          yPct = maxH - hPct
+        }
+      }
+
+      setVideoBox({ xPct, yPct, wPct, hPct })
+    }
+
+    const onMouseUp = () => {
+      isDraggingVideoRef.current = null
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
   }
 
   // Brush drawing in pop-up modal
@@ -144,7 +201,6 @@ export default function WatermarkRemover() {
     setIsModalOpen(false)
   }
 
-  // Sync canvas when modal opens
   useEffect(() => {
     if (isModalOpen && modalCanvasRef.current && maskCanvasRef.current) {
       const modalCanvas = modalCanvasRef.current
@@ -155,7 +211,6 @@ export default function WatermarkRemover() {
     }
   }, [isModalOpen])
 
-  // Process image watermark removal
   const processImageWatermark = async () => {
     if (!mediaSrc || !hasMask) return
     setProcessing(true)
@@ -208,7 +263,6 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Process Video Watermark Removal frame-by-frame
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -221,13 +275,11 @@ export default function WatermarkRemover() {
     const h = video.videoHeight || 720
     const duration = video.duration || 5
 
-    // Prepare offscreen canvas
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
 
-    // Create mask for the video watermark area
     const maskCanvas = document.createElement('canvas')
     maskCanvas.width = w
     maskCanvas.height = h
@@ -241,7 +293,6 @@ export default function WatermarkRemover() {
     mCtx.fillRect(targetX, targetY, targetW, targetH)
     const maskData = mCtx.getImageData(0, 0, w, h).data
 
-    // Setup MediaRecorder
     const stream = canvas.captureStream(30)
     let mimeType = 'video/webm;codecs=vp9'
     if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -276,15 +327,12 @@ export default function WatermarkRemover() {
           video.addEventListener('seeked', onSeeked)
         })
 
-        // Draw current video frame to canvas
         ctx.drawImage(video, 0, 0, w, h)
         const frameData = ctx.getImageData(0, 0, w, h)
 
-        // Inpaint watermark area on this frame
         inpaintWatermark(frameData, maskData, 4)
         ctx.putImageData(frameData, 0, 0)
 
-        // Update live preview canvas if visible
         if (previewCanvasRef.current) {
           previewCanvasRef.current.width = w
           previewCanvasRef.current.height = h
@@ -421,74 +469,34 @@ export default function WatermarkRemover() {
               <div className="flex items-center justify-between border-b border-[--color-border] pb-3 text-xs">
                 <div className="flex items-center gap-2 font-bold text-[--color-text]">
                   <Video size={16} className="text-[--color-brand]" />
-                  <span>Pengaturan Area Watermark Video</span>
+                  <span>Area Watermark Video (Bisa Drag & Resize Langsung pada Player)</span>
                 </div>
                 <span className="text-[11px] text-[--color-text-3]">
                   Durasi: {videoDuration ? `${videoDuration.toFixed(1)} detik` : 'Memuat…'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <label className="block mb-1 font-semibold text-[--color-text-2]">Posisi X: {videoBox.xPct}%</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="90"
-                    value={videoBox.xPct}
-                    onChange={(e) => setVideoBox((b) => ({ ...b, xPct: Number(e.target.value) }))}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-[--color-text-2]">Posisi Y: {videoBox.yPct}%</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="90"
-                    value={videoBox.yPct}
-                    onChange={(e) => setVideoBox((b) => ({ ...b, yPct: Number(e.target.value) }))}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-[--color-text-2]">Lebar: {videoBox.wPct}%</label>
-                  <input
-                    type="range"
-                    min="4"
-                    max="30"
-                    value={videoBox.wPct}
-                    onChange={(e) => setVideoBox((b) => ({ ...b, wPct: Number(e.target.value) }))}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-[--color-text-2]">Tinggi: {videoBox.hPct}%</label>
-                  <input
-                    type="range"
-                    min="4"
-                    max="30"
-                    value={videoBox.hPct}
-                    onChange={(e) => setVideoBox((b) => ({ ...b, hPct: Number(e.target.value) }))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={() => setVideoBox({ xPct: 84, yPct: 84, wPct: 14, hPct: 14 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  onClick={() => setVideoBox({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })}
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kanan Bawah (Gemini / AI Video)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVideoBox({ xPct: 2, yPct: 2, wPct: 14, hPct: 14 })}
-                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-xs text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  onClick={() => setVideoBox({ xPct: 3, yPct: 3, wPct: 15, hPct: 15 })}
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
                 >
                   Preset Kiri Atas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoBox({ xPct: 82, yPct: 3, wPct: 15, hPct: 15 })}
+                  className="rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3]"
+                >
+                  Preset Kanan Atas
                 </button>
               </div>
             </div>
@@ -498,7 +506,7 @@ export default function WatermarkRemover() {
           <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold uppercase tracking-wider text-[--color-text-3]">
-                {activeMedia === 'video' ? 'Pratinjau Video & Kotak Masking' : 'Pratinjau Gambar & Masking'}
+                {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar & Masking'}
               </span>
               {activeMedia === 'image' && (
                 <button
@@ -525,7 +533,7 @@ export default function WatermarkRemover() {
                   />
                 </div>
               ) : (
-                <div className="relative inline-block">
+                <div ref={videoContainerRef} className="relative inline-block select-none">
                   <video
                     ref={videoRef}
                     src={mediaSrc}
@@ -533,9 +541,11 @@ export default function WatermarkRemover() {
                     onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
                     className="block max-h-[420px] w-auto rounded"
                   />
-                  {/* Video Watermark Mask Target Overlay */}
+
+                  {/* Interactive Draggable and Resizable Selection Box on Video */}
                   <div
-                    className="absolute border-2 border-red-500 bg-red-500/40 pointer-events-none rounded transition-all duration-100"
+                    onMouseDown={(e) => startVideoBoxDrag(e, 'move')}
+                    className="absolute border-2 border-red-500 bg-red-500/35 cursor-move rounded shadow-lg select-none"
                     style={{
                       left: `${videoBox.xPct}%`,
                       top: `${videoBox.yPct}%`,
@@ -543,9 +553,27 @@ export default function WatermarkRemover() {
                       height: `${videoBox.hPct}%`,
                     }}
                   >
-                    <span className="absolute -top-5 left-0 rounded bg-red-600 px-1 py-0.2 text-[9px] font-bold text-white uppercase">
-                      Hapus Area Ini
-                    </span>
+                    <div className="absolute -top-5 left-0 flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase whitespace-nowrap shadow">
+                      <Move size={10} /> Drag / Resize Area
+                    </div>
+
+                    {/* 4 Corner Resize Handles */}
+                    <div
+                      onMouseDown={(e) => startVideoBoxDrag(e, 'nw')}
+                      className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-nw-resize"
+                    />
+                    <div
+                      onMouseDown={(e) => startVideoBoxDrag(e, 'ne')}
+                      className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-ne-resize"
+                    />
+                    <div
+                      onMouseDown={(e) => startVideoBoxDrag(e, 'se')}
+                      className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-se-resize"
+                    />
+                    <div
+                      onMouseDown={(e) => startVideoBoxDrag(e, 'sw')}
+                      className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 bg-white border-2 border-red-600 rounded-full cursor-sw-resize"
+                    />
                   </div>
                 </div>
               )}
