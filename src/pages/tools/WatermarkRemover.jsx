@@ -687,7 +687,7 @@ export default function WatermarkRemover() {
 
           {/* Fullscreen Modal: True Fullscreen Fit (No Scroll unless zoomed) */}
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
+            <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
               {/* Modal Header */}
               <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 px-4 sm:px-6 bg-slate-900/90">
                 <div className="flex items-center gap-2.5">

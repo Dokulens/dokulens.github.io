@@ -41,6 +41,7 @@ export default function ImageCarver() {
   const [error, setError] = useState('')
 
   const imgRef = useRef(null)
+  const modalImgRef = useRef(null)
   const origOverlayCanvasRef = useRef(null)
   const workingCanvasRef = useRef(null)
   const energyCanvasRef = useRef(null)
@@ -102,10 +103,10 @@ export default function ImageCarver() {
   }, [maskCanvasElement, originalSize])
 
   useEffect(() => {
-    if (isMaskModalOpen && modalCanvasRef.current && imgRef.current) {
+    if (isMaskModalOpen && modalCanvasRef.current && modalImgRef.current) {
       const canvas = modalCanvasRef.current
-      canvas.width = imgRef.current.naturalWidth
-      canvas.height = imgRef.current.naturalHeight
+      canvas.width = modalImgRef.current.naturalWidth
+      canvas.height = modalImgRef.current.naturalHeight
       const ctx = canvas.getContext('2d')
       if (maskCanvasElement) {
         ctx.drawImage(maskCanvasElement, 0, 0)
@@ -568,7 +569,7 @@ export default function ImageCarver() {
 
           {/* Fullscreen Masking Modal: Fits Screen without scroll unless zoomed */}
           {isMaskModalOpen && (
-            <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
+            <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden animate-fade-in">
               {/* Modal Header */}
               <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 px-4 sm:px-6 bg-slate-900/90">
                 <div className="flex items-center gap-2.5">
@@ -667,7 +668,7 @@ export default function ImageCarver() {
                 >
                   <img
                     ref={(el) => {
-                      imgRef.current = el
+                      modalImgRef.current = el
                       if (el && isMaskModalOpen) {
                         el.onload = () => {
                           if (modalCanvasRef.current) {
@@ -681,6 +682,9 @@ export default function ImageCarver() {
                               ctx.clearRect(0, 0, canvas.width, canvas.height)
                             }
                           }
+                        }
+                        if (el.complete && el.naturalWidth > 0) {
+                          el.onload()
                         }
                       }
                     }}
