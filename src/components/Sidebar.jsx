@@ -11,7 +11,7 @@ function NavIcon({ name, active }) {
   return (
     <Comp
       size={18}
-      className={active ? 'text-[--color-brand]' : 'text-[--color-text-3] group-hover:text-[--color-text]'}
+      className={active ? 'text-[--color-brand]' : 'text-[--color-text-2] group-hover:text-[--color-text]'}
     />
   )
 }
@@ -71,76 +71,103 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
       </div>
 
       {/* Nav groups */}
-      <nav className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-4">
-        {/* Landing link */}
-        <NavLink
-          to="/"
-          end
-          onClick={onClose}
-          title={isCollapsed ? 'Semua Tools' : undefined}
-          className={({ isActive }) =>
-            [
-              'group flex items-center rounded px-2.5 py-2 text-xs font-medium no-underline transition-all',
-              isCollapsed ? 'justify-center' : 'justify-between',
-              isActive
-                ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold border-l-2 border-[--color-brand]'
-                : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
-            ].join(' ')
-          }
-        >
-          {({ isActive }) => (
-            <>
-              <div className="flex items-center gap-2.5">
-                <Home
-                  size={18}
-                  className={isActive ? 'text-[--color-brand]' : 'text-[--color-text-3] group-hover:text-[--color-text]'}
-                />
-                {!isCollapsed && <span>Semua Tools</span>}
-              </div>
-              {isActive && !isCollapsed && (
-                <span className="h-1.5 w-1.5 rounded-full bg-[--color-brand]" />
-              )}
-            </>
-          )}
-        </NavLink>
+      <nav className={[
+        'flex-1 overflow-y-auto overflow-x-hidden space-y-3',
+        isCollapsed ? 'p-2 flex flex-col items-center' : 'p-3'
+      ].join(' ')}>
+        {/* Landing / Home link */}
+        <div className="relative group w-full flex justify-center">
+          <NavLink
+            to="/"
+            end
+            onClick={onClose}
+            className={({ isActive }) =>
+              [
+                'flex items-center rounded-lg text-xs font-medium no-underline transition-all',
+                isCollapsed
+                  ? 'h-9 w-9 justify-center'
+                  : 'w-full justify-between px-2.5 py-2',
+                isActive
+                  ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold ring-1 ring-[--color-brand]'
+                  : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
+              ].join(' ')
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className="flex items-center gap-2.5">
+                  <Home
+                    size={18}
+                    className={isActive ? 'text-[--color-brand]' : 'text-[--color-text-2] group-hover:text-[--color-text]'}
+                  />
+                  {!isCollapsed && <span>Semua Tools</span>}
+                </div>
+                {isActive && !isCollapsed && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[--color-brand]" />
+                )}
+              </>
+            )}
+          </NavLink>
 
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="space-y-1">
-            {!isCollapsed && (
+          {/* Hover Tooltip when collapsed */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-2.5 hidden group-hover:flex items-center z-50 rounded bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white whitespace-nowrap shadow-lg">
+              Semua Tools
+            </div>
+          )}
+        </div>
+
+        {NAV_GROUPS.map((group, gIdx) => (
+          <div key={group.label} className={isCollapsed ? 'w-full flex flex-col items-center space-y-1' : 'space-y-1'}>
+            {/* Divider or Group Label */}
+            {isCollapsed ? (
+              <div className="w-6 h-px bg-[--color-border] my-1" />
+            ) : (
               <p className="px-2.5 text-[11px] font-bold uppercase tracking-wider text-[--color-text-3]">
                 {group.label}
               </p>
             )}
+
             {group.items.map((item) => {
               const to = `/${item.path}`
               return (
-                <NavLink
-                  key={item.path}
-                  to={to}
-                  onClick={onClose}
-                  title={isCollapsed ? `${item.label} (${group.label})` : undefined}
-                  className={({ isActive }) =>
-                    [
-                      'group flex items-center rounded px-2.5 py-1.5 text-xs font-medium no-underline transition-all',
-                      isCollapsed ? 'justify-center py-2' : 'justify-between',
-                      isActive
-                        ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold border-l-2 border-[--color-brand]'
-                        : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
-                    ].join(' ')
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <NavIcon name={item.icon} active={isActive} />
-                        {!isCollapsed && <span className="truncate">{item.label}</span>}
-                      </div>
-                      {isActive && !isCollapsed && (
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[--color-brand]" />
-                      )}
-                    </>
+                <div key={item.path} className="relative group w-full flex justify-center">
+                  <NavLink
+                    to={to}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      [
+                        'flex items-center rounded-lg text-xs font-medium no-underline transition-all',
+                        isCollapsed
+                          ? 'h-9 w-9 justify-center'
+                          : 'w-full justify-between px-2.5 py-1.5',
+                        isActive
+                          ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold ring-1 ring-[--color-brand]'
+                          : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
+                      ].join(' ')
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <NavIcon name={item.icon} active={isActive} />
+                          {!isCollapsed && <span className="truncate">{item.label}</span>}
+                        </div>
+                        {isActive && !isCollapsed && (
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[--color-brand]" />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+
+                  {/* Hover Tooltip when collapsed */}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2.5 hidden group-hover:flex flex-col z-50 rounded bg-slate-900 dark:bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] text-white whitespace-nowrap shadow-xl">
+                      <span className="font-bold">{item.label}</span>
+                      <span className="text-[10px] text-slate-300 font-normal">{group.label}</span>
+                    </div>
                   )}
-                </NavLink>
+                </div>
               )
             })}
           </div>
@@ -152,7 +179,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
         <div className="hidden lg:flex justify-center p-2 border-t border-[--color-border]">
           <button
             onClick={onToggleCollapse}
-            className="flex h-8 w-8 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-brand] transition-colors"
             title="Expand Sidebar"
           >
             <PanelLeftOpen size={16} />
