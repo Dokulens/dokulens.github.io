@@ -326,10 +326,14 @@ export async function removeWatermarkFromImage(canvasOrImage, options = {}) {
 
   const alphaMap = getAlphaMap(logoSize)
 
-  // Auto-detect best alpha gain to avoid over-correction (black artifacts)
+  // Use explicit gain if provided, otherwise auto-detect
   const ctx = canvas.getContext('2d')
-  const probeData = ctx.getImageData(position.x, position.y, position.width, position.height)
-  const alphaGain = findBestAlphaGain(probeData, alphaMap, position)
+  const alphaGain = (Number.isFinite(options.alphaGain) && options.alphaGain > 0)
+    ? options.alphaGain
+    : (() => {
+        const probeData = ctx.getImageData(position.x, position.y, position.width, position.height)
+        return findBestAlphaGain(probeData, alphaMap, position)
+      })()
 
   const imgData = ctx.getImageData(position.x, position.y, position.width, position.height)
   const pixels = imgData.data

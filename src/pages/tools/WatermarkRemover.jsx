@@ -305,7 +305,7 @@ export default function WatermarkRemover() {
       setProgress(50)
 
       if (removalMode === 'gemini') {
-        const result = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto' })
+        const result = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto', alphaGain })
         if (result && result.canvas) {
           ctx.clearRect(0, 0, canvas.width, canvas.height)
           ctx.drawImage(result.canvas, 0, 0)
@@ -679,34 +679,35 @@ export default function WatermarkRemover() {
                 </button>
               </div>
 
-              {/* Alpha Gain Slider */}
-              {removalMode === 'gemini' && (
-                <div className="space-y-2 pt-2 border-t border-[--color-border]">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-[--color-text-2] flex items-center gap-1.5">
-                      <SlidersHorizontal size={13} />
-                      Alpha Gain (Kekuatan Penghapusan)
-                    </label>
-                    <span className="text-xs font-mono text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
-                      {alphaGain.toFixed(2)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="2.0"
-                    step="0.05"
-                    value={alphaGain}
-                    onChange={(e) => setAlphaGain(parseFloat(e.target.value))}
-                    className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-[--color-surface-3] accent-[--color-brand]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[--color-text-3]">
-                    <span>0.10 (Lemah)</span>
-                    <span>1.00 (Default)</span>
-                    <span>2.00 (Kuat)</span>
-                  </div>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Alpha Gain Slider — shows for both image and video in gemini mode */}
+          {removalMode === 'gemini' && (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[--color-text-2] flex items-center gap-1.5">
+                  <SlidersHorizontal size={13} />
+                  Alpha Gain (Kekuatan Penghapusan)
+                </label>
+                <span className="text-xs font-mono text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
+                  {alphaGain.toFixed(2)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="2.0"
+                step="0.05"
+                value={alphaGain}
+                onChange={(e) => setAlphaGain(parseFloat(e.target.value))}
+                className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-[--color-surface-3] accent-[--color-brand]"
+              />
+              <div className="flex justify-between text-[10px] text-[--color-text-3]">
+                <span>0.10 (Lemah)</span>
+                <span>1.00 (Default)</span>
+                <span>2.00 (Kuat)</span>
+              </div>
             </div>
           )}
 
