@@ -144,40 +144,42 @@ export default function ImageUpscaler() {
       const dstW = srcW * scale
       const dstH = srcH * scale
 
-      const tmpCanvas = document.createElement('canvas')
-      tmpCanvas.width = srcW
-      tmpCanvas.height = srcH
-      const tmpCtx = tmpCanvas.getContext('2d')
-      tmpCtx.drawImage(img, 0, 0)
+      // Draw original
+      const srcCanvas = document.createElement('canvas')
+      srcCanvas.width = srcW
+      srcCanvas.height = srcH
+      srcCanvas.getContext('2d').drawImage(img, 0, 0)
 
-      let currentCanvas = tmpCanvas
-      let currentW = srcW
-      let currentH = srcH
-      let remaining = scale
+      // Upscale in 2x steps for quality
+      let input = srcCanvas
+      let inputW = srcW
+      let inputH = srcH
+      let mult = scale
 
-      while (remaining > 1) {
-        const step = remaining >= 2 ? 2 : remaining
-        const stepW = currentW * step
-        const stepH = currentH * step
+      while (mult > 1) {
+        const step = mult >= 2 ? 2 : mult
+        const outW = Math.round(inputW * step)
+        const outH = Math.round(inputH * step)
 
-        const stepCanvas = document.createElement('canvas')
-        stepCanvas.width = stepW
-        stepCanvas.height = stepH
-        const stepCtx = stepCanvas.getContext('2d')
-        stepCtx.imageSmoothingEnabled = true
-        stepCtx.imageSmoothingQuality = 'high'
-        stepCtx.drawImage(currentCanvas, 0, 0, stepW, stepH)
+        const outCanvas = document.createElement('canvas')
+        outCanvas.width = outW
+        outCanvas.height = outH
+        const ctx = outCanvas.getContext('2d')
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(input, 0, 0, outW, outH)
 
-        currentCanvas = stepCanvas
-        currentW = stepW
-        currentH = stepH
-        remaining /= step
+        input = outCanvas
+        inputW = outW
+        inputH = outH
+        mult /= step
       }
 
+      // Convert to blob via toDataURL (more reliable than toBlob)
       const fmt = OUTPUT_FORMATS.find((f) => f.ext === outputFormat)
-      const blob = await new Promise((resolve) => {
-        currentCanvas.toBlob(resolve, fmt.mime, quality / 100)
-      })
+      const dataUrl = input.toDataURL(fmt.mime, quality / 100)
+      const res = await fetch(dataUrl)
+      const blob = await res.blob()
 
       const url = URL.createObjectURL(blob)
       setResultUrl(url)
