@@ -172,9 +172,8 @@ export default function RotatePDF() {
       const outDoc = await PDFDocument.create()
 
       for (const p of pages) {
-        const page = await srcDoc.getPage(p.origIndex)
-        // Use pdf.js built-in rotation - gives correct viewport dimensions
-        const viewport = page.getViewport({ scale: 2, rotation: p.rotation })
+        const page = await srcDoc.getPage(p.pageNum)
+        const viewport = page.getViewport({ scale: 2 })
         const canvas = document.createElement('canvas')
         canvas.width = viewport.width
         canvas.height = viewport.height
@@ -182,12 +181,34 @@ export default function RotatePDF() {
         const ctx = canvas.getContext('2d')
         await page.render({ canvasContext: ctx, viewport }).promise
 
-        const imgDataUrl = canvas.toDataURL('image/png')
+        // Apply user-chosen rotation on top
+        const rotCanvas = document.createElement('canvas')
+        if (p.rotation === 90 || p.rotation === 270) {
+          rotCanvas.width = canvas.height
+          rotCanvas.height = canvas.width
+        } else {
+          rotCanvas.width = canvas.width
+          rotCanvas.height = canvas.height
+        }
+        const rotCtx = rotCanvas.getContext('2d')
+        if (p.rotation === 90) {
+          rotCtx.translate(rotCanvas.width, 0)
+          rotCtx.rotate(Math.PI / 2)
+        } else if (p.rotation === 180) {
+          rotCtx.translate(rotCanvas.width, rotCanvas.height)
+          rotCtx.rotate(Math.PI)
+        } else if (p.rotation === 270) {
+          rotCtx.translate(0, rotCanvas.height)
+          rotCtx.rotate(-Math.PI / 2)
+        }
+        rotCtx.drawImage(canvas, 0, 0)
+
+        const imgDataUrl = rotCanvas.toDataURL('image/png')
         const imgBytes = Uint8Array.from(atob(imgDataUrl.split(',')[1]), (c) => c.charCodeAt(0))
         const img = await outDoc.embedPng(imgBytes)
 
-        const newPage = outDoc.addPage([img.width, img.height])
-        newPage.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
+        const newPage = outDoc.addPage([rotCanvas.width, rotCanvas.height])
+        newPage.drawImage(img, { x: 0, y: 0, width: rotCanvas.width, height: rotCanvas.height })
       }
 
       const bytes = await outDoc.save()
