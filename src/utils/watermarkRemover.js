@@ -1,15 +1,14 @@
 /**
  * Gemini Watermark Remover — powered by official @pilio/gemini-watermark-remover SDK
  * Self-contained detection engine (no external dependencies).
- * Video frame processor uses manual reverse-alpha-blend (SDK doesn't expose per-frame API).
+ * Video uses the same removeWatermarkFromImage() as images — per-frame.
  */
 
 import {
   createWatermarkEngine,
   calculateWatermarkPosition,
   detectWatermarkConfig,
-  removeWatermarkFromImage,
-  removeRepeatedWatermarkLayers
+  removeWatermarkFromImage
 } from './geminiAutoDetect.js'
 
 let cachedEngine = null
@@ -22,7 +21,7 @@ async function getEngine() {
 }
 
 /**
- * Remove Gemini AI watermark using official SDK engine
+ * Remove Gemini AI watermark using official SDK engine (image)
  */
 export async function removeOfficialGeminiWatermark(image, options = {}) {
   const engine = await getEngine()
@@ -40,197 +39,28 @@ export async function getGeminiEngine() {
 }
 
 /**
- * Create a video frame processor using predicted position + multi-pass blend.
- *
- * Strategy:
- * 1. Get predicted position from size catalog (detectWatermarkConfig + calculateWatermarkPosition)
- * 2. Get alpha map for predicted logo size
- * 3. Apply removeRepeatedWatermarkLayers (multi-pass reverse-alpha) on every frame
- *
- * This avoids adaptive detection which fails on compressed video frames.
+ * Process a single video frame using the same SDK method as image removal.
+ * Returns the cleaned canvas (or null if no watermark detected).
  */
-export async function createVideoFrameProcessor(videoWidth, videoHeight) {
-  const engine = await getEngine()
-
-  let wmPos = null
-  let wmAlphaMap = null
-  let wmLogoSize = 48
-
+export async function processVideoFrame(frameCanvas, options = {}) {
   try {
-    const config = detectWatermarkConfig(videoWidth, videoHeight)
-    wmLogoSize = config.logoSize ?? (videoWidth >= 1024 || videoHeight >= 1024 ? 96 : 48)
-    console.log('[WM] Predicted config:', config)
+    const result = await removeWatermarkFromImage(frameCanvas, {
+      adaptiveMode: 'auto',
+      alphaGain: options.alphaGain ?? 1.0,
+    })
 
-    const pos = calculateWatermarkPosition(videoWidth, videoHeight)
-    if (pos) {
-      wmPos = pos
-    } else {
-      const margin = wmLogoSize === 96 ? 64 : 32
-      wmPos = {
-        x: videoWidth - wmLogoSize - margin,
-        y: videoHeight - wmLogoSize - margin,
-        width: wmLogoSize,
-        height: wmLogoSize,
-      }
-    }
-    console.log('[WM] Predicted position:', wmPos)
+    if (!result?.canvas || !result?.meta) return null
 
-    wmAlphaMap = await engine.getAlphaMap(wmLogoSize)
-    console.log('[WM] Alpha map loaded, size:', wmAlphaMap.length)
+    // Draw cleaned result back to original canvas
+    const ctx = frameCanvas.getContext('2d')
+    ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
+    ctx.drawImage(result.canvas, 0, 0)
+
+    return { meta: result.meta }
   } catch (e) {
-    console.error('[WM] Prediction setup error:', e?.message || e)
+    console.warn('[WM] Frame process error:', e?.message)
+    return null
   }
-
-  return {
-    calibrate(frameCanvas) {
-      return Promise.resolve({ position: wmPos, size: wmLogoSize, applied: !!wmPos })
-    },
-
-    async processFrame(frameCanvas) {
-      if (!wmPos || !wmAlphaMap) return
-      try {
-        const ctx = frameCanvas.getContext('2d')
-        const imgData = ctx.getImageData(0, 0, frameCanvas.width, frameCanvas.height)
-
-        const result = removeRepeatedWatermarkLayers(
-          imgData,
-          wmAlphaMap,
-          wmPos,
-          { alphaGain: 1.0, maxPasses: 4, residualThreshold: 0.25 }
-        )
-
-        ctx.putImageData(result.imageData, 0, 0)
-      } catch (e) {
-        console.warn('[WM] processFrame error:', e?.message || e)
-      }
-    },
-
-    isReady() { return !!wmPos }
-  }
-}
-
-/**
- * Scan all likely watermark positions and return the brightest candidate.
- * Uses brightness threshold to find visible watermarks.
- */
-export async function findBestWatermarkPosition(frameCanvas, engine) {
-  const ctx = frameCanvas.getContext('2d')
-  const w = frameCanvas.width
-  const h = frameCanvas.height
-
-  const seen = new Map()
-
-  // 1. SDK position prediction
-  try {
-    const sdkPos = calculateWatermarkPosition(w, h)
-    if (sdkPos) {
-      seen.set(`${sdkPos.x},${sdkPos.y},${sdkPos.width}`, { ...sdkPos, source: 'sdk' })
-    }
-  } catch {}
-
-  // 2. All reasonable bottom-right + top-right + bottom-left positions
-  const sizes = [96, 72, 64, 48, 36]
-  const margins = [24, 32, 48, 64, 96, 128]
-
-  for (const size of sizes) {
-    for (const margin of margins) {
-      // Bottom-right (most common Gemini location)
-      const positions = [
-        { x: w - size - margin, y: h - size - margin },
-        // Top-right
-        { x: w - size - margin, y: margin },
-        // Bottom-left
-        { x: margin, y: h - size - margin },
-        // Top-left
-        { x: margin, y: margin },
-      ]
-      for (const p of positions) {
-        if (p.x >= 0 && p.y >= 0 && p.x + size <= w && p.y + size <= h) {
-          const key = `${p.x},${p.y},${size}`
-          if (!seen.has(key)) {
-            seen.set(key, { x: p.x, y: p.y, width: size, height: size })
-          }
-        }
-      }
-    }
-  }
-
-  const positions = []
-  for (const pos of seen.values()) {
-    try {
-      const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
-      let brightness = 0
-      for (let i = 0; i < pixelData.data.length; i += 4) {
-        brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
-      }
-      const avg = brightness / (pixelData.data.length / 4)
-      positions.push({ ...pos, avgBrightness: avg })
-    } catch (e) {
-      // skip position if out of bounds
-    }
-  }
-
-  // Sort by brightness descending
-  positions.sort((a, b) => b.avgBrightness - a.avgBrightness)
-  console.log('[WM] Top 5 positions:', positions.slice(0, 5).map(p => ({ x: p.x, y: p.y, size: p.width, avg: p.avgBrightness.toFixed(1) })))
-
-  // Use top 3 brightest positions (video frames may be dark overall)
-  const topCandidates = positions.slice(0, 3)
-  const best = topCandidates.find(p => p.avgBrightness > 20) ?? topCandidates[0]
-  if (!best) {
-    // No bright enough area found — use the brightest available
-    const fallback = positions[0]
-    if (!fallback) return null
-    console.log('[WM] No bright watermark found, using fallback:', fallback)
-    try {
-      const alphaMap = engine ? await engine.getAlphaMap(fallback.width) : null
-      return {
-        position: { x: fallback.x, y: fallback.y, width: fallback.width, height: fallback.height },
-        alphaMap: alphaMap ?? generateFallbackAlphaMap(fallback.width),
-        alphaGain: 1.0,
-        logoSize: fallback.width,
-      }
-    } catch {
-      return {
-        position: { x: fallback.x, y: fallback.y, width: fallback.width, height: fallback.height },
-        alphaMap: generateFallbackAlphaMap(fallback.width),
-        alphaGain: 1.0,
-        logoSize: fallback.width,
-      }
-    }
-  }
-
-  console.log('[WM] Best position:', best)
-  let alphaMap = null
-  try {
-    alphaMap = engine ? await engine.getAlphaMap(best.width) : null
-  } catch (e) {
-    console.warn('[WM] engine.getAlphaMap failed:', e)
-  }
-
-  return {
-    position: { x: best.x, y: best.y, width: best.width, height: best.height },
-    alphaMap: alphaMap ?? generateFallbackAlphaMap(best.width),
-    alphaGain: 1.0,
-    logoSize: best.width,
-  }
-}
-
-/** Generate a simple circular alpha map as fallback when SDK fails */
-function generateFallbackAlphaMap(size) {
-  const map = new Float32Array(size * size)
-  const cx = size / 2
-  const cy = size / 2
-  const radius = size * 0.4
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const dist = Math.sqrt((r - cy) ** 2 + (c - cx) ** 2)
-      if (dist < radius) {
-        map[r * size + c] = Math.max(0, 1 - dist / radius)
-      }
-    }
-  }
-  return map
 }
 
 export function inpaintWatermark(imageData, maskData, radius = 5) {

@@ -11,11 +11,9 @@ import ProgressBar from '../../components/ProgressBar'
 import FilePreview from '../../components/FilePreview'
 import {
   removeOfficialGeminiWatermark,
-  createVideoFrameProcessor,
+  processVideoFrame,
   inpaintWatermark,
-  detectGeminiWatermark,
-  getGeminiEngine,
-  findBestWatermarkPosition
+  detectGeminiWatermark
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -345,7 +343,7 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Video Watermark Removal — captureStream(30) auto-capture
+  // Video Watermark Removal — same SDK method as image, per-frame
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -354,15 +352,11 @@ export default function WatermarkRemover() {
     isCancelledRef.current = false
 
     const video = videoRef.current
-    const w = video.videoWidth || 1280
-    const h = video.videoHeight || 720
 
     const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
     const ctx = canvas.getContext('2d')
 
-    // captureStream(30) = auto-capture at 30fps, we just draw to canvas
+    // captureStream(30) = auto-capture at 30fps
     const stream = canvas.captureStream(30)
 
     let mimeType = 'video/webm;codecs=vp9'
@@ -385,41 +379,24 @@ export default function WatermarkRemover() {
         await new Promise((res) => { video.oncanplay = res; video.load() })
       }
 
+      // Seek to first frame
       video.currentTime = 0
       await new Promise((res) => { video.onseeked = res })
 
-      const actualW = video.videoWidth || w
-      const actualH = video.videoHeight || h
+      const actualW = video.videoWidth || 1280
+      const actualH = video.videoHeight || 720
       canvas.width = actualW
       canvas.height = actualH
 
+      // Test first frame with SDK
       ctx.drawImage(video, 0, 0, actualW, actualH)
-
-      let processor
-      try {
-        processor = await createVideoFrameProcessor(actualW, actualH)
-      } catch (e) {
-        console.error('[WM] createVideoFrameProcessor error:', e)
-        setError(`Gagal inisialisasi engine: ${e.message}`)
-        setProcessing(false)
-        return
+      const testResult = await processVideoFrame(canvas, { alphaGain })
+      if (!testResult) {
+        console.warn('[WM] First frame no watermark detected, continuing anyway...')
+        // Redraw original for this frame
+        ctx.drawImage(video, 0, 0, actualW, actualH)
       }
-
-      let detected = null
-      if (removalMode === 'gemini') {
-        try {
-          detected = await processor.calibrate(canvas)
-        } catch (e) {
-          console.error('[WM] calibrate error:', e)
-        }
-
-        if (!detected || !detected.position) {
-          setError('Tidak bisa mendeteksi watermark pada video ini')
-          setProcessing(false)
-          return
-        }
-        console.log('[WM] Using predicted position:', JSON.stringify(detected))
-      }
+      console.log('[WM] First frame result:', testResult?.meta)
 
       // Start recording
       mediaRecorder.start(50)
@@ -434,7 +411,7 @@ export default function WatermarkRemover() {
       const totalFrames = Math.ceil(video.duration * 30)
       let frameCount = 0
 
-      // Frame loop: draw video → process → captureStream auto-captures
+      // Frame loop: draw → process (same as image) → captureStream records
       const processNextFrame = async () => {
         if (isCancelledRef.current || video.ended || video.currentTime >= video.duration - 0.05) {
           mediaRecorder.stop()
@@ -444,9 +421,9 @@ export default function WatermarkRemover() {
         // Draw video frame to canvas
         ctx.drawImage(video, 0, 0, actualW, actualH)
 
-        // Process watermark
-        if (removalMode === 'gemini' && processor.isReady()) {
-          await processor.processFrame(canvas)
+        // Process watermark — exact same method as image
+        if (removalMode === 'gemini') {
+          await processVideoFrame(canvas, { alphaGain })
         } else if (removalMode === 'inpaint' && videoMaskSrc) {
           const imgData = ctx.getImageData(0, 0, actualW, actualH)
           const maskCtx = videoMaskSrc.getContext('2d')
