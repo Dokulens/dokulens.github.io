@@ -38,6 +38,12 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
   return {
+    /** Get alpha map for a given size (interpolates from 48px if needed) */
+    async getAlphaMap(size) {
+      const alphaMap = await engine.getAlphaMap(size)
+      return alphaMap
+    },
+
     /** Call once with the first frame to calibrate detection */
     async calibrate(frameCanvas) {
       console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
@@ -72,11 +78,6 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
       const MAX_ALPHA = 0.99
       const LOGO_VALUE = 255
 
-      // Use lower alpha gain to avoid black artifacts
-      const adjustedGain = alphaGain * 0.8
-
-      console.log('[WM] processFrame:', { x, y, wmW, wmH, alphaGain, adjustedGain })
-
       for (let row = 0; row < wmH; row++) {
         for (let col = 0; col < wmW; col++) {
           const localIdx = row * wmW + col
@@ -84,10 +85,10 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
           const alphaMagnitude = Math.abs(rawAlpha)
           const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
 
-          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * adjustedGain
+          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * alphaGain
           if (signalAlpha < ALPHA_THRESHOLD) continue
 
-          const alpha = Math.min(alphaMagnitude * adjustedGain, MAX_ALPHA)
+          const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
           const oneMinusAlpha = 1.0 - alpha
           if (oneMinusAlpha <= 0.001) continue
 
