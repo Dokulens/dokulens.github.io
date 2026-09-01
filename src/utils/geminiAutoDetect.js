@@ -181,6 +181,8 @@ function detectWatermarkPositionNCC(canvas) {
   }
 
   console.log('[NCC] Found:', bestPos, 'size:', bestSize, 'score:', bestScore)
+
+  return {
     x: bestPos.x,
     y: bestPos.y,
     width: bestSize,
