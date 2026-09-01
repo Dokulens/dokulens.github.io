@@ -267,33 +267,59 @@ export async function createMoebiusPipeline(onProgress) {
   await requestPersistentStorage()
   const ort = await getOrt()
 
-  const ep = 'gpu' in navigator ? ['webgpu', 'wasm'] : ['wasm']
-  const opts = { executionProviders: ep, graphOptimizationLevel: 'all' }
+  const hasGPU = 'gpu' in navigator
+  let ep = hasGPU ? ['webgpu', 'wasm'] : ['wasm']
 
   const get = (file, label, idx) =>
     loadModelBytes(`${MODEL_BASE}/${file}`, (loaded, total, fromCache) =>
       onProgress?.(fromCache ? `${label} (cached)` : `Mengunduh ${label}…`, loaded, total))
 
+  async function createSession(bytes, epOverride) {
+    const providers = epOverride || ep
+    try {
+      return await ort.InferenceSession.create(bytes, {
+        executionProviders: providers,
+        graphOptimizationLevel: 'all',
+      })
+    } catch (e) {
+      if (hasGPU && providers[0] === 'webgpu') {
+        console.warn('[Moebius] WebGPU OOM for session, falling back to WASM')
+        ep = ['wasm']
+        return await ort.InferenceSession.create(bytes, {
+          executionProviders: ['wasm'],
+          graphOptimizationLevel: 'all',
+        })
+      }
+      throw e
+    }
+  }
+
+  function disposeTensor(t) {
+    try { t.dispose?.() } catch { /* noop */ }
+  }
+
   onProgress?.('Memuat VAE encoder…', 0, 0)
   const encBytes = await get('vae_encoder.onnx', 'VAE encoder', 1)
-  const enc = await ort.InferenceSession.create(encBytes, opts)
+  let enc = await createSession(encBytes)
 
   onProgress?.('Memuat VAE decoder…', 0, 0)
   const decBytes = await get('vae_decoder.onnx', 'VAE decoder', 2)
-  const dec = await ort.InferenceSession.create(decBytes, opts)
+  let dec = await createSession(decBytes)
 
   onProgress?.('Memuat UNet…', 0, 0)
   const unetBytes = await get('unet.onnx', 'UNet', 3)
-  const unet = await ort.InferenceSession.create(unetBytes, opts)
+  let unet = await createSession(unetBytes)
 
-  const backend = ep[0]
+  let backend = ep[0]
 
   async function encode(chw) {
     const t = new ort.Tensor('float32', chw, [1, 3, IMG, IMG])
     const { moments } = await enc.run({ image: t })
+    disposeTensor(t)
     const m = moments.data
     const out = new Float32Array(4 * LAT * LAT)
     for (let i = 0; i < out.length; i++) out[i] = m[i] * SCALING_FACTOR
+    disposeTensor(moments)
     return out
   }
 
@@ -302,7 +328,10 @@ export async function createMoebiusPipeline(onProgress) {
     for (let i = 0; i < latent.length; i++) scaled[i] = latent[i] / SCALING_FACTOR
     const t = new ort.Tensor('float32', scaled, [1, 4, LAT, LAT])
     const { image } = await dec.run({ latent: t })
-    return chwToImageData(image.data)
+    disposeTensor(t)
+    const result = chwToImageData(image.data)
+    disposeTensor(image)
+    return result
   }
 
   async function unetCFG(latents, mask64, maskedLat, t, guidance) {
@@ -323,58 +352,86 @@ export async function createMoebiusPipeline(onProgress) {
     }
     const ts = new BigInt64Array([BigInt(t), BigInt(t)])
 
+    const latentTensor = new ort.Tensor('float32', nine2, [2, 9, LAT, LAT])
+    const tsTensor = new ort.Tensor('int64', ts, [2])
+    const idsTensor = new ort.Tensor('int64', ids, [2, HALF_IDS])
+
     const out = await unet.run({
-      latent: new ort.Tensor('float32', nine2, [2, 9, LAT, LAT]),
-      timesteps: new ort.Tensor('int64', ts, [2]),
-      input_ids: new ort.Tensor('int64', ids, [2, HALF_IDS])
+      latent: latentTensor,
+      timesteps: tsTensor,
+      input_ids: idsTensor
     })
+    disposeTensor(latentTensor)
+    disposeTensor(tsTensor)
+    disposeTensor(idsTensor)
+
     const noise = out.noise.data
     const n = 4 * plane
     const cfg = new Float32Array(n)
     for (let i = 0; i < n; i++) {
       cfg[i] = noise[i] + guidance * (noise[n + i] - noise[i])
     }
+    disposeTensor(out.noise)
     return cfg
+  }
+
+  async function _runInpaint(imageCanvas, maskCanvas, { steps, guidance, seed, onProgress }) {
+    const fitted = toSquareCanvas(imageCanvas, imageCanvas.width, imageCanvas.height)
+    const maskFitted = toSquareCanvas(maskCanvas, maskCanvas.width, maskCanvas.height)
+
+    onProgress?.('Encoding…', 0, 1)
+    const imgCHW = canvasToCHW(fitted.canvas)
+    const maskBin = maskCanvasToBinary(maskFitted.canvas)
+    const maskedCHW = makeMaskedCHW(imgCHW, maskBin)
+    const mask64 = maskToLatent(maskBin)
+
+    const maskedLat = await encode(maskedCHW)
+
+    const ddim = makeDDIM(steps)
+    const plane = LAT * LAT
+    let latents = randn(4 * plane, seed)
+    const off = randn(4, seed ^ 0x9e3779b9)
+    for (let c = 0; c < 4; c++) {
+      for (let p = 0; p < plane; p++) latents[c * plane + p] += NOISE_OFFSET * off[c]
+    }
+
+    const tl = ddim.timesteps
+    for (let i = 0; i < tl.length; i++) {
+      const t = tl[i]
+      const prevT = i + 1 < tl.length ? tl[i + 1] : -1
+      onProgress?.('Denoising…', i + 1, tl.length)
+      const eps = await unetCFG(latents, mask64, maskedLat, t, guidance)
+      latents = ddimStep(eps, latents, t, prevT, ddim)
+      await new Promise(r => setTimeout(r, 0))
+    }
+
+    onProgress?.('Decoding…', 1, 1)
+    const resultData = await decode(latents)
+
+    return pasteBack(resultData, fitted.canvas, maskBin)
   }
 
   return {
     backend,
 
     async inpaint(imageCanvas, maskCanvas, { steps = 20, guidance = 2, seed = 42, onProgress } = {}) {
-      const fitted = toSquareCanvas(imageCanvas, imageCanvas.width, imageCanvas.height)
-      const maskFitted = toSquareCanvas(maskCanvas, maskCanvas.width, maskCanvas.height)
-
-      onProgress?.('Encoding…', 0, 1)
-      const imgCHW = canvasToCHW(fitted.canvas)
-      const maskBin = maskCanvasToBinary(maskFitted.canvas)
-      const maskedCHW = makeMaskedCHW(imgCHW, maskBin)
-      const mask64 = maskToLatent(maskBin)
-
-      const maskedLat = await encode(maskedCHW)
-
-      const ddim = makeDDIM(steps)
-      const plane = LAT * LAT
-      let latents = randn(4 * plane, seed)
-      const off = randn(4, seed ^ 0x9e3779b9)
-      for (let c = 0; c < 4; c++) {
-        for (let p = 0; p < plane; p++) latents[c * plane + p] += NOISE_OFFSET * off[c]
+      try {
+        return await _runInpaint(imageCanvas, maskCanvas, { steps, guidance, seed, onProgress })
+      } catch (e) {
+        const isOOM = /not enough memory|out of memory|invalid buffer|GPU.*error/i.test(e.message) ||
+          /WebGPU|BindGroup.*invalid/i.test(e.message)
+        if (isOOM && ep[0] === 'webgpu') {
+          console.warn('[Moebius] WebGPU OOM during inference, retrying on WASM…')
+          onProgress?.('WebGPU kehabisan memori, beralih ke CPU…', 0, 0)
+          ep = ['wasm']
+          enc = await createSession(encBytes, ['wasm'])
+          dec = await createSession(decBytes, ['wasm'])
+          unet = await createSession(unetBytes, ['wasm'])
+          backend = 'wasm'
+          return _runInpaint(imageCanvas, maskCanvas, { steps, guidance, seed, onProgress })
+        }
+        throw e
       }
-
-      const tl = ddim.timesteps
-      for (let i = 0; i < tl.length; i++) {
-        const t = tl[i]
-        const prevT = i + 1 < tl.length ? tl[i + 1] : -1
-        onProgress?.('Denoising…', i + 1, tl.length)
-        const eps = await unetCFG(latents, mask64, maskedLat, t, guidance)
-        latents = ddimStep(eps, latents, t, prevT, ddim)
-        await new Promise(r => setTimeout(r, 0))
-      }
-
-      onProgress?.('Decoding…', 1, 1)
-      const resultData = await decode(latents)
-
-      // paste-back with blurred mask for smooth blending
-      return pasteBack(resultData, fitted.canvas, maskBin)
     }
   }
 }

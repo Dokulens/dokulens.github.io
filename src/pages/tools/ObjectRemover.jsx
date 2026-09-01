@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Loader2, Check, Download, RefreshCw, Trash2, Cpu,
   Paintbrush, Info, Maximize2, X, Trash
@@ -25,8 +25,8 @@ export default function ObjectRemover() {
   const imgRef = useRef(null)
   const modalImgRef = useRef(null)
   const modalCanvasRef = useRef(null)
-  const maskCanvasRef = useRef(null)      // saved mask (full resolution)
-  const displayOverlayRef = useRef(null)  // overlay on main preview showing mask
+  const maskCanvasRef = useRef(null)
+  const displayOverlayRef = useRef(null)
   const isPainting = useRef(false)
   const imgDims = useRef({ w: 0, h: 0 })
   const pipelineRef = useRef(null)
@@ -45,42 +45,57 @@ export default function ObjectRemover() {
     setImageSrc(url)
   }
 
-  const onImgLoad = () => {
-    if (!imgRef.current) return
-    const w = imgRef.current.naturalWidth
-    const h = imgRef.current.naturalHeight
-    imgDims.current = { w, h }
-    renderOverlay()
-  }
-
-  const renderOverlay = () => {
+  const renderOverlay = useCallback(() => {
     if (!displayOverlayRef.current || !imgRef.current) return
     const canvas = displayOverlayRef.current
-    canvas.width = imgRef.current.clientWidth || 400
-    canvas.height = imgRef.current.clientHeight || 300
+    const img = imgRef.current
+    const w = img.clientWidth || img.offsetWidth || 400
+    const h = img.clientHeight || img.offsetHeight || 300
+    if (w < 1 || h < 1) return
+    canvas.width = w
+    canvas.height = h
     const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.clearRect(0, 0, w, h)
     if (maskCanvasRef.current) {
-      ctx.globalAlpha = 0.45
-      ctx.drawImage(maskCanvasRef.current, 0, 0, canvas.width, canvas.height)
+      // draw mask scaled to display size with red tint
+      ctx.globalAlpha = 0.5
+      ctx.drawImage(maskCanvasRef.current, 0, 0, w, h)
       ctx.globalAlpha = 1
     }
-  }
+  }, [])
 
+  const onImgLoad = useCallback(() => {
+    if (!imgRef.current) return
+    imgDims.current = { w: imgRef.current.naturalWidth, h: imgRef.current.naturalHeight }
+    // small delay to ensure layout is computed
+    requestAnimationFrame(() => renderOverlay())
+  }, [renderOverlay])
+
+  // re-render overlay when mask changes or window resizes
   useEffect(() => {
     renderOverlay()
-  }, [hasMask, imageSrc])
+  }, [hasMask, imageSrc, renderOverlay])
 
+  useEffect(() => {
+    const onResize = () => renderOverlay()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [renderOverlay])
+
+  // when modal opens, load saved mask into modal canvas
   useEffect(() => {
     if (isModalOpen && modalCanvasRef.current && modalImgRef.current) {
       const canvas = modalCanvasRef.current
-      canvas.width = modalImgRef.current.naturalWidth
-      canvas.height = modalImgRef.current.naturalHeight
-      const ctx = canvas.getContext('2d')
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      if (maskCanvasRef.current) {
-        ctx.drawImage(maskCanvasRef.current, 0, 0)
+      const img = modalImgRef.current
+      const init = () => {
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        if (maskCanvasRef.current) ctx.drawImage(maskCanvasRef.current, 0, 0)
       }
+      img.onload = init
+      if (img.complete && img.naturalWidth > 0) init()
     }
   }, [isModalOpen])
 
@@ -106,15 +121,15 @@ export default function ObjectRemover() {
     setHasMask(true)
   }
 
-  const stopModalPaint = () => {
-    isPainting.current = false
-  }
+  const stopModalPaint = () => { isPainting.current = false }
 
   const clearModalMask = () => {
-    if (!modalCanvasRef.current) return
-    modalCanvasRef.current.getContext('2d').clearRect(0, 0, modalCanvasRef.current.width, modalCanvasRef.current.height)
+    if (modalCanvasRef.current) {
+      modalCanvasRef.current.getContext('2d').clearRect(0, 0, modalCanvasRef.current.width, modalCanvasRef.current.height)
+    }
     setHasMask(false)
     maskCanvasRef.current = null
+    renderOverlay()
   }
 
   const saveModalMask = () => {
@@ -127,6 +142,7 @@ export default function ObjectRemover() {
       setHasMask(true)
     }
     setIsModalOpen(false)
+    // overlay re-render happens via useEffect on hasMask
   }
 
   // ── engine ──────────────────────────────────────────────────────
@@ -271,7 +287,7 @@ export default function ObjectRemover() {
                 </span>
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="text-xs text-[--color-brand] hover:underline flex items-center gap-1 font-medium"
+                  className="flex items-center gap-1.5 rounded-md border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 text-xs font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-all"
                 >
                   <Paintbrush size={12} /> {hasMask ? 'Ubah Masking' : 'Beri Masking Objek'}
                 </button>
@@ -318,7 +334,7 @@ export default function ObjectRemover() {
             <button
               onClick={processImage}
               disabled={processing || !imageSrc}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[--color-brand] px-4 py-3 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[--color-brand] bg-[--color-brand] px-4 py-3 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? (
                 <><Loader2 size={18} className="animate-spin" /> Memproses…</>
@@ -365,13 +381,13 @@ export default function ObjectRemover() {
                 <div className="flex gap-2">
                   <button
                     onClick={downloadResult}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
                   >
                     <Download size={14} /> Download
                   </button>
                   <button
                     onClick={() => { setResultUrl(null); setResultBlob(null) }}
-                    className="flex items-center justify-center gap-1.5 rounded-lg bg-[--color-surface-3] px-3 py-2 text-xs font-bold text-[--color-text-2] hover:bg-[--color-surface-2] transition-all"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-[--color-border] bg-[--color-surface-3] px-3 py-2 text-xs font-bold text-[--color-text-2] hover:bg-[--color-surface-2] transition-all"
                   >
                     <RefreshCw size={14} />
                   </button>
@@ -404,10 +420,13 @@ export default function ObjectRemover() {
 
       {/* ── Masking Modal ─────────────────────────────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-          <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 pt-16"
+          onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}
+        >
+          <div className="relative w-full max-w-[700px] max-h-[85vh] flex flex-col rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white">
                   <Paintbrush size={16} />
@@ -419,13 +438,13 @@ export default function ObjectRemover() {
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200">
+              <button onClick={() => setIsModalOpen(false)} className="rounded border border-gray-300 dark:border-slate-600 p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Body */}
-            <div className="px-5 py-4 space-y-3">
+            {/* Body — scrollable */}
+            <div className="px-5 py-4 space-y-3 overflow-y-auto min-h-0 flex-1">
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 Warnai area objek yang ingin dihapus. Area merah akan direkonstruksi oleh AI.
               </p>
@@ -443,8 +462,8 @@ export default function ObjectRemover() {
                 <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
               </div>
 
-              <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
-                <div className="relative inline-flex items-center justify-center">
+              <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-auto">
+                <div className="relative inline-flex items-center justify-center shrink-0">
                   <img
                     ref={(el) => {
                       modalImgRef.current = el
@@ -464,7 +483,7 @@ export default function ObjectRemover() {
                     }}
                     src={imageSrc}
                     alt="Mask Target"
-                    className="block max-h-[60vh] max-w-full rounded pointer-events-none"
+                    className="block max-h-[55vh] max-w-full rounded pointer-events-none"
                   />
                   <canvas
                     ref={modalCanvasRef}
@@ -480,13 +499,13 @@ export default function ObjectRemover() {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-              <button onClick={clearModalMask} className="text-xs text-red-500 hover:underline font-semibold">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 shrink-0">
+              <button onClick={clearModalMask} className="rounded border border-red-300 dark:border-red-700 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 font-semibold transition-all">
                 <Trash size={12} className="inline mr-1" />Hapus Tanda
               </button>
               <button
                 onClick={saveModalMask}
-                className="rounded-lg bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-sm"
+                className="rounded-lg border-2 border-red-600 bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-sm"
               >
                 <Check size={14} className="inline mr-1" />Selesai & Terapkan
               </button>
