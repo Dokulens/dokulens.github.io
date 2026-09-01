@@ -154,12 +154,38 @@ export default function RotatePDF() {
       const outDoc = await PDFDocument.create()
 
       for (const p of pages) {
-        const [copied] = await outDoc.copyPages(srcDoc, [p.origIndex])
-        if (p.rotation !== 0) {
-          const currentAngle = copied.getRotation().angle
-          copied.setRotation(degrees(currentAngle + p.rotation))
+        const srcPage = srcDoc.getPage(p.origIndex)
+        const { width: origW, height: origH } = srcPage.getSize()
+        const isSwap = p.rotation === 90 || p.rotation === 270
+
+        const newPage = outDoc.addPage({
+          width: isSwap ? origH : origW,
+          height: isSwap ? origW : origH,
+        })
+
+        const [embeddedPage] = await outDoc.embedPdf(srcDoc, [p.origIndex])
+
+        if (p.rotation === 0) {
+          newPage.drawPage(embeddedPage, { x: 0, y: 0 })
+        } else if (p.rotation === 90) {
+          newPage.drawPage(embeddedPage, {
+            x: origH,
+            y: 0,
+            rotate: degrees(90),
+          })
+        } else if (p.rotation === 180) {
+          newPage.drawPage(embeddedPage, {
+            x: origW,
+            y: origH,
+            rotate: degrees(180),
+          })
+        } else if (p.rotation === 270) {
+          newPage.drawPage(embeddedPage, {
+            x: 0,
+            y: origW,
+            rotate: degrees(270),
+          })
         }
-        outDoc.addPage(copied)
       }
 
       const bytes = await outDoc.save()

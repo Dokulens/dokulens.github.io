@@ -4,7 +4,6 @@ import { Loader2, RefreshCw, SlidersHorizontal, Image as ImageIcon } from 'lucid
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
-import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -146,15 +145,41 @@ export default function ImageConvert() {
         multiple
         onFiles={handleFiles}
         label="Pilih atau drop file gambar"
-        hint="JPG, PNG, WebP, AVIF, BMP, ICO — bisa banyak file sekaligus"
+        hint="JPG, PNG, WebP, AVIF, BMP, ICO — bisa banyak file sekaligus (hasil jadi ZIP)"
       />
-      {files.length > 0 && <FilePreview file={files[0]} />}
 
       {files.length > 0 && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
-            <span>{files.length} file dipilih</span>
-            <span>Total: {fmtBytes(files.reduce((acc, f) => acc + f.size, 0))}</span>
+          {/* File list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                {files.length} File Dipilih {files.length > 1 && <span className="text-[--color-brand]">(hasil jadi ZIP)</span>}
+              </span>
+              <span className="text-[10px] text-[--color-text-3]">
+                Total: {fmtBytes(files.reduce((acc, f) => acc + f.size, 0))}
+              </span>
+            </div>
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 rounded bg-[--color-surface-3] px-2.5 py-1.5 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[--color-text-3] font-mono w-5 text-right shrink-0">{i + 1}.</span>
+                    <span className="truncate text-[--color-text-2]">{f.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[--color-text-3]">{fmtBytes(f.size)}</span>
+                    <button
+                      onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-[--color-text-3] hover:text-[--color-danger] transition-colors font-bold"
+                      title="Hapus"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

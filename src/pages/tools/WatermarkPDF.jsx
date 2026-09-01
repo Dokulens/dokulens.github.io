@@ -232,9 +232,7 @@ export default function WatermarkPDF() {
       title="Watermark PDF"
       description="Tambahkan teks watermark ke PDF. Drag untuk posisi, pilih per halaman. 100% Client-Side."
     >
-      {!file && (
-        <DropZone accept=".pdf,application/pdf" onFiles={([f]) => { setFile(f); setResult(null); setError('') }} label="Pilih file PDF" />
-      )}
+      <DropZone accept=".pdf,application/pdf" onFiles={([f]) => { setFile(f); setResult(null); setError(''); setPageImages([]); setPdfDoc(null) }} label="Pilih file PDF" />
 
       {file && !result && (
         <div className="space-y-4">

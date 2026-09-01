@@ -231,14 +231,12 @@ export default function ImageWatermark() {
       title="Tambah Watermark pada Gambar"
       description="Tambahkan watermark teks atau ikon/gambar ke gambar. Drag untuk posisi. 100% Client-Side."
     >
-      {!imageSrc && (
-        <DropZone
-          accept="image/*"
-          onFiles={handleFile}
-          label="Pilih gambar untuk diberi watermark"
-          hint="Drag & drop, paste (Ctrl+V), atau klik — JPG, PNG, WebP"
-        />
-      )}
+      <DropZone
+        accept="image/*"
+        onFiles={handleFile}
+        label="Pilih gambar untuk diberi watermark"
+        hint="Drag & drop, paste (Ctrl+V), atau klik — JPG, PNG, WebP"
+      />
 
       {imageSrc && (
         <div className="flex flex-col gap-3">

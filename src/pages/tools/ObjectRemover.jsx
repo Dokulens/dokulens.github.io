@@ -273,14 +273,12 @@ export default function ObjectRemover() {
       title="AI Hapus Objek (In-Browser Inpainting)"
       description="Hapus objek dari gambar menggunakan AI yang berjalan 100% di browser Anda. Tidak ada server — semua proses lokal."
     >
-      {!imageSrc && (
-        <DropZone
-          accept="image/*"
-          onFiles={handleFile}
-          label="Pilih gambar untuk diedit"
-          hint="Drag & drop, paste (Ctrl+V), atau klik — JPG, PNG, WebP"
-        />
-      )}
+      <DropZone
+        accept="image/*"
+        onFiles={handleFile}
+        label="Pilih gambar untuk diedit"
+        hint="Drag & drop, paste (Ctrl+V), atau klik — JPG, PNG, WebP"
+      />
 
       {imageSrc && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
