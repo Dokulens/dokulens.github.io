@@ -426,7 +426,7 @@ export default function WatermarkRemover() {
       const fps = await detectFPS(video)
       console.log('[WM] Detected FPS:', fps)
 
-      // Play video in real-time, draw frames as fast as processing allows
+      // Play video in real-time, draw + process frames at video's native rate
       video.muted = true
       video.currentTime = 0
       await new Promise((res) => { video.onseeked = res })
@@ -437,6 +437,7 @@ export default function WatermarkRemover() {
 
       await new Promise((resolve) => {
         let finished = false
+        let lastDrawnTime = -1
 
         const finish = () => {
           if (finished) return
@@ -447,23 +448,28 @@ export default function WatermarkRemover() {
         const tick = () => {
           if (finished || isCancelledRef.current) { finish(); return }
 
-          ctx.drawImage(video, 0, 0, w, h)
-          if (removalMode === 'gemini' && detected) {
-            processor.processFrame(canvas, detected)
-          } else if (removalMode === 'inpaint' && videoMaskSrc) {
-            const imgData = ctx.getImageData(0, 0, w, h)
-            const maskCtx = videoMaskSrc.getContext('2d')
-            const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
-            inpaintWatermark(imgData, maskData.data, inpaintRadius)
-            ctx.putImageData(imgData, 0, 0)
+          // Only draw when video has advanced to a new frame
+          const ct = video.currentTime
+          if (ct !== lastDrawnTime) {
+            lastDrawnTime = ct
+            ctx.drawImage(video, 0, 0, w, h)
+            if (removalMode === 'gemini' && detected) {
+              processor.processFrame(canvas, detected)
+            } else if (removalMode === 'inpaint' && videoMaskSrc) {
+              const imgData = ctx.getImageData(0, 0, w, h)
+              const maskCtx = videoMaskSrc.getContext('2d')
+              const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
+              inpaintWatermark(imgData, maskData.data, inpaintRadius)
+              ctx.putImageData(imgData, 0, 0)
+            }
+
+            frameCount++
+            if (frameCount % 5 === 0) {
+              setProgress(10 + Math.round((frameCount / totalFrames) * 90))
+            }
           }
 
-          frameCount++
-          if (frameCount % 5 === 0) {
-            setProgress(10 + Math.round((frameCount / totalFrames) * 90))
-          }
-
-          if (video.ended || video.currentTime >= video.duration - 0.05) {
+          if (video.ended || ct >= video.duration - 0.05) {
             finish()
             return
           }
