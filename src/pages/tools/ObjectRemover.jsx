@@ -421,94 +421,136 @@ export default function ObjectRemover() {
       {/* ── Masking Modal ─────────────────────────────────────── */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 pt-16"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 pt-16"
           onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setIsModalOpen(false)}
         >
-          <div className="relative w-full max-w-[700px] max-h-[85vh] flex flex-col rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+          <div
+            className="relative w-full max-w-[800px] max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white">
-                  <Paintbrush size={16} />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-red-50 to-white dark:from-red-950/20 dark:to-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg">
+                  <Paintbrush size={20} className="stroke-2" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold leading-tight">Masking Objek</p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    {imgDims.current.w} × {imgDims.current.h} px — Warnai objek yang ingin dihapus
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">Masking Objek dengan AI</h3>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400">
+                    {imgDims.current.w} × {imgDims.current.h} px — Coret area yang ingin dihapus
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="rounded border border-gray-300 dark:border-slate-600 p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 px-2 py-1 text-[10px] font-mono text-gray-500">
+                  <span className="border border-gray-300 dark:border-slate-600 rounded px-1">Esc</span> tutup
+                </kbd>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-lg border border-gray-300 dark:border-slate-600 p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all"
+                  title="Tutup (Esc)"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            {/* Body — scrollable */}
-            <div className="px-5 py-4 space-y-3 overflow-y-auto min-h-0 flex-1">
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Warnai area objek yang ingin dihapus. Area merah akan direkonstruksi oleh AI.
-              </p>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
-                <input
-                  type="range"
-                  min="6"
-                  max="80"
-                  value={brushSize}
-                  onChange={(e) => setBrushSize(Number(e.target.value))}
-                  className="flex-1 h-1.5 accent-red-600"
-                />
-                <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
+            {/* Instructions & Controls */}
+            <div className="border-b border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50 px-6 py-4 shrink-0">
+              <div className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 mb-3">
+                <Info size={13} className="text-red-500" />
+                <span className="font-semibold">Instruksi:</span>
+                <span>Warnai area objek dengan kuas merah → Selesai → AI akan menghapus objek tersebut</span>
               </div>
 
-              <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-auto">
-                <div className="relative inline-flex items-center justify-center shrink-0">
-                  <img
-                    ref={(el) => {
-                      modalImgRef.current = el
-                      if (el && isModalOpen) {
-                        el.onload = () => {
-                          if (modalCanvasRef.current) {
-                            const canvas = modalCanvasRef.current
-                            canvas.width = el.naturalWidth
-                            canvas.height = el.naturalHeight
-                            const ctx = canvas.getContext('2d')
-                            ctx.clearRect(0, 0, canvas.width, canvas.height)
-                            if (maskCanvasRef.current) ctx.drawImage(maskCanvasRef.current, 0, 0)
-                          }
-                        }
-                        if (el.complete && el.naturalWidth > 0) el.onload()
-                      }
-                    }}
-                    src={imageSrc}
-                    alt="Mask Target"
-                    className="block max-h-[55vh] max-w-full rounded pointer-events-none"
-                  />
-                  <canvas
-                    ref={modalCanvasRef}
-                    onMouseDown={startModalPaint}
-                    onMouseMove={paintModal}
-                    onMouseUp={stopModalPaint}
-                    onMouseLeave={stopModalPaint}
-                    className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-                    style={{ width: '100%', height: '100%' }}
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center gap-3">
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 px-3 py-2">
+                  <Paintbrush size={14} className="text-red-500" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Ukuran Kuas</span>
                 </div>
+                <div className="flex items-center gap-3 flex-1">
+                  <input
+                    type="range"
+                    min="6"
+                    max="80"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="flex-1 h-2 accent-red-600"
+                  />
+                  <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md w-10 text-center">
+                    {brushSize}
+                  </span>
+                </div>
+                <button
+                  onClick={clearModalMask}
+                  className="flex items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-800/50 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                >
+                  <RefreshCw size={13} /> Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Canvas Area */}
+            <div className="flex-1 overflow-auto bg-[#1a1a1a] p-4 min-h-0 flex items-center justify-center">
+              <div className="relative inline-flex shadow-2xl rounded-lg">
+                <img
+                  ref={(el) => {
+                    modalImgRef.current = el
+                    if (el && isModalOpen) {
+                      el.onload = () => {
+                        if (modalCanvasRef.current) {
+                          const canvas = modalCanvasRef.current
+                          canvas.width = el.naturalWidth
+                          canvas.height = el.naturalHeight
+                          const ctx = canvas.getContext('2d')
+                          ctx.clearRect(0, 0, canvas.width, canvas.height)
+                          if (maskCanvasRef.current) ctx.drawImage(maskCanvasRef.current, 0, 0)
+                        }
+                      }
+                      if (el.complete && el.naturalWidth > 0) el.onload()
+                    }
+                  }}
+                  src={imageSrc}
+                  alt="Mask Target"
+                  className="block max-h-[60vh] max-w-full rounded-lg select-none pointer-events-none"
+                />
+                <canvas
+                  ref={modalCanvasRef}
+                  onMouseDown={startModalPaint}
+                  onMouseMove={paintModal}
+                  onMouseUp={stopModalPaint}
+                  onMouseLeave={stopModalPaint}
+                  className="absolute top-0 left-0 cursor-crosshair rounded-lg ring-2 ring-red-500/0 group-hover:ring-red-500/50 transition-all"
+                  style={{ width: '100%', height: '100%' }}
+                />
+                {/* Brush cursor indicator */}
+                <div
+                  className="absolute top-[-9999px] left-[-9999px] w-full h-full pointer-events-none"
+                  style={{ cursor: 'crosshair' }}
+                />
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 shrink-0">
-              <button onClick={clearModalMask} className="rounded border border-red-300 dark:border-red-700 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 font-semibold transition-all">
-                <Trash size={12} className="inline mr-1" />Hapus Tanda
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 shrink-0">
+              <button onClick={clearModalMask} className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-800/50 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                <Trash size={14} /> Hapus Coretan
               </button>
-              <button
-                onClick={saveModalMask}
-                className="rounded-lg border-2 border-red-600 bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-sm"
-              >
-                <Check size={14} className="inline mr-1" />Selesai & Terapkan
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={saveModalMask}
+                  className="rounded-xl border-2 border-red-600 bg-gradient-to-r from-red-500 to-red-600 px-6 py-2.5 text-sm font-bold text-white hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  <Check size={16} className="stroke-[2]" /> Simpan Mask
+                </button>
+              </div>
             </div>
           </div>
         </div>
