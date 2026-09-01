@@ -155,17 +155,13 @@ export default function RotatePDF() {
 
       for (const p of pages) {
         const page = await srcDoc.getPage(p.origIndex)
-        const viewport = page.getViewport({ scale: 2 })
+        // Use pdf.js built-in rotation - gives correct viewport dimensions
+        const viewport = page.getViewport({ scale: 2, rotation: p.rotation })
         const canvas = document.createElement('canvas')
-
-        const isSwap = p.rotation === 90 || p.rotation === 270
-        canvas.width = isSwap ? viewport.height : viewport.width
-        canvas.height = isSwap ? viewport.width : viewport.height
+        canvas.width = viewport.width
+        canvas.height = viewport.height
 
         const ctx = canvas.getContext('2d')
-        ctx.translate(canvas.width / 2, canvas.height / 2)
-        ctx.rotate((p.rotation * Math.PI) / 180)
-        ctx.translate(-viewport.width / 2, -viewport.height / 2)
         await page.render({ canvasContext: ctx, viewport }).promise
 
         const imgDataUrl = canvas.toDataURL('image/png')

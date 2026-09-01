@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Download, Loader2, ZoomIn, GripVertical } from 'lucide-react'
+import { Loader2, GripVertical } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import FilePreview from '../../components/FilePreview'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import Upscaler from 'upscaler'
 
 const SCALE_OPTIONS = [
   { value: 2, label: '2×', desc: 'Dua kali lipat' },
@@ -14,9 +15,9 @@ const SCALE_OPTIONS = [
 ]
 
 const OUTPUT_FORMATS = [
-  { ext: 'png', mime: 'image/png', label: 'PNG (Lossless)' },
-  { ext: 'jpg', mime: 'image/jpeg', label: 'JPG (Kompresi)' },
-  { ext: 'webp', mime: 'image/webp', label: 'WebP (Ringan)' },
+  { ext: 'png', mime: 'image/png', label: 'PNG' },
+  { ext: 'jpg', mime: 'image/jpeg', label: 'JPG' },
+  { ext: 'webp', mime: 'image/webp', label: 'WebP' },
 ]
 
 function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
@@ -32,11 +33,7 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
   }
 
   useEffect(() => {
-    const onMove = (e) => {
-      if (!isDragging.current) return
-      e.preventDefault()
-      updatePos(e)
-    }
+    const onMove = (e) => { if (isDragging.current) { e.preventDefault(); updatePos(e) } }
     const onUp = () => { isDragging.current = false }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -58,14 +55,8 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
         onMouseDown={(e) => { isDragging.current = true; updatePos(e) }}
         onTouchStart={(e) => { isDragging.current = true; updatePos(e) }}
       >
-        {/* After (full width, behind) */}
         <img src={afterSrc} alt="After" className="block w-full h-auto" draggable={false} />
-
-        {/* Before (clipped) */}
-        <div
-          className="absolute inset-0 overflow-hidden"
-          style={{ width: `${pos}%` }}
-        >
+        <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
           <img
             src={beforeSrc}
             alt="Before"
@@ -74,8 +65,6 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
             draggable={false}
           />
         </div>
-
-        {/* Divider line */}
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg z-10"
           style={{ left: `${pos}%`, transform: 'translateX(-50%)' }}
@@ -84,8 +73,6 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
             <GripVertical size={14} className="text-[--color-brand]" />
           </div>
         </div>
-
-        {/* Labels */}
         <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider z-20">
           {beforeLabel}
         </div>
@@ -104,6 +91,7 @@ export default function ImageUpscaler() {
   const [outputFormat, setOutputFormat] = useState('png')
   const [quality, setQuality] = useState(92)
   const [processing, setProcessing] = useState(false)
+  const [progressText, setProgressText] = useState('')
   const [result, setResult] = useState(null)
   const [resultInfo, setResultInfo] = useState('')
   const [error, setError] = useState('')
@@ -129,81 +117,82 @@ export default function ImageUpscaler() {
     if (!file) return
     setProcessing(true)
     setError('')
+    setProgressText('Memuat model AI...')
 
     try {
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-        img.src = URL.createObjectURL(file)
-      })
+      const upscaler = new Upscaler()
+      await upscaler.ready
 
-      const srcW = img.naturalWidth
-      const srcH = img.naturalHeight
-      const dstW = srcW * scale
-      const dstH = srcH * scale
+      setProgressText('Upscaling dengan AI...')
+      let currentUrl = URL.createObjectURL(file)
+      let passCount = 0
+      let needed = scale
 
-      // Draw original
-      const srcCanvas = document.createElement('canvas')
-      srcCanvas.width = srcW
-      srcCanvas.height = srcH
-      srcCanvas.getContext('2d').drawImage(img, 0, 0)
+      while (needed > 1) {
+        const step = needed >= 2 ? 2 : needed
+        passCount++
+        setProgressText(`Pass ${passCount}: ${step === 2 ? '2×' : `${step}×`} upscale...`)
 
-      // Upscale in 2x steps for quality
-      let input = srcCanvas
-      let inputW = srcW
-      let inputH = srcH
-      let mult = scale
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        await new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = reject
+          img.src = currentUrl
+        })
 
-      while (mult > 1) {
-        const step = mult >= 2 ? 2 : mult
-        const outW = Math.round(inputW * step)
-        const outH = Math.round(inputH * step)
-
-        const outCanvas = document.createElement('canvas')
-        outCanvas.width = outW
-        outCanvas.height = outH
-        const ctx = outCanvas.getContext('2d')
-        ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'high'
-        ctx.drawImage(input, 0, 0, outW, outH)
-
-        input = outCanvas
-        inputW = outW
-        inputH = outH
-        mult /= step
+        const resultDataUrl = await upscaler.upscale(img)
+        URL.revokeObjectURL(currentUrl)
+        currentUrl = resultDataUrl
+        needed /= step
       }
 
-      // Convert to blob via toDataURL (more reliable than toBlob)
+      setProgressText('Konversi format...')
+      const img = new Image()
+      await new Promise((resolve) => { img.onload = resolve; img.src = currentUrl })
+      const srcW = img.naturalWidth
+      const srcH = img.naturalHeight
+
+      // If scale is 3, downscale from 4x to 3x
+      const canvas = document.createElement('canvas')
+      canvas.width = originalDims.w * scale
+      canvas.height = originalDims.h * scale
+      const ctx = canvas.getContext('2d')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
       const fmt = OUTPUT_FORMATS.find((f) => f.ext === outputFormat)
-      const dataUrl = input.toDataURL(fmt.mime, quality / 100)
+      const dataUrl = canvas.toDataURL(fmt.mime, quality / 100)
       const res = await fetch(dataUrl)
       const blob = await res.blob()
 
-      const url = URL.createObjectURL(blob)
-      setResultUrl(url)
-      setResultInfo(`${srcW}×${srcH} → ${dstW}×${dstH} (${scale}×) — ${fmtBytes(blob.size)}`)
+      const resultObjectUrl = URL.createObjectURL(blob)
+      setResultUrl(resultObjectUrl)
+      setResultInfo(`${originalDims.w}×${originalDims.h} → ${canvas.width}×${canvas.height} (${scale}× AI) — ${fmtBytes(blob.size)}`)
       setResult(blob)
+
+      upscaler.dispose()
     } catch (e) {
       setError(`Gagal: ${e.message}`)
     } finally {
       setProcessing(false)
+      setProgressText('')
     }
-  }, [file, scale, outputFormat, quality])
+  }, [file, scale, outputFormat, quality, originalDims])
 
   const base = file ? stripExt(file.name) : 'image'
 
   return (
     <ToolShell
-      title="Upscale Gambar"
-      description="Perbesar resolusi gambar hingga 4× dengan interpolasi berkualitas tinggi. 100% Client-Side."
+      title="Upscale Gambar (AI)"
+      description="Perbesar resolusi gambar dengan AI (ESRGAN). 100% Client-Side via TensorFlow.js."
     >
       <DropZone
         accept="image/png,image/jpeg,image/webp"
         onFiles={handleFile}
         label="Pilih gambar untuk di-upscale"
-        hint="JPG, PNG, WebP — akan diperbesar sesuai pilihan"
+        hint="JPG, PNG, WebP — AI akan meningkatkan resolusi"
       />
       {file && <FilePreview file={file} />}
 
@@ -269,14 +258,9 @@ export default function ImageUpscaler() {
               <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
                 Kualitas: {quality}%
               </label>
-              <input
-                type="range"
-                min="50"
-                max="100"
-                value={quality}
+              <input type="range" min="50" max="100" value={quality}
                 onChange={(e) => setQuality(Number(e.target.value))}
-                className="w-full accent-[--color-brand]"
-              />
+                className="w-full accent-[--color-brand]" />
             </div>
           )}
         </div>
@@ -295,17 +279,16 @@ export default function ImageUpscaler() {
           className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
-          {processing ? 'Upscaling…' : `Upscale ${scale}×`}
+          {processing ? progressText : `Upscale ${scale}× dengan AI`}
         </button>
       )}
 
-      {/* Before / After Slider */}
       {result && previewUrl && resultUrl && (
         <BeforeAfterSlider
           beforeSrc={previewUrl}
           afterSrc={resultUrl}
           beforeLabel="Original"
-          afterLabel={`${scale}× Upscaled`}
+          afterLabel={`${scale}× AI Upscaled`}
         />
       )}
 
