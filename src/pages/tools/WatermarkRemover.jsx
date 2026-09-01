@@ -434,15 +434,20 @@ export default function WatermarkRemover() {
 
       const totalFrames = Math.ceil(video.duration * fps)
       let frameCount = 0
-      let cancelled = false
 
       await new Promise((resolve) => {
-        const tick = (_now, metadata) => {
-          if (cancelled || isCancelledRef.current) {
-            video.pause()
-            resolve()
-            return
-          }
+        let finished = false
+        let videoCallbackId = null
+
+        const finish = () => {
+          if (finished) return
+          finished = true
+          video.pause()
+          resolve()
+        }
+
+        const tick = (_now, _metadata) => {
+          if (finished || isCancelledRef.current) { finish(); return }
 
           // Draw the current video frame
           ctx.drawImage(video, 0, 0, w, h)
@@ -469,26 +474,41 @@ export default function WatermarkRemover() {
 
           // Check if video ended
           if (video.ended || video.currentTime >= video.duration - 0.05) {
-            video.pause()
-            resolve()
+            finish()
             return
           }
 
           // Schedule next frame
-          video.requestVideoFrameCallback(tick)
+          videoCallbackId = video.requestVideoFrameCallback(tick)
         }
 
         // Start the callback loop
-        video.requestVideoFrameCallback(tick)
+        videoCallbackId = video.requestVideoFrameCallback(tick)
+
+        // Timeout fallback — if requestVideoFrameCallback stops firing (video ended),
+        // this catches it and resolves the Promise
+        const endTimeout = setTimeout(() => {
+          console.log('[WM] Timeout fallback — video playback likely ended')
+          finish()
+        }, (video.duration + 3) * 1000)
 
         // Handle cancel
         const cancelCheck = setInterval(() => {
           if (isCancelledRef.current) {
-            cancelled = true
-            video.pause()
             clearInterval(cancelCheck)
+            clearTimeout(endTimeout)
+            finish()
           }
         }, 200)
+
+        // Cleanup when finished
+        const origResolve = resolve
+        resolve = () => {
+          clearInterval(cancelCheck)
+          clearTimeout(endTimeout)
+          if (videoCallbackId) video.cancelVideoFrameCallback(videoCallbackId)
+          origResolve()
+        }
       })
 
       // Finish recording
