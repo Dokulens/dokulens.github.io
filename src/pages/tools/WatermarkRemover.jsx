@@ -31,8 +31,11 @@ export default function WatermarkRemover() {
   // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
-  // Alpha gain control
-  const [alphaGain, setAlphaGain] = useState(1.0)
+  // Alpha gain control (separate defaults for image vs video)
+  const [alphaGainImage, setAlphaGainImage] = useState(1.0)
+  const [alphaGainVideo, setAlphaGainVideo] = useState(0.60)
+  const alphaGain = activeMedia === 'video' ? alphaGainVideo : alphaGainImage
+  const setAlphaGain = activeMedia === 'video' ? setAlphaGainVideo : setAlphaGainImage
 
   // Fullscreen Modal & Zoom
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -705,7 +708,7 @@ export default function WatermarkRemover() {
               />
               <div className="flex justify-between text-[10px] text-[--color-text-3]">
                 <span>0.10 (Lemah)</span>
-                <span>1.00 (Default)</span>
+                <span>{activeMedia === 'video' ? '0.60 (Default Video)' : '1.00 (Default Gambar)'}</span>
                 <span>2.00 (Kuat)</span>
               </div>
             </div>
