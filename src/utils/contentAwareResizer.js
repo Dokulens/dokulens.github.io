@@ -322,7 +322,7 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
 export const countMaskedPixels = (img) => {
   let count = 0
   for (let i = 0; i < img.data.length; i += 4) {
-    if (img.data[i + 3] > ALPHA_DELETE_THRESHOLD) count += 1
+    if (img.data[i + 3] === ALPHA_DELETE_THRESHOLD) count += 1
   }
   return count
 }
