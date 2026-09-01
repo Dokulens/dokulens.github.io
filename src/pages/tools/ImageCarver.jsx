@@ -540,10 +540,12 @@ export default function ImageCarver() {
                 )}
               </div>
               <div className="relative flex items-center justify-center min-h-[260px] overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2] p-2">
-                <canvas ref={workingCanvasRef} className="block max-h-[360px] w-auto border border-dashed border-gray-400" />
-                {showSeams && (
-                  <canvas ref={seamsCanvasRef} className="absolute inset-0 block h-full w-full pointer-events-none" />
-                )}
+                <div className="relative inline-block">
+                  <canvas ref={workingCanvasRef} className="block max-h-[360px] w-auto border border-dashed border-gray-400" />
+                  {showSeams && (
+                    <canvas ref={seamsCanvasRef} className="absolute inset-0 block w-full h-full pointer-events-none" />
+                  )}
+                </div>
               </div>
             </div>
 
