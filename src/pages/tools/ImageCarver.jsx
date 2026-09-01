@@ -364,9 +364,8 @@ export default function ImageCarver() {
                   onChange={(e) => {
                     const v = Number(e.target.value)
                     setToWidthScale(v)
-                    if (lockRatio && originalSize) {
-                      const h = Math.round(v * (originalSize.h / originalSize.w))
-                      setToHeightScale(Math.min(100, Math.max(20, h)))
+                    if (lockRatio) {
+                      setToHeightScale(v)
                     }
                   }}
                   className="w-full"
@@ -404,9 +403,8 @@ export default function ImageCarver() {
                   onChange={(e) => {
                     const v = Number(e.target.value)
                     setToHeightScale(v)
-                    if (lockRatio && originalSize) {
-                      const w = Math.round(v * (originalSize.w / originalSize.h))
-                      setToWidthScale(Math.min(100, Math.max(20, w)))
+                    if (lockRatio) {
+                      setToWidthScale(v)
                     }
                   }}
                   className="w-full"
