@@ -7,6 +7,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const ASPECT_RATIOS = [
   { id: 'free', label: 'Bebas', ratio: null },
@@ -19,6 +20,7 @@ const ASPECT_RATIOS = [
 
 export default function ImageCropRotate() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [imageSrc, setImageSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
@@ -398,6 +400,8 @@ export default function ImageCropRotate() {
               fileName={`${base}_cropped.${exportFormat}`}
               blob={resultBlob}
               extraInfo={`${fmtBytes(resultBlob.size)}`}
+              outputMimeType={exportFormat === 'jpg' ? 'image/jpeg' : exportFormat === 'webp' ? 'image/webp' : 'image/png'}
+              sourceRoute="image-crop-rotate"
               onReset={() => setResultBlob(null)}
             />
           )}

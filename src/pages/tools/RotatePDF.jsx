@@ -16,6 +16,7 @@ import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 function SortablePageCard({ id, pageNum, preview, rotation, onRotate, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -63,6 +64,7 @@ function SortablePageCard({ id, pageNum, preview, rotation, onRotate, onRemove }
 
 export default function RotatePDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [pages, setPages] = useState([]) // [{id, origIndex, pageNum, preview, rotation}]
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -238,6 +240,8 @@ export default function RotatePDF() {
           fileName={`${base}_rotated.pdf`}
           blob={result}
           extraInfo={`${pages.length} halaman — ${fmtBytes(result.size)}`}
+          outputMimeType="application/pdf"
+          sourceRoute="rotate-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

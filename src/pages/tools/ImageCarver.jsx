@@ -17,9 +17,20 @@ import {
   MAX_HEIGHT_LIMIT,
 } from '../../utils/contentAwareResizer'
 import { fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function ImageCarver() {
   const [imageSrc, setImageSrc] = useState(null)
+  useIncomingFile((f) => {
+    setFile(f)
+    onReset()
+    setToWidthScale(80)
+    setToHeightScale(90)
+    setHasMask(false)
+    setMaskCanvasElement(null)
+    const url = URL.createObjectURL(f)
+    setImageSrc(url)
+  })
   const [file, setFile] = useState(null)
   const [originalSize, setOriginalSize] = useState(null)
   const [workingSize, setWorkingSize] = useState(null)

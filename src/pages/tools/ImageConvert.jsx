@@ -6,6 +6,7 @@ import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const TARGET_FORMATS = [
   { label: 'WebP (Kompresi Terbaik & Ringan)', ext: 'webp', mime: 'image/webp' },
@@ -18,6 +19,7 @@ const TARGET_FORMATS = [
 
 export default function ImageConvert() {
   const [files, setFiles] = useState([])
+  useIncomingFile((f) => setFiles(prev => [...prev, f]))
   const [targetFormat, setTargetFormat] = useState('webp')
   const [quality, setQuality] = useState(82)
   const [resizeMode, setResizeMode] = useState('none') // 'none' | 'width' | 'percent' | 'custom'
@@ -314,6 +316,8 @@ export default function ImageConvert() {
           fileName={resultName}
           blob={result}
           extraInfo={fmtBytes(result.size)}
+          outputMimeType={TARGET_FORMATS.find(f => f.ext === targetFormat)?.mime || 'image/png'}
+          sourceRoute="image-convert"
           onReset={() => {
             setResult(null)
             setFiles([])

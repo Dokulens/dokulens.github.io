@@ -7,6 +7,7 @@ import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const COMPRESSION_LEVELS = [
   { label: 'Rendah (Kualitas Tinggi)', scale: 1.5, quality: 0.85, desc: 'Pengurangan ukuran ~30-50%, kualitas visual tetap sangat baik' },
@@ -16,6 +17,7 @@ const COMPRESSION_LEVELS = [
 
 export default function CompressPDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [levelIdx, setLevelIdx] = useState(1)
   const [progress, setProgress] = useState(0)
   const [progressText, setProgressText] = useState('')
@@ -161,6 +163,8 @@ export default function CompressPDF() {
           fileName={`${base}_compressed.pdf`}
           blob={result}
           extraInfo={`${fmtBytes(file.size)} → ${fmtBytes(result.size)} (${savedPct > 0 ? `hemat ${savedPct}%` : 'ukuran berubah'})`}
+          outputMimeType="application/pdf"
+          sourceRoute="compress-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

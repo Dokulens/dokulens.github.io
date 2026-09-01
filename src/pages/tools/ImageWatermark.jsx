@@ -6,6 +6,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 60, 72, 96]
 
@@ -28,6 +29,17 @@ const FONT_COLORS = [
 
 export default function ImageWatermark() {
   const [imageSrc, setImageSrc] = useState(null)
+  useIncomingFile((f) => {
+    setFileName(f.name)
+    const url = URL.createObjectURL(f)
+    const img = new Image()
+    img.onload = () => {
+      imgRef.current = img
+      setImageSrc(url)
+      requestAnimationFrame(redraw)
+    }
+    img.src = url
+  })
   const [fileName, setFileName] = useState('')
   const [watermarkType, setWatermarkType] = useState('text')
 

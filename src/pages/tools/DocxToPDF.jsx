@@ -7,9 +7,11 @@ import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function DocxToPDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [progress, setProgress] = useState(0)
   const [progressText, setProgressText] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -184,6 +186,8 @@ export default function DocxToPDF() {
           fileName={`${base}.pdf`}
           blob={result}
           extraInfo={fmtBytes(result.size)}
+          outputMimeType="application/pdf"
+          sourceRoute="docx-to-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

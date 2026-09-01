@@ -6,11 +6,17 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const MAX_DIM = 512
 
 export default function ObjectRemover() {
   const [imageSrc, setImageSrc] = useState(null)
+  useIncomingFile((f) => {
+    setFileName(f.name)
+    const url = URL.createObjectURL(f)
+    setImageSrc(url)
+  })
   const [fileName, setFileName] = useState('')
   const [brushSize, setBrushSize] = useState(30)
   const [processing, setProcessing] = useState(false)

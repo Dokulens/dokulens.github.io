@@ -10,6 +10,7 @@ import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const FONT_OPTIONS = [
   { id: 'Helvetica', label: 'Helvetica / Arial (Modern Sans-Serif)', css: 'font-sans' },
@@ -19,6 +20,7 @@ const FONT_OPTIONS = [
 
 export default function EditPDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageData, setPageData] = useState(null)
@@ -561,6 +563,8 @@ export default function EditPDF() {
           fileName={`${base}_edited.pdf`}
           blob={result}
           extraInfo={`${editedCount} teks diperbarui — ${fmtBytes(result.size)}`}
+          outputMimeType="application/pdf"
+          sourceRoute="edit-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

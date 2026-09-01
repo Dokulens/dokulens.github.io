@@ -7,9 +7,11 @@ import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function PDFToDocx() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [progress, setProgress] = useState(0)
   const [progressText, setProgressText] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -164,6 +166,8 @@ export default function PDFToDocx() {
           fileName={`${base}.docx`}
           blob={result}
           extraInfo={fmtBytes(result.size)}
+          outputMimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          sourceRoute="pdf-to-docx"
           onReset={() => {
             setResult(null)
             setFile(null)

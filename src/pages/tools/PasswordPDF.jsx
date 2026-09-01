@@ -5,10 +5,12 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function PasswordPDF() {
   const [activeTab, setActiveTab] = useState('protect') // 'protect' | 'remove'
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [userPassword, setUserPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [ownerPassword, setOwnerPassword] = useState('')
@@ -262,6 +264,8 @@ export default function PasswordPDF() {
           fileName={activeTab === 'protect' ? `${base}_protected.pdf` : `${base}_unlocked.pdf`}
           blob={result}
           extraInfo={activeTab === 'protect' ? `Terkunci dengan password — ${fmtBytes(result.size)}` : `Bebas password — ${fmtBytes(result.size)}`}
+          outputMimeType="application/pdf"
+          sourceRoute="password-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

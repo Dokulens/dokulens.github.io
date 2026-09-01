@@ -7,6 +7,7 @@ import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToBlob } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const FORMATS = [
   { label: 'PNG (Lossless, Kualitas Terbaik)', ext: 'png', mime: 'image/png' },
@@ -15,6 +16,7 @@ const FORMATS = [
 
 export default function PDFToImage() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [format, setFormat] = useState('png')
   const [dpi, setDpi] = useState(150) // 150 = ~2x scale
   const [progress, setProgress] = useState(0)
@@ -157,6 +159,8 @@ export default function PDFToImage() {
           fileName={resultName}
           blob={result}
           extraInfo={fmtBytes(result.size)}
+          outputMimeType={format === 'jpg' ? 'image/jpeg' : 'image/png'}
+          sourceRoute="pdf-to-image"
           onReset={() => {
             setResult(null)
             setFile(null)

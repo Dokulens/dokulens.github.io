@@ -5,6 +5,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const POSITIONS = [
   { id: 'center', label: 'Tengah' },
@@ -15,6 +16,7 @@ const POSITIONS = [
 
 export default function WatermarkPDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [text, setText] = useState('CONFIDENTIAL')
   const [fontSize, setFontSize] = useState(48)
   const [opacity, setOpacity] = useState(30) // %
@@ -218,6 +220,8 @@ export default function WatermarkPDF() {
           fileName={`${base}_watermarked.pdf`}
           blob={result}
           extraInfo={fmtBytes(result.size)}
+          outputMimeType="application/pdf"
+          sourceRoute="watermark-pdf"
           onReset={() => {
             setResult(null)
             setFile(null)

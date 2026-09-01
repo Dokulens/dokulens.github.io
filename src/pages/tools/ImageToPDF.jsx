@@ -14,6 +14,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { readAsArrayBuffer, fmtBytes } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const PAGE_SIZES = {
   fit: 'Ukuran Asli Gambar',
@@ -58,6 +59,7 @@ function SortableItem({ id, item, index, onRemove }) {
 
 export default function ImageToPDF() {
   const [items, setItems] = useState([]) // [{id, file, preview}]
+  useIncomingFile((f) => setItems(prev => [...prev, { id: crypto.randomUUID(), file: f, preview: URL.createObjectURL(f) }]))
   const [pageSize, setPageSize] = useState('fit')
   const [margin, setMargin] = useState(0) // pt
   const [processing, setProcessing] = useState(false)
@@ -235,6 +237,8 @@ export default function ImageToPDF() {
           fileName="images.pdf"
           blob={result}
           extraInfo={`${items.length} gambar → ${fmtBytes(result.size)}`}
+          outputMimeType="application/pdf"
+          sourceRoute="image-to-pdf"
           onReset={() => {
             setResult(null)
             setItems([])

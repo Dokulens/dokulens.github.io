@@ -5,9 +5,11 @@ import { Loader2, Download } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function SplitPDF() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [pageCount, setPageCount] = useState(0)
   const [mode, setMode] = useState('all') // 'all' | 'range'
   const [rangeInput, setRangeInput] = useState('')

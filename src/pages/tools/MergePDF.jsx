@@ -14,6 +14,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import { readAsArrayBuffer, fmtBytes } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 function SortableFile({ id, file, index, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -40,6 +41,7 @@ function SortableFile({ id, file, index, onRemove }) {
 
 export default function MergePDF() {
   const [files, setFiles] = useState([]) // [{id, file}]
+  useIncomingFile((f) => setFiles(prev => [...prev, { id: crypto.randomUUID(), file: f }]))
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -133,6 +135,8 @@ export default function MergePDF() {
           fileName="merged.pdf"
           blob={result}
           extraInfo={`${files.length} file digabung → ${fmtBytes(result.size)}`}
+          outputMimeType="application/pdf"
+          sourceRoute="merge-pdf"
           onReset={() => { setResult(null); setFiles([]) }}
         />
       )}

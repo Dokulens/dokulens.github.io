@@ -15,10 +15,12 @@ import {
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function WatermarkRemover() {
   const [activeMedia, setActiveMedia] = useState('image')
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 

@@ -13,6 +13,7 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
 import { addPageNumberToDocx } from '../../utils/docxNumbering'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const FONT_OPTIONS = [
   { id: 'Helvetica', label: 'Helvetica / Arial (Standard Modern)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
@@ -40,6 +41,7 @@ const POSITION_PRESETS = [
 
 export default function AddPageNumber() {
   const [file, setFile] = useState(null)
+  useIncomingFile(setFile)
   const [fileType, setFileType] = useState('pdf') // 'pdf' | 'docx'
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
@@ -678,6 +680,8 @@ export default function AddPageNumber() {
               fileName={`${base}_numbered.${outExt}`}
               blob={resultBlob}
               extraInfo={`Nomor halaman berhasil disematkan ke ${fileType.toUpperCase()} — ${fmtBytes(resultBlob.size)}`}
+              outputMimeType={fileType === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+              sourceRoute="add-page-number"
               onReset={() => {
                 setResultBlob(null)
                 setFile(null)
