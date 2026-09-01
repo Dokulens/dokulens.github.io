@@ -51,32 +51,46 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
     },
 
     async calibrate(frameCanvas) {
-      console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
-      const result = await removeWatermarkFromImage(frameCanvas, { engine })
-      const meta = result?.meta ?? null
+      try {
+        if (!frameCanvas || !frameCanvas.width || !frameCanvas.height) {
+          console.warn('[WM] Invalid canvas for calibration')
+          return null
+        }
+        console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
+        const result = await removeWatermarkFromImage(frameCanvas, { engine })
+        const meta = result?.meta ?? null
 
-      const candidate =
-        meta?.selectedCandidate ??
-        meta?.position ??
-        null
-      const position = candidate?.position ?? null
-      const alphaGain = candidate?.config?.alphaGain ?? 1.0
-      const logoSize =
-        candidate?.config?.logoSize ??
-        candidate?.position?.width ??
-        48
+        let position = null
+        let alphaGain = 1.0
+        let logoSize = 48
 
-      console.log('[WM] Calibration result:', {
-        position,
-        alphaGain,
-        logoSize,
-        metaKeys: meta ? Object.keys(meta) : null,
-      })
+        if (meta) {
+          const candidate =
+            meta.selectedCandidate ??
+            meta.position ??
+            null
+          if (candidate) {
+            position = candidate.position ?? null
+            alphaGain = candidate.config?.alphaGain ?? 1.0
+            logoSize = candidate.config?.logoSize ?? candidate.position?.width ?? 48
+          }
+        }
 
-      if (!position) return null
+        console.log('[WM] Calibration result:', {
+          position,
+          alphaGain,
+          logoSize,
+          metaKeys: meta ? Object.keys(meta) : null,
+        })
 
-      const alphaMap = await engine.getAlphaMap(logoSize)
-      return { position, alphaMap, alphaGain, logoSize }
+        if (!position) return null
+
+        const alphaMap = await engine.getAlphaMap(logoSize)
+        return { position, alphaMap, alphaGain, logoSize }
+      } catch (e) {
+        console.error('[WM] Calibration error:', e?.message || e)
+        return null
+      }
     },
 
     processFrame(frameCanvas, detected) {
@@ -127,9 +141,10 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
  * with the highest average brightness (likely a visible watermark).
  */
 export async function findBestWatermarkPosition(frameCanvas, engine) {
-  const ctx = frameCanvas.getContext('2d')
-  const w = frameCanvas.width
-  const h = frameCanvas.height
+  try {
+    const ctx = frameCanvas.getContext('2d')
+    const w = frameCanvas.width
+    const h = frameCanvas.height
 
   const positions = []
 
@@ -187,7 +202,11 @@ export async function findBestWatermarkPosition(frameCanvas, engine) {
     }
   }
 
-  return null
+    return null
+  } catch (e) {
+    console.error('[WM] findBestWatermarkPosition error:', e)
+    return null
+  }
 }
 
 export function inpaintWatermark(imageData, maskData, radius = 5) {

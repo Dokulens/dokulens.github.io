@@ -373,7 +373,16 @@ export default function WatermarkRemover() {
 
     try {
       setProgress(5)
-      const processor = await createVideoFrameProcessor(w, h)
+
+      let processor
+      try {
+        processor = await createVideoFrameProcessor(w, h)
+      } catch (e) {
+        console.error('[WM] createVideoFrameProcessor error:', e)
+        setError(`Gagal inisialisasi engine: ${e.message}`)
+        setProcessing(false)
+        return
+      }
 
       if (video.readyState < 2) {
         await new Promise((res) => { video.oncanplay = res; video.load() })
@@ -386,13 +395,21 @@ export default function WatermarkRemover() {
       let detected = null
       if (removalMode === 'gemini') {
         ctx.drawImage(video, 0, 0, w, h)
-        detected = await processor.calibrate(canvas)
+        try {
+          detected = await processor.calibrate(canvas)
+        } catch (e) {
+          console.error('[WM] calibrate error:', e)
+        }
 
         // Fallback: try SDK position + multi-size scanning
         if (!detected) {
           console.log('[WM] Calibration failed, trying fallback positions...')
-          const engine = await getGeminiEngine()
-          detected = await findBestWatermarkPosition(canvas, engine)
+          try {
+            const engine = await getGeminiEngine()
+            detected = await findBestWatermarkPosition(canvas, engine)
+          } catch (e) {
+            console.error('[WM] findBestWatermarkPosition error:', e)
+          }
         }
 
         if (!detected) {
