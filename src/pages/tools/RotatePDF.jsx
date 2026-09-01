@@ -104,10 +104,10 @@ export default function RotatePDF() {
       }))
       setPages(initialPages)
 
-      // Render previews progressively
+// Render previews progressively
       for (let i = 1; i <= totalPages; i++) {
         const page = await pdfDoc.getPage(i)
-        const rotation = page.getRotation().angle || 0
+        const rotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
         const { dataUrl } = await renderPageToDataUrl(pdfDoc, i, 0.4, rotation)
         setPages((prev) =>
           prev.map((p) => (p.pageNum === i ? { ...p, preview: dataUrl, rotation } : p)),
@@ -136,8 +136,8 @@ export default function RotatePDF() {
     const rotated = []
     for (const p of pages) {
       const page = await pdfDoc.getPage(p.pageNum)
-      const rotation = page.getRotation().angle || 0
-      const newRotation = (rotation + 90) % 360
+      const origRotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
+      const newRotation = (origRotation + 90) % 360
       const { dataUrl } = await renderPageToDataUrl(pdfDoc, p.pageNum, 0.4, newRotation)
       rotated.push({ ...p, rotation: newRotation, preview: dataUrl })
     }
