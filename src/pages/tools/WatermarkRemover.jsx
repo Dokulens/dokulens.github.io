@@ -381,9 +381,23 @@ export default function WatermarkRemover() {
     try {
       setProgress(5)
 
+      if (video.readyState < 2) {
+        await new Promise((res) => { video.oncanplay = res; video.load() })
+      }
+
+      video.currentTime = 0
+      await new Promise((res) => { video.onseeked = res })
+
+      const actualW = video.videoWidth || w
+      const actualH = video.videoHeight || h
+      canvas.width = actualW
+      canvas.height = actualH
+
+      ctx.drawImage(video, 0, 0, actualW, actualH)
+
       let processor
       try {
-        processor = await createVideoFrameProcessor(w, h)
+        processor = await createVideoFrameProcessor(actualW, actualH)
       } catch (e) {
         console.error('[WM] createVideoFrameProcessor error:', e)
         setError(`Gagal inisialisasi engine: ${e.message}`)
@@ -391,17 +405,8 @@ export default function WatermarkRemover() {
         return
       }
 
-      if (video.readyState < 2) {
-        await new Promise((res) => { video.oncanplay = res; video.load() })
-      }
-
-      // Seek to first frame for calibration
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
-
       let detected = null
       if (removalMode === 'gemini') {
-        ctx.drawImage(video, 0, 0, w, h)
         try {
           detected = await processor.calibrate(canvas)
         } catch (e) {
@@ -437,13 +442,13 @@ export default function WatermarkRemover() {
         }
 
         // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, w, h)
+        ctx.drawImage(video, 0, 0, actualW, actualH)
 
         // Process watermark
         if (removalMode === 'gemini' && processor.isReady()) {
           await processor.processFrame(canvas)
         } else if (removalMode === 'inpaint' && videoMaskSrc) {
-          const imgData = ctx.getImageData(0, 0, w, h)
+          const imgData = ctx.getImageData(0, 0, actualW, actualH)
           const maskCtx = videoMaskSrc.getContext('2d')
           const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
           inpaintWatermark(imgData, maskData.data, inpaintRadius)
