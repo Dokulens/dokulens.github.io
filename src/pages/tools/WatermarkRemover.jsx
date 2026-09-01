@@ -442,7 +442,8 @@ export default function WatermarkRemover() {
         const finish = () => {
           if (finished) return
           finished = true
-          video.pause()
+          // Don't pause video here — let it keep playing so audio track
+          // continues until mediaRecorder.stop() finishes
           resolve()
         }
 
