@@ -30,7 +30,7 @@ export default function ImageWatermark() {
 
   // Text watermark options
   const [watermarkText, setWatermarkText] = useState('© 2024 Watermark')
-  const [fontFamily, setFontFamily] = useState(Font_FAMILIES[0].value)
+  const [fontFamily, setFontFamily] = useState(FONT_FAMILIES[0].value)
   const [fontSize, setFontSize] = useState(36)
   const [fontColor, setFontColor] = useState(1)
   const [opacity, setOpacity] = useState(50)
