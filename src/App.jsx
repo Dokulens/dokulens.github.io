@@ -21,6 +21,7 @@ const ImageToPDF = lazy(() => import('./pages/tools/ImageToPDF'))
 const PDFToImage = lazy(() => import('./pages/tools/PDFToImage'))
 const RotatePDF = lazy(() => import('./pages/tools/RotatePDF'))
 const ImageConvert = lazy(() => import('./pages/tools/ImageConvert'))
+const ImageEditText = lazy(() => import('./pages/tools/ImageEditText'))
 const WatermarkPDF = lazy(() => import('./pages/tools/WatermarkPDF'))
 const PasswordPDF = lazy(() => import('./pages/tools/PasswordPDF'))
 const About = lazy(() => import('./pages/About'))
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="pdf-to-image" element={<PDFToImage />} />
               <Route path="rotate-pdf" element={<RotatePDF />} />
               <Route path="image-convert" element={<ImageConvert />} />
+              <Route path="image-edit-text" element={<ImageEditText />} />
               <Route path="watermark-pdf" element={<WatermarkPDF />} />
               <Route path="password-pdf" element={<PasswordPDF />} />
               <Route path="about" element={<About />} />
