@@ -70,6 +70,12 @@ export default function ImageCarver() {
     setError('')
     isCancelledRef.current = true
     setIsResizing(false)
+    setMaskCanvasElement(null)
+    setHasMask(false)
+    if (origOverlayCanvasRef.current) {
+      const ctx = origOverlayCanvasRef.current.getContext('2d')
+      ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
+    }
   }
 
   const cancelCarving = () => {
@@ -288,6 +294,10 @@ export default function ImageCarver() {
       setIsResizing(false)
       setMaskCanvasElement(null)
       setHasMask(false)
+      if (origOverlayCanvasRef.current) {
+        const ctx = origOverlayCanvasRef.current.getContext('2d')
+        ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
+      }
     }
   }
 
