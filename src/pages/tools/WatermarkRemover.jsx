@@ -363,7 +363,7 @@ export default function WatermarkRemover() {
     canvas.height = h
     const ctx = canvas.getContext('2d')
 
-    const stream = canvas.captureStream(30) // Auto-capture at 30fps
+    const stream = canvas.captureStream(0) // Manual frame control
     let audioTrack = null
     try {
       const vidStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null)
@@ -426,66 +426,41 @@ export default function WatermarkRemover() {
       const fps = await detectFPS(video)
       console.log('[WM] Detected FPS:', fps)
 
-      // Real-time playback — auto-captured at 30fps by captureStream(30)
-      video.muted = true
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
-      await video.play()
-
+      // Process all frames as fast as possible — no rate limiting
       const totalFrames = Math.ceil(video.duration * fps)
+      const step = 1 / fps
       let frameCount = 0
 
-      await new Promise((resolve) => {
-        let finished = false
+      for (let frame = 0; frame < totalFrames; frame++) {
+        if (isCancelledRef.current) break
 
-        const finish = () => {
-          if (finished) return
-          finished = true
-          resolve()
+        // Seek to exact frame time
+        video.currentTime = frame * step
+        await new Promise((res) => { video.onseeked = res })
+
+        // Draw + process
+        ctx.drawImage(video, 0, 0, w, h)
+        if (removalMode === 'gemini' && detected) {
+          processor.processFrame(canvas, detected)
+        } else if (removalMode === 'inpaint' && videoMaskSrc) {
+          const imgData = ctx.getImageData(0, 0, w, h)
+          const maskCtx = videoMaskSrc.getContext('2d')
+          const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
+          inpaintWatermark(imgData, maskData.data, inpaintRadius)
+          ctx.putImageData(imgData, 0, 0)
         }
 
-        const tick = () => {
-          if (finished || isCancelledRef.current) { finish(); return }
+        // Capture this frame
+        const videoTrack = stream.getVideoTracks()[0]
+        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+          videoTrack.requestFrame()
+        }
 
-          ctx.drawImage(video, 0, 0, w, h)
-
-          if (removalMode === 'gemini' && detected) {
-            processor.processFrame(canvas, detected)
-          } else if (removalMode === 'inpaint' && videoMaskSrc) {
-            const imgData = ctx.getImageData(0, 0, w, h)
-            const maskCtx = videoMaskSrc.getContext('2d')
-            const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
-            inpaintWatermark(imgData, maskData.data, inpaintRadius)
-            ctx.putImageData(imgData, 0, 0)
-          }
-
-          frameCount++
+        frameCount++
+        if (frameCount % 5 === 0) {
           setProgress(10 + Math.round((frameCount / totalFrames) * 90))
-
-          if (video.ended || video.currentTime >= video.duration - 0.05) {
-            finish()
-          }
         }
-
-        const frameInterval = setInterval(tick, 1000 / fps)
-
-        const endTimeout = setTimeout(() => {
-          console.log('[WM] Timeout fallback')
-          finish()
-        }, (video.duration + 3) * 1000)
-
-        const cancelCheck = setInterval(() => {
-          if (isCancelledRef.current) finish()
-        }, 200)
-
-        const origResolve = resolve
-        resolve = () => {
-          clearInterval(frameInterval)
-          clearInterval(cancelCheck)
-          clearTimeout(endTimeout)
-          origResolve()
-        }
-      })
+      }
 
       // Finish recording
       mediaRecorder.stop()
