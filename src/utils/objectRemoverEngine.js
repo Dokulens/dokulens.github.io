@@ -2,7 +2,15 @@
  * Moebius 0.2B Inpainting Engine — browser-side via ONNX Runtime Web + WebGPU
  * Ported from https://github.com/simonw/moebius-web (Apache-2.0)
  */
-import * as ort from 'onnxruntime-web/webgpu'
+
+let ort = null
+
+async function getOrt() {
+  if (ort) return ort
+  const mod = await import('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.webgpu.bundle.min.mjs')
+  ort = mod.default || mod
+  return ort
+}
 
 const IMG = 512
 const LAT = 64
@@ -257,6 +265,7 @@ function ddimStep(eps, sample, t, prevT, ddim) {
 // ── Pipeline ───────────────────────────────────────────────────────────
 export async function createMoebiusPipeline(onProgress) {
   await requestPersistentStorage()
+  const ort = await getOrt()
 
   const ep = 'gpu' in navigator ? ['webgpu', 'wasm'] : ['wasm']
   const opts = { executionProviders: ep, graphOptimizationLevel: 'all' }
