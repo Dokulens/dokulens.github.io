@@ -13,7 +13,8 @@ import {
   removeOfficialGeminiWatermark,
   createVideoFrameProcessor,
   inpaintWatermark,
-  detectGeminiWatermark
+  detectGeminiWatermark,
+  getGeminiEngine
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -311,14 +312,13 @@ export default function WatermarkRemover() {
       setProgress(50)
 
       if (removalMode === 'gemini') {
-        const result = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto', alphaGain })
-        if (result && result.canvas) {
+        const { canvas: resultCanvas, meta } = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto', alphaGain })
+        if (resultCanvas) {
           ctx.clearRect(0, 0, canvas.width, canvas.height)
-          ctx.drawImage(result.canvas, 0, 0)
+          ctx.drawImage(resultCanvas, 0, 0)
         }
       } else {
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        // Custom Inpainting for arbitrary logos
         const maskCtx = maskCanvasRef.current.getContext('2d')
         const maskImgData = maskCtx.getImageData(0, 0, canvas.width, canvas.height)
         inpaintWatermark(imgData, maskImgData.data, inpaintRadius)

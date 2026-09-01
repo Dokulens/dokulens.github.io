@@ -1,13 +1,14 @@
 /**
- * Gemini Watermark Remover Engine + Telea Inpainting for Arbitrary Logos
+ * Gemini Watermark Remover — powered by official @pilio/gemini-watermark-remover SDK
  * Self-contained detection engine (no external dependencies).
+ * Video frame processor uses manual reverse-alpha-blend (SDK doesn't expose per-frame API).
  */
 
 import {
-  removeWatermarkFromImage,
   createWatermarkEngine,
   calculateWatermarkPosition,
-  detectWatermarkConfig
+  detectWatermarkConfig,
+  removeWatermarkFromImage
 } from './geminiAutoDetect.js'
 
 let cachedEngine = null
@@ -20,10 +21,17 @@ async function getEngine() {
 }
 
 /**
- * Remove Gemini AI watermark using self-contained engine (for single images)
+ * Remove Gemini AI watermark using official SDK engine
  */
 export async function removeOfficialGeminiWatermark(image, options = {}) {
-  return await removeWatermarkFromImage(image, options)
+  const engine = await getEngine()
+  const result = await removeWatermarkFromImage(image, {
+    adaptiveMode: 'auto',
+    engine,
+    alphaGain: options.alphaGain ?? 1.0,
+    ...options,
+  })
+  return result
 }
 
 export async function getGeminiEngine() {
@@ -38,32 +46,28 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
   return {
-    /** Get alpha map for a given size (interpolates from 48px if needed) */
     async getAlphaMap(size) {
-      const alphaMap = await engine.getAlphaMap(size)
-      return alphaMap
+      return await engine.getAlphaMap(size)
     },
 
-    /** Call once with the first frame to calibrate detection */
     async calibrate(frameCanvas) {
       console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
-      const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas)
+      const result = await removeWatermarkFromImage(frameCanvas, { engine })
+      const meta = result.__watermarkMeta
 
-      const candidate = meta?.selectedCandidate
+      const candidate = meta?.selectedCandidate ?? meta?.detectedCandidate ?? null
       const position = candidate?.position ?? null
       const alphaGain = candidate?.config?.alphaGain ?? 1.0
       const logoSize = candidate?.config?.logoSize ?? candidate?.position?.width ?? 48
 
-      console.log('[WM] Calibration result:', { position, alphaGain, logoSize })
+      console.log('[WM] Calibration result:', { position, alphaGain, logoSize, meta })
 
       if (!position) return null
 
       const alphaMap = await engine.getAlphaMap(logoSize)
-
       return { position, alphaMap, alphaGain, logoSize }
     },
 
-    /** Fast O(n) reverse-alpha-blend using pre-detected params */
     processFrame(frameCanvas, detected) {
       if (!detected) return
       const { position, alphaMap, alphaGain } = detected
@@ -117,10 +121,10 @@ export function inpaintWatermark(imageData, maskData, radius = 5) {
   for (let i = 0; i < totalPixels; i++) {
     const mIdx = i * 4
     if (maskData[mIdx] > 30 || maskData[mIdx + 3] > 30) {
-      flag[i] = 2 // to inpaint
+      flag[i] = 2
       dist[i] = 1.0e6
     } else {
-      flag[i] = 0 // known pixel
+      flag[i] = 0
       dist[i] = 0
     }
   }
