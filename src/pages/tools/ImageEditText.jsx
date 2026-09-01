@@ -71,8 +71,17 @@ export default function ImageEditText() {
         },
       })
 
-      const { data } = await worker.recognize(imageUrl)
-      const rawWords = data.words || (data.paragraphs || []).flatMap((p) => (p.lines || []).flatMap((l) => l.words || [])) || []
+      const { data } = await worker.recognize(imageUrl, {}, { text: true, blocks: true })
+      const rawWords = []
+      for (const block of (data.blocks || [])) {
+        for (const para of (block.paragraphs || [])) {
+          for (const line of (para.lines || [])) {
+            for (const word of (line.words || [])) {
+              rawWords.push(word)
+            }
+          }
+        }
+      }
       const words = rawWords.map((w) => ({
         text: w.text,
         bbox: w.bbox,
