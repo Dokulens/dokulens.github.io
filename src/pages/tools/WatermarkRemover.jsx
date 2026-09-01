@@ -426,91 +426,38 @@ export default function WatermarkRemover() {
       const fps = await detectFPS(video)
       console.log('[WM] Detected FPS:', fps)
 
-      // Real-time playback driven by requestVideoFrameCallback — no seek drops
-      video.muted = true
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
-      await video.play()
-
+      // Process frames by seeking — reliable, no dependency on playback state
       const totalFrames = Math.ceil(video.duration * fps)
+      const step = 1 / fps
       let frameCount = 0
 
-      await new Promise((resolve) => {
-        let finished = false
-        let videoCallbackId = null
+      for (let frame = 0; frame < totalFrames; frame++) {
+        if (isCancelledRef.current) break
 
-        const finish = () => {
-          if (finished) return
-          finished = true
-          // Don't pause video here — let it keep playing so audio track
-          // continues until mediaRecorder.stop() finishes
-          resolve()
+        video.currentTime = frame * step
+        await new Promise((res) => { video.onseeked = res })
+
+        ctx.drawImage(video, 0, 0, w, h)
+
+        if (removalMode === 'gemini' && detected) {
+          processor.processFrame(canvas, detected)
+        } else if (removalMode === 'inpaint' && videoMaskSrc) {
+          const imgData = ctx.getImageData(0, 0, w, h)
+          const maskCtx = videoMaskSrc.getContext('2d')
+          const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
+          inpaintWatermark(imgData, maskData.data, inpaintRadius)
+          ctx.putImageData(imgData, 0, 0)
         }
 
-        const tick = (_now, _metadata) => {
-          if (finished || isCancelledRef.current) { finish(); return }
-
-          // Draw the current video frame
-          ctx.drawImage(video, 0, 0, w, h)
-
-          // Process watermark
-          if (removalMode === 'gemini' && detected) {
-            processor.processFrame(canvas, detected)
-          } else if (removalMode === 'inpaint' && videoMaskSrc) {
-            const imgData = ctx.getImageData(0, 0, w, h)
-            const maskCtx = videoMaskSrc.getContext('2d')
-            const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
-            inpaintWatermark(imgData, maskData.data, inpaintRadius)
-            ctx.putImageData(imgData, 0, 0)
-          }
-
-          // Force capture stream to grab this fresh frame
-          const videoTrack = stream.getVideoTracks()[0]
-          if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-            videoTrack.requestFrame()
-          }
-
-          frameCount++
-          setProgress(10 + Math.round((frameCount / totalFrames) * 90))
-
-          // Check if video ended
-          if (video.ended || video.currentTime >= video.duration - 0.05) {
-            finish()
-            return
-          }
-
-          // Schedule next frame
-          videoCallbackId = video.requestVideoFrameCallback(tick)
+        // Force capture stream to grab this frame
+        const videoTrack = stream.getVideoTracks()[0]
+        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+          videoTrack.requestFrame()
         }
 
-        // Start the callback loop
-        videoCallbackId = video.requestVideoFrameCallback(tick)
-
-        // Timeout fallback — if requestVideoFrameCallback stops firing (video ended),
-        // this catches it and resolves the Promise
-        const endTimeout = setTimeout(() => {
-          console.log('[WM] Timeout fallback — video playback likely ended')
-          finish()
-        }, (video.duration + 3) * 1000)
-
-        // Handle cancel
-        const cancelCheck = setInterval(() => {
-          if (isCancelledRef.current) {
-            clearInterval(cancelCheck)
-            clearTimeout(endTimeout)
-            finish()
-          }
-        }, 200)
-
-        // Cleanup when finished
-        const origResolve = resolve
-        resolve = () => {
-          clearInterval(cancelCheck)
-          clearTimeout(endTimeout)
-          if (videoCallbackId) video.cancelVideoFrameCallback(videoCallbackId)
-          origResolve()
-        }
-      })
+        frameCount++
+        setProgress(10 + Math.round((frameCount / totalFrames) * 90))
+      }
 
       // Finish recording
       mediaRecorder.stop()
