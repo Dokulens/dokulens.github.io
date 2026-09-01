@@ -7,7 +7,7 @@ import {
   removeWatermarkFromImage,
   createWatermarkEngine,
   removeWatermarkFromImageData
-} from '@pilio/gemini-watermark-remover'
+} from '@pilio/gemini-watermark-remover/browser'
 
 let cachedEngine = null
 
