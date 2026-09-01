@@ -30,7 +30,6 @@ export const NAV_GROUPS = [
       { path: 'image-carver',    label: 'Image Carver (Seam Carving)', icon: 'Wand2',        desc: 'Content-aware resize & hapus objek pada foto' },
       { path: 'image-to-pdf',    label: 'Gambar → PDF',                icon: 'ImagePlus',    desc: 'Gabung JPG/PNG/WebP jadi PDF' },
       { path: 'pdf-to-image',    label: 'PDF → Gambar',                icon: 'FileImage',    desc: 'Ekspor halaman PDF sebagai gambar' },
-      { path: 'image-edit-text', label: 'Edit Teks di Gambar', icon: 'ScanText', desc: 'OCR deteksi otomatis, hapus teks dengan inpainting, ganti dengan teks baru' },
       { path: 'image-convert',   label: 'Konversi & Resize Gambar',    icon: 'RefreshCw',    desc: 'WebP, JPG, PNG, AVIF, BMP, ICO & kompresi' },
     ],
   },
