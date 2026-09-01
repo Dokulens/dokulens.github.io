@@ -72,13 +72,12 @@ export default function ImageEditText() {
       })
 
       const { data } = await worker.recognize(imageUrl)
-      const words = data.lines.flatMap((line) =>
-        line.words.map((w) => ({
-          text: w.text,
-          bbox: w.bbox,
-          confidence: w.confidence,
-        }))
-      )
+      const rawWords = data.words || (data.paragraphs || []).flatMap((p) => (p.lines || []).flatMap((l) => l.words || [])) || []
+      const words = rawWords.map((w) => ({
+        text: w.text,
+        bbox: w.bbox,
+        confidence: w.confidence,
+      }))
       setOcrWords(words)
       setStatus(`Ditemukan ${words.length} kata`)
       await worker.terminate()
