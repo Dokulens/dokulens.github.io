@@ -75,6 +75,8 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
       // Use lower alpha gain to avoid black artifacts
       const adjustedGain = alphaGain * 0.8
 
+      console.log('[WM] processFrame:', { x, y, wmW, wmH, alphaGain, adjustedGain })
+
       for (let row = 0; row < wmH; row++) {
         for (let col = 0; col < wmW; col++) {
           const localIdx = row * wmW + col
