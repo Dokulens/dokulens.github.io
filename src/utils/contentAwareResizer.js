@@ -327,34 +327,42 @@ export const countMaskedPixels = (img) => {
   return count
 }
 
-const clearMaskArea = async ({ img, size, onIteration, isCancelled, maxExtraSteps = 500 }) => {
-  let energyMap = null
-  let seam = null
+const clearMaskArea = async ({ img, size, targetRatio, onIteration, isCancelled, maxExtraSteps = 500 }) => {
+  let energyMapH = null
+  let seamH = null
+  let energyMapV = null
+  let seamV = null
 
   for (let i = 0; i < maxExtraSteps; i += 1) {
     if (isCancelled && isCancelled()) break
     if (countMaskedPixels(img) === 0) break
     if (size.w <= 10 || size.h <= 10) break
 
-    const useH = size.w >= size.h
+    const currentRatio = size.w / size.h
+    const useH = currentRatio >= targetRatio
+
     if (useH) {
-      energyMap = energyMap && seam
-        ? reCalculateEnergyMapH(img, size, energyMap, seam)
+      energyMapH = energyMapH && seamH
+        ? reCalculateEnergyMapH(img, size, energyMapH, seamH)
         : calculateEnergyMapH(img, size)
-      seam = findLowEnergySeamH(energyMap, size)
-      deleteSeamH(img, seam, size)
+      seamH = findLowEnergySeamH(energyMapH, size)
+      deleteSeamH(img, seamH, size)
       size.w -= 1
+      energyMapV = null
+      seamV = null
     } else {
-      energyMap = energyMap && seam
-        ? reCalculateEnergyMapV(img, size, energyMap, seam)
+      energyMapV = energyMapV && seamV
+        ? reCalculateEnergyMapV(img, size, energyMapV, seamV)
         : calculateEnergyMapV(img, size)
-      seam = findLowEnergySeamV(energyMap, size)
-      deleteSeamV(img, seam, size)
+      seamV = findLowEnergySeamV(energyMapV, size)
+      deleteSeamV(img, seamV, size)
       size.h -= 1
+      energyMapH = null
+      seamH = null
     }
 
     if (onIteration) {
-      await onIteration({ energyMap, seam, img, size, phase: 'mask-clear' })
+      await onIteration({ energyMap: useH ? energyMapH : energyMapV, seam: useH ? seamH : seamV, img, size, phase: 'mask-clear' })
     }
 
     await wait(0)
@@ -391,9 +399,10 @@ export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCance
     await resizeImageHeight({ img, toSize: toHeight, size, onIteration: onResizeIteration, isCancelled })
   }
 
-  // Phase 2: Clear remaining masked pixels
+  // Phase 2: Clear remaining masked pixels while maintaining target ratio
   if (hasMask && countMaskedPixels(img) > 0) {
-    await clearMaskArea({ img, size, onIteration: onResizeIteration, isCancelled, maxExtraSteps: maskSteps })
+    const targetRatio = toWidth / toHeight
+    await clearMaskArea({ img, size, targetRatio, onIteration: onResizeIteration, isCancelled, maxExtraSteps: maskSteps })
   }
 
   return { img, size }
