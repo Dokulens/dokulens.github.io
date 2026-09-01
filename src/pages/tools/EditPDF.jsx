@@ -8,6 +8,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -269,6 +270,7 @@ export default function EditPDF() {
       description="Teks, jenis font asli, ukuran (pt), ketebalan (bold/italic), dan warna latar terdeteksi otomatis secara presisi. Klik langsung kata pada dokumen untuk menggantinya."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diedit" />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="space-y-4 animate-fade-in">

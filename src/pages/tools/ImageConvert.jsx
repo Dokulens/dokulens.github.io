@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, SlidersHorizontal, Image as ImageIcon } from 'lucid
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -147,6 +148,7 @@ export default function ImageConvert() {
         label="Pilih atau drop file gambar"
         hint="JPG, PNG, WebP, AVIF, BMP, ICO — bisa banyak file sekaligus"
       />
+      {files.length > 0 && <FilePreview file={files[0]} />}
 
       {files.length > 0 && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">

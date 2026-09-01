@@ -13,6 +13,7 @@ import { RotateCw, Trash2, GripVertical, Loader2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
@@ -178,6 +179,7 @@ export default function RotatePDF() {
       description="Putar orientasi dan ubah susunan halaman PDF dengan mudah."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF" />
+      {file && <FilePreview file={file} />}
 
       {loading && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">

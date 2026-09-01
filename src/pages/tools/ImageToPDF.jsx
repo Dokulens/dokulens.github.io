@@ -13,6 +13,7 @@ import { GripVertical, X, Loader2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -173,6 +174,7 @@ export default function ImageToPDF() {
         label="Pilih atau drop file gambar"
         hint="JPG, PNG, WebP — drag untuk mengatur urutan halaman"
       />
+      {items.length > 0 && <FilePreview file={items[0]?.file} />}
 
       {items.length > 0 && (
         <div className="space-y-4">

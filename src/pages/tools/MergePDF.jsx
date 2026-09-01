@@ -13,6 +13,7 @@ import { GripVertical, X, Loader2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -104,6 +105,7 @@ export default function MergePDF() {
         label="Pilih atau drop file PDF"
         hint="Bisa pilih beberapa file sekaligus"
       />
+      {files.length > 0 && <FilePreview file={files[0]?.file} />}
 
       {files.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

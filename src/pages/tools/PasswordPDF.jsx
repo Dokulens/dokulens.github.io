@@ -4,6 +4,7 @@ import { Lock, Unlock, Loader2, KeyRound, ShieldAlert, CheckCircle2 } from 'luci
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -152,6 +153,7 @@ export default function PasswordPDF() {
       </div>
 
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF" />
+      {file && <FilePreview file={file} />}
 
       {file && activeTab === 'protect' && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">

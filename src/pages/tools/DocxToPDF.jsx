@@ -5,6 +5,7 @@ import { Loader2, FileType, CheckCircle2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -141,6 +142,7 @@ export default function DocxToPDF() {
         label="Pilih file Word (.docx)"
         hint="Mendukung file dokumen .docx"
       />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">

@@ -6,6 +6,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -309,6 +310,7 @@ export default function ImageCropRotate() {
         label="Pilih foto / gambar"
         hint="JPG, PNG, WebP — crop manual & rotasi"
       />
+      {file && <FilePreview file={file} />}
 
       {imageSrc && (
         <div className="space-y-3 animate-fade-in">

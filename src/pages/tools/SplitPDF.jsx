@@ -4,6 +4,7 @@ import JSZip from 'jszip'
 import { Loader2, Download } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
+import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -97,6 +98,7 @@ export default function SplitPDF() {
       description="Pisahkan halaman PDF menjadi file-file terpisah."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={loadFile} label="Pilih file PDF" />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">

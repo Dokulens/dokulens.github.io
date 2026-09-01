@@ -4,6 +4,7 @@ import { Loader2, FileText } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
@@ -322,6 +323,7 @@ export default function PDFToDocx() {
       description="Ekstrak teks, tabel, heading, dan struktur dari file PDF menjadi dokumen Word yang bisa diedit."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diubah ke Word" />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">

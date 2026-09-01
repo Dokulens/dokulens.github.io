@@ -8,6 +8,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
+import FilePreview from '../../components/FilePreview'
 import {
   removeOfficialGeminiWatermark,
   createVideoFrameProcessor,
@@ -521,6 +522,7 @@ export default function WatermarkRemover() {
         label="Pilih foto atau video untuk dihapus watermark-nya"
         hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — 100% Client-Side"
       />
+      {file && <FilePreview file={file} />}
 
       {mediaSrc && (
         <div className="space-y-4 animate-fade-in">

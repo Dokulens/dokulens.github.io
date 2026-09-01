@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToBlob } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
@@ -90,6 +91,7 @@ export default function PDFToImage() {
         onFiles={handleFile}
         label="Pilih file PDF"
       />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">

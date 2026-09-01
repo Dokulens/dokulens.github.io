@@ -9,6 +9,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
+import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
 import { addPageNumberToDocx } from '../../utils/docxNumbering'
@@ -367,6 +368,7 @@ export default function AddPageNumber() {
         label="Pilih file PDF atau Word (.docx)"
         hint="Mendukung dokumen PDF (.pdf) & Microsoft Word (.docx)"
       />
+      {file && <FilePreview file={file} />}
 
       {file && (
         <div className="space-y-4 animate-fade-in">
