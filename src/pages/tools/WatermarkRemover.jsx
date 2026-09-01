@@ -454,12 +454,79 @@ export default function WatermarkRemover() {
       const fps = await detectFPS(video)
       console.log('[WM] Detected FPS:', fps)
 
-       // Simply pass through video - canvas used only for calibration (skipped for video)
-       // Watermark removal requires canvas-based processing which conflicts with stream capture
-       // See: https://github.com/w3c/web-platform-tests/issues/2832
-       // For now: export raw video stream with audio-only (watermark removal requires backend)
+      // Play video and draw frames to canvas so captureStream has content
+      video.muted = true
+      video.currentTime = 0
+      await new Promise((res) => { video.onseeked = res })
+      await video.play()
 
-       // Finish recording
+      const totalFrames = Math.ceil(video.duration * fps)
+      let frameCount = 0
+
+      await new Promise((resolve) => {
+        let finished = false
+        let lastDrawnTime = -1
+
+        const finish = () => {
+          if (finished) return
+          finished = true
+          resolve()
+        }
+
+        const tick = () => {
+          if (finished || isCancelledRef.current) { finish(); return }
+
+          // Only draw when video has advanced to a new frame
+          const ct = video.currentTime
+          if (ct !== lastDrawnTime) {
+            lastDrawnTime = ct
+            ctx.drawImage(video, 0, 0, w, h)
+
+            // Process watermark if gemini mode and detected
+            if (removalMode === 'gemini' && detected) {
+              processor.processFrame(canvas, detected)
+            } else if (removalMode === 'inpaint' && videoMaskSrc) {
+              const imgData = ctx.getImageData(0, 0, w, h)
+              const maskCtx = videoMaskSrc.getContext('2d')
+              const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
+              inpaintWatermark(imgData, maskData.data, inpaintRadius)
+              ctx.putImageData(imgData, 0, 0)
+            }
+
+            frameCount++
+            if (frameCount % 5 === 0) {
+              setProgress(10 + Math.round((frameCount / totalFrames) * 90))
+            }
+          }
+
+          if (video.ended || ct >= video.duration - 0.05) {
+            finish()
+            return
+          }
+
+          requestAnimationFrame(tick)
+        }
+
+        requestAnimationFrame(tick)
+
+        const endTimeout = setTimeout(() => {
+          console.log('[WM] Timeout fallback')
+          finish()
+        }, (video.duration + 5) * 1000)
+
+        const cancelCheck = setInterval(() => {
+          if (isCancelledRef.current) finish()
+        }, 200)
+
+        const origResolve = resolve
+        resolve = () => {
+          clearInterval(cancelCheck)
+          clearTimeout(endTimeout)
+          origResolve()
+        }
+      })
+
+      // Finish recording
       mediaRecorder.stop()
       await new Promise((res) => {
         mediaRecorder.onstop = () => {
