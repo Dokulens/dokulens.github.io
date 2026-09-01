@@ -286,6 +286,8 @@ export default function ImageCarver() {
       setError(`Gagal: ${e.message}`)
     } finally {
       setIsResizing(false)
+      setMaskCanvasElement(null)
+      setHasMask(false)
     }
   }
 
