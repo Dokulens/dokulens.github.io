@@ -39,99 +39,64 @@ export async function getGeminiEngine() {
 }
 
 /**
- * Create a video frame processor: detect watermark on frame 0,
- * then fast reverse-alpha-blend on every subsequent frame.
+ * Create a video frame processor.
+ *
+ * Strategy: use the official SDK per-frame. It already does the full
+ * detection + gradient/spatial scoring + calibrated reverse-alpha-blend.
+ * Reusing a single engine keeps alpha maps cached.
  */
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
-  return {
-    async getAlphaMap(size) {
-      return await engine.getAlphaMap(size)
-    },
+  let calibrated = false
+  let lastMeta = null
 
+  return {
     async calibrate(frameCanvas) {
       try {
-        if (!frameCanvas || !frameCanvas.width || !frameCanvas.height) {
-          console.warn('[WM] Invalid canvas for calibration')
-          return null
-        }
+        if (!frameCanvas || !frameCanvas.width || !frameCanvas.height) return null
         console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
-        const result = await removeWatermarkFromImage(frameCanvas, { engine })
+        const result = await removeWatermarkFromImage(frameCanvas, {
+          engine,
+          adaptiveMode: 'auto',
+        })
         const meta = result?.meta ?? null
-
-        let position = null
-        let alphaGain = 1.0
-        let logoSize = 48
-
-        if (meta && meta.position) {
-          position = meta.position
-          logoSize = meta.size ?? position.width ?? 48
-        }
-
+        lastMeta = meta
+        calibrated = !!meta?.applied
         console.log('[WM] Calibration result:', {
-          position,
-          alphaGain,
-          logoSize,
           applied: meta?.applied,
           decisionTier: meta?.decisionTier,
+          position: meta?.position,
+          size: meta?.size,
           metaKeys: meta ? Object.keys(meta) : null,
         })
-
-        if (!position) return null
-
-        const alphaMap = await engine.getAlphaMap(logoSize)
-        return { position, alphaMap, alphaGain, logoSize }
+        return { position: meta?.position ?? null, size: meta?.size ?? null, applied: calibrated }
       } catch (e) {
         console.error('[WM] Calibration error:', e?.message || e)
         return null
       }
     },
 
-    processFrame(frameCanvas, detected) {
-      if (!detected || !detected.position || !detected.alphaMap) return
-      const { position, alphaMap, alphaGain } = detected
-      const { x, y, width: wmW, height: wmH } = position
-      if (!wmW || !wmH || x < 0 || y < 0) return
-
-      const ctx = frameCanvas.getContext('2d')
-      const imgData = ctx.getImageData(x, y, wmW, wmH)
-      const pixels = imgData.data
-
-      const ALPHA_NOISE_FLOOR = 3 / 255
-      const ALPHA_THRESHOLD = 0.002
-      const MAX_ALPHA = 0.99
-      const LOGO_VALUE = 255
-
-      // Detect alpha map dimensions (may differ from position if it's a fallback)
-      const alphaSize = Math.round(Math.sqrt(alphaMap.length))
-      const alphaDim = alphaSize || 48
-
-      for (let row = 0; row < wmH; row++) {
-        for (let col = 0; col < wmW; col++) {
-          // Sample alpha map with nearest-neighbor (handle size mismatch)
-          const ar = Math.min(alphaDim - 1, Math.floor((row / wmH) * alphaDim))
-          const ac = Math.min(alphaDim - 1, Math.floor((col / wmW) * alphaDim))
-          const localIdx = ar * alphaDim + ac
-          const rawAlpha = alphaMap[localIdx] ?? 0
-          const alphaMagnitude = Math.abs(rawAlpha)
-          if (alphaMagnitude < ALPHA_NOISE_FLOOR) continue
-          const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
-          const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
-          const oneMinusAlpha = 1.0 - alpha
-          if (oneMinusAlpha <= 0.001) continue
-
-          const pixIdx = (row * wmW + col) * 4
-          for (let ch = 0; ch < 3; ch++) {
-            const watermarked = pixels[pixIdx + ch]
-            const original = (watermarked - alpha * logoValue) / oneMinusAlpha
-            pixels[pixIdx + ch] = Math.max(0, Math.min(255, Math.round(original)))
-          }
+    async processFrame(frameCanvas) {
+      if (!calibrated && !lastMeta) return
+      try {
+        const result = await removeWatermarkFromImage(frameCanvas, {
+          engine,
+          adaptiveMode: 'auto',
+        })
+        if (result?.canvas) {
+          const ctx = frameCanvas.getContext('2d')
+          ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
+          ctx.drawImage(result.canvas, 0, 0)
         }
+        lastMeta = result?.meta ?? lastMeta
+      } catch (e) {
+        if (!calibrated) return
+        console.warn('[WM] Frame process error, using last known state:', e?.message)
       }
+    },
 
-      ctx.putImageData(imgData, x, y)
-    }
+    isReady() { return calibrated }
   }
 }
 

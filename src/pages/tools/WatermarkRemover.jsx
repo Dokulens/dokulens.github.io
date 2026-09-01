@@ -408,25 +408,12 @@ export default function WatermarkRemover() {
           console.error('[WM] calibrate error:', e)
         }
 
-        // Fallback: try SDK position + multi-size scanning
-        if (!detected) {
-          console.log('[WM] Calibration failed, trying fallback positions...')
-          try {
-            const engine = await getGeminiEngine()
-            detected = await findBestWatermarkPosition(canvas, engine)
-          } catch (e) {
-            console.error('[WM] findBestWatermarkPosition error:', e)
-          }
-        }
-
-        if (!detected) {
+        if (!detected || !detected.applied) {
           setError('Tidak bisa mendeteksi watermark pada video ini')
           setProcessing(false)
           return
         }
-        // Apply user gain slider
-        detected.alphaGain = alphaGain
-        console.log('[WM] Detected:', JSON.stringify(detected.position), 'gain:', detected.alphaGain)
+        console.log('[WM] Detected:', JSON.stringify(detected))
       }
 
       // Start recording
@@ -443,7 +430,7 @@ export default function WatermarkRemover() {
       let frameCount = 0
 
       // Frame loop: draw video → process → captureStream auto-captures
-      const processNextFrame = () => {
+      const processNextFrame = async () => {
         if (isCancelledRef.current || video.ended || video.currentTime >= video.duration - 0.05) {
           mediaRecorder.stop()
           return
@@ -453,8 +440,8 @@ export default function WatermarkRemover() {
         ctx.drawImage(video, 0, 0, w, h)
 
         // Process watermark
-        if (removalMode === 'gemini' && detected) {
-          processor.processFrame(canvas, detected)
+        if (removalMode === 'gemini' && processor.isReady()) {
+          await processor.processFrame(canvas)
         } else if (removalMode === 'inpaint' && videoMaskSrc) {
           const imgData = ctx.getImageData(0, 0, w, h)
           const maskCtx = videoMaskSrc.getContext('2d')
