@@ -463,69 +463,31 @@ export default function WatermarkRemover() {
       const totalFrames = Math.ceil(video.duration * fps)
       let frameCount = 0
 
-      await new Promise((resolve) => {
-        let finished = false
-        let lastDrawnTime = -1
+      // Process frames sequentially (async) so watermark removal completes per frame
+      while (!isCancelledRef.current && !video.ended && video.currentTime < video.duration - 0.05) {
+        // Wait for next frame
+        await new Promise(res => requestAnimationFrame(res))
 
-        const finish = () => {
-          if (finished) return
-          finished = true
-          resolve()
+        const ct = video.currentTime
+
+        ctx.drawImage(video, 0, 0, w, h)
+
+        // Process watermark if gemini mode and detected
+        if (removalMode === 'gemini' && detected) {
+          await processor.engine.removeWatermarkFromImage(canvas)
+        } else if (removalMode === 'inpaint' && videoMaskSrc) {
+          const imgData = ctx.getImageData(0, 0, w, h)
+          const maskCtx = videoMaskSrc.getContext('2d')
+          const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
+          inpaintWatermark(imgData, maskData.data, inpaintRadius)
+          ctx.putImageData(imgData, 0, 0)
         }
 
-        const tick = () => {
-          if (finished || isCancelledRef.current) { finish(); return }
-
-          // Only draw when video has advanced to a new frame
-          const ct = video.currentTime
-          if (ct !== lastDrawnTime) {
-            lastDrawnTime = ct
-            ctx.drawImage(video, 0, 0, w, h)
-
-            // Process watermark if gemini mode and detected
-            if (removalMode === 'gemini' && detected) {
-              // Use engine's full method for better accuracy on video frames
-              await processor.engine.removeWatermarkFromImage(canvas)
-            } else if (removalMode === 'inpaint' && videoMaskSrc) {
-              const imgData = ctx.getImageData(0, 0, w, h)
-              const maskCtx = videoMaskSrc.getContext('2d')
-              const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
-              inpaintWatermark(imgData, maskData.data, inpaintRadius)
-              ctx.putImageData(imgData, 0, 0)
-            }
-
-            frameCount++
-            if (frameCount % 5 === 0) {
-              setProgress(10 + Math.round((frameCount / totalFrames) * 90))
-            }
-          }
-
-          if (video.ended || ct >= video.duration - 0.05) {
-            finish()
-            return
-          }
-
-          requestAnimationFrame(tick)
+        frameCount++
+        if (frameCount % 5 === 0) {
+          setProgress(10 + Math.round((frameCount / totalFrames) * 90))
         }
-
-        requestAnimationFrame(tick)
-
-        const endTimeout = setTimeout(() => {
-          console.log('[WM] Timeout fallback')
-          finish()
-        }, (video.duration + 5) * 1000)
-
-        const cancelCheck = setInterval(() => {
-          if (isCancelledRef.current) finish()
-        }, 200)
-
-        const origResolve = resolve
-        resolve = () => {
-          clearInterval(cancelCheck)
-          clearTimeout(endTimeout)
-          origResolve()
-        }
-      })
+      }
 
       // Finish recording
       mediaRecorder.stop()
@@ -542,7 +504,6 @@ export default function WatermarkRemover() {
       setError(`Gagal memproses video: ${e.message}`)
     } finally {
       video.pause()
-      if (audioTrack) audioTrack.stop()
       setProcessing(false)
     }
   }
