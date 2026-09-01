@@ -534,7 +534,7 @@ export default function ImageCarver() {
                 />
                 <canvas
                   ref={origOverlayCanvasRef}
-                  className="absolute inset-0 block h-full w-full pointer-events-none opacity-80"
+                  className={`absolute inset-0 block h-full w-full pointer-events-none ${hasMask ? 'opacity-80' : 'hidden'}`}
                 />
               </div>
             </div>
