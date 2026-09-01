@@ -401,7 +401,11 @@ export default function WatermarkRemover() {
      // Cannot add additional audio tracks without creating duplicate audio streams
      // Future: Backend integration needed for video + audio support
 
-     let mimeType = 'video/webm;codecs=vp9,opus'
+     let mimeType = 'video/webm'
+     if (!MediaRecorder.isTypeSupported(mimeType)) {
+       // Fallback to generic webm if vp9 not supported
+       mimeType = 'video/mp4'
+     }
 
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType,
