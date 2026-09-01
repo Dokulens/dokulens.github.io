@@ -39,15 +39,16 @@ function SortablePageCard({ id, pageNum, preview, rotation, onRotate, onRemove }
         </button>
       </div>
 
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center">
-        {preview ? (
-          <img
-            src={preview}
-            alt={`Page ${pageNum}`}
-            style={{ transform: `rotate(${rotation}deg)` }}
-            className="max-h-full max-w-full object-contain transition-transform duration-200"
-          />
-        ) : (
+      <div className={`relative w-full overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center ${
+        (rotation === 90 || rotation === 270) ? 'aspect-[4/3]' : 'aspect-[3/4]'
+      }`}>
+{preview ? (
+            <img
+              src={preview}
+              alt={`Page ${pageNum}`}
+              className="max-h-full max-w-full object-contain transition-opacity duration-200"
+            />
+          ) : (
           <Loader2 size={16} className="animate-spin text-[--color-text-3]" />
         )}
       </div>
@@ -66,7 +67,8 @@ function SortablePageCard({ id, pageNum, preview, rotation, onRotate, onRemove }
 export default function RotatePDF() {
   const [file, setFile] = useState(null)
   useIncomingFile(setFile)
-  const [pages, setPages] = useState([]) // [{id, origIndex, pageNum, preview, rotation}]
+  const [pages, setPages] = useState([])
+  const [pdfDoc, setPdfDoc] = useState(null)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
@@ -90,6 +92,7 @@ export default function RotatePDF() {
       const arrayBuf = await readAsArrayBuffer(f)
       const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
       const pdfDoc = await loadingTask.promise
+      setPdfDoc(pdfDoc)
       const totalPages = pdfDoc.numPages
 
       const initialPages = Array.from({ length: totalPages }, (_, i) => ({
@@ -103,9 +106,11 @@ export default function RotatePDF() {
 
       // Render previews progressively
       for (let i = 1; i <= totalPages; i++) {
-        const { dataUrl } = await renderPageToDataUrl(pdfDoc, i, 0.4)
+        const page = await pdfDoc.getPage(i)
+        const rotation = page.getRotation().angle || 0
+        const { dataUrl } = await renderPageToDataUrl(pdfDoc, i, 0.4, rotation)
         setPages((prev) =>
-          prev.map((p) => (p.pageNum === i ? { ...p, preview: dataUrl } : p)),
+          prev.map((p) => (p.pageNum === i ? { ...p, preview: dataUrl, rotation } : p)),
         )
         setProgress(Math.round((i / totalPages) * 100))
       }
@@ -116,14 +121,27 @@ export default function RotatePDF() {
     }
   }
 
-  const rotatePage = (id) => {
+  const rotatePage = async (id) => {
+    const target = pages.find((p) => p.id === id)
+    if (!target) return
+    const newRotation = (target.rotation + 90) % 360
+    const page = await pdfDoc.getPage(target.pageNum)
+    const { dataUrl } = await renderPageToDataUrl(pdfDoc, target.pageNum, 0.4, newRotation)
     setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, rotation: (p.rotation + 90) % 360 } : p)),
+      prev.map((p) => (p.id === id ? { ...p, rotation: newRotation, preview: dataUrl } : p)),
     )
   }
 
-  const rotateAll = () => {
-    setPages((prev) => prev.map((p) => ({ ...p, rotation: (p.rotation + 90) % 360 })))
+  const rotateAll = async () => {
+    const rotated = []
+    for (const p of pages) {
+      const page = await pdfDoc.getPage(p.pageNum)
+      const rotation = page.getRotation().angle || 0
+      const newRotation = (rotation + 90) % 360
+      const { dataUrl } = await renderPageToDataUrl(pdfDoc, p.pageNum, 0.4, newRotation)
+      rotated.push({ ...p, rotation: newRotation, preview: dataUrl })
+    }
+    setPages(rotated)
   }
 
   const removePage = (id) => {

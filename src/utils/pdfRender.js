@@ -7,9 +7,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
 export { pdfjsLib }
 
 /** Render a single PDF page to a canvas and return dataURL + canvas + dimensions */
-export async function renderPageToDataUrl(pdfDoc, pageNum, scale = 1.5) {
+export async function renderPageToDataUrl(pdfDoc, pageNum, scale = 1.5, rotation = 0) {
   const page = await pdfDoc.getPage(pageNum)
-  const viewport = page.getViewport({ scale })
+  const viewport = page.getViewport({ scale, rotation })
   const canvas = document.createElement('canvas')
   canvas.width = viewport.width
   canvas.height = viewport.height
