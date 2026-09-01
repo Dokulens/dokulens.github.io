@@ -12,6 +12,7 @@ import FilePreview from '../../components/FilePreview'
 import {
   removeOfficialGeminiWatermark,
   processVideoFrame,
+  processFullVideo,
   inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
@@ -343,7 +344,7 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Video Watermark Removal — same SDK method as image, per-frame
+  // Video Watermark Removal — full frame-by-frame pipeline
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -353,112 +354,52 @@ export default function WatermarkRemover() {
 
     const video = videoRef.current
 
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-
-    // captureStream(30) = auto-capture at 30fps
-    const stream = canvas.captureStream(30)
-
-    let mimeType = 'video/webm;codecs=vp9'
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4'
-
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 12000000,
-    })
-    const recordedChunks = []
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunks.push(e.data)
-    }
-
     try {
-      setProgress(5)
+      setProgress(1)
 
+      // Ensure video is loaded
       if (video.readyState < 2) {
-        await new Promise((res) => { video.oncanplay = res; video.load() })
+        await new Promise((res, rej) => {
+          video.oncanplay = res
+          video.onerror = () => rej(new Error('Video tidak bisa dimuat'))
+          video.load()
+        })
       }
 
-      // Seek to first frame
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
-
-      const actualW = video.videoWidth || 1280
-      const actualH = video.videoHeight || 720
-      canvas.width = actualW
-      canvas.height = actualH
-
-      // Test first frame with SDK
-      ctx.drawImage(video, 0, 0, actualW, actualH)
-      const testResult = await processVideoFrame(canvas, { alphaGain })
-      if (!testResult) {
-        console.warn('[WM] First frame no watermark detected, continuing anyway...')
-        // Redraw original for this frame
-        ctx.drawImage(video, 0, 0, actualW, actualH)
-      }
-      console.log('[WM] First frame result:', testResult?.meta)
-
-      // Start recording
-      mediaRecorder.start(50)
-      setProgress(10)
-
-      // Seek back and play
-      video.muted = true
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
-      await video.play()
-
-      const totalFrames = Math.ceil(video.duration * 30)
-      let frameCount = 0
-
-      // Frame loop: draw → process (same as image) → captureStream records
-      const processNextFrame = async () => {
-        if (isCancelledRef.current || video.ended || video.currentTime >= video.duration - 0.05) {
-          mediaRecorder.stop()
-          return
-        }
-
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, actualW, actualH)
-
-        // Process watermark — exact same method as image
-        if (removalMode === 'gemini') {
-          await processVideoFrame(canvas, { alphaGain })
-        } else if (removalMode === 'inpaint' && videoMaskSrc) {
-          const imgData = ctx.getImageData(0, 0, actualW, actualH)
-          const maskCtx = videoMaskSrc.getContext('2d')
-          const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
-          inpaintWatermark(imgData, maskData.data, inpaintRadius)
-          ctx.putImageData(imgData, 0, 0)
-        }
-
-        frameCount++
-        if (frameCount % 5 === 0) {
-          setProgress(Math.min(99, 10 + Math.round((frameCount / totalFrames) * 90)))
-        }
-
-        if (!isCancelledRef.current && !video.ended) {
-          requestAnimationFrame(processNextFrame)
-        } else {
-          mediaRecorder.stop()
-        }
-      }
-
-      requestAnimationFrame(processNextFrame)
-
-      // Wait for recording to finish
-      await new Promise((resolve, reject) => {
-        mediaRecorder.onstop = () => {
-          const videoBlob = new Blob(recordedChunks, { type: mimeType })
-          setResultBlob(videoBlob)
-          setResultUrl(URL.createObjectURL(videoBlob))
-          setProgress(100)
-          resolve()
-        }
-        mediaRecorder.onerror = reject
+      // Run full pipeline: detect → extract audio → process all frames → encode → merge
+      const result = await processFullVideo(video, {
+        alphaGain,
+        onProgress: (pct, msg) => {
+          setProgress(pct)
+          if (msg) console.log('[WM]', msg)
+        },
+        onCancel: () => isCancelledRef.current,
       })
+
+      if (isCancelledRef.current) {
+        setError('Dibatalkan')
+        return
+      }
+
+      console.log('[WM] Pipeline complete:', result)
+
+      // Set results
+      if (result.videoBlob) {
+        setResultBlob(result.videoBlob)
+        setResultUrl(URL.createObjectURL(result.videoBlob))
+        setProgress(100)
+
+        // Store audio for potential merge info
+        if (result.audioBlob) {
+          console.log('[WM] Audio available:', fmtBytes(result.audioBlob.size))
+        }
+      } else {
+        setError('Gagal menghasilkan video output')
+      }
+
     } catch (e) {
       setError(`Gagal memproses video: ${e.message}`)
+      console.error('[WM] Video error:', e)
     } finally {
       video.pause()
       setProcessing(false)
