@@ -38,7 +38,6 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
   return {
-    engine,
     /** Call once with the first frame to calibrate detection */
     async calibrate(frameCanvas) {
       const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas)
