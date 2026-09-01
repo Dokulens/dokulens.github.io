@@ -92,12 +92,16 @@ export default function ImageWatermark() {
       canvas.height = img.naturalHeight
       ctx.drawImage(img, 0, 0)
 
+      const REF = 800
+      const scale = Math.max(canvas.width, canvas.height) / REF
+
       // Add text watermark
       if (watermarkType === 'text') {
+        const scaledFontSize = Math.round(fontSize * scale)
         ctx.save()
-        ctx.globalAlpha = (opacity / 100)
+        ctx.globalAlpha = opacity / 100
         ctx.fillStyle = getFontColor(fontColor)
-        ctx.font = `${fontSize}px ${fontFamily}`
+        ctx.font = `${scaledFontSize}px ${fontFamily}`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         const x = (textPosition.x / 100) * canvas.width
@@ -116,12 +120,11 @@ export default function ImageWatermark() {
           const y = (iconPosition.y / 100) * canvas.height - size / 2
 
           ctx.save()
-          ctx.globalAlpha = (iconOpacity / 100)
+          ctx.globalAlpha = iconOpacity / 100
           ctx.translate(x + size / 2, y + size / 2)
           ctx.rotate((iconRotation * Math.PI) / 180)
           ctx.drawImage(icon, -size / 2, -size / 2, size, size)
           ctx.restore()
-          setPreviewUrl(canvas.toDataURL('image/png'))
         }
       }
 
@@ -226,7 +229,7 @@ export default function ImageWatermark() {
       )}
 
       {imageSrc && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
           {/* Left: Preview */}
           <div className="space-y-3">
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4">
