@@ -177,7 +177,9 @@ function detectWatermarkPositionNCC(canvas) {
   // Fallback to fixed position if NCC finds nothing or low confidence
   if (!bestPos || bestScore < 0.3) {
     console.log('[NCC] Low confidence, falling back. bestScore:', bestScore, 'bestPos:', bestPos, 'size:', bestSize)
-    return { ...calculateWatermarkPosition(imgW, imgH), score: bestScore, size: bestSize }
+    const fallbackPos = calculateWatermarkPosition(imgW, imgH)
+    console.log('[NCC] Fallback position:', fallbackPos)
+    return { ...fallbackPos, score: bestScore, size: bestSize }
   }
 
   console.log('[NCC] Found:', bestPos, 'size:', bestSize, 'score:', bestScore)

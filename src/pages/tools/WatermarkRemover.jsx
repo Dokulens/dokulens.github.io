@@ -429,22 +429,58 @@ export default function WatermarkRemover() {
         })
       }
 
-      // Seek to first frame for calibration
-      video.currentTime = 0
-      await new Promise((res) => { video.onseeked = res })
+// Seek to first frame for calibration
+    video.currentTime = 0
+    await new Promise((res) => { video.onseeked = res })
 
-      let detected = null
-      if (removalMode === 'gemini') {
-        // Calibrate on frame 0
-        ctx.drawImage(video, 0, 0, w, h)
-        detected = await processor.calibrate(canvas)
-        if (!detected) {
-          setError('Tidak bisa mendeteksi watermark pada video ini')
-          setProcessing(false)
-          return
+    let detected = null
+    if (removalMode === 'gemini') {
+      // Calibrate on frame 0
+      ctx.drawImage(video, 0, 0, w, h)
+      detected = await processor.calibrate(canvas)
+      
+      // If detection failed, try fallback positions (video watermark might be at different position)
+      if (!detected) {
+        console.log('[WM] Calibration failed, trying fallback positions...')
+        // Try with different sizes
+        for (const size of [96, 48]) {
+          const pos = calculateWatermarkPosition(w, h)
+          // Adjust position for different margin assumptions
+          for (const marginMult of [0.05, 0.1, 0.15, 0.2]) {
+            const testPos = {
+              x: Math.max(0, w - size - Math.round(w * marginMult)),
+              y: Math.max(0, h - size - Math.round(h * marginMult)),
+              width: size,
+              height: size
+            }
+            const testDetected = { position: testPos, alphaGain: 1.0, logoSize: size }
+            // Test if this position works by checking a few pixels
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(video, 0, 0, w, h)
+            const testData = ctx.getImageData(testPos.x, testPos.y, testPos.width, testPos.height)
+            // Quick check: if region has high brightness variation (watermark area)
+            let variation = 0
+            for (let i = 0; i < testData.data.length; i += 4) {
+              const brightness = (testData.data[i] + testData.data[i+1] + testData.data[i+2]) / 3
+              variation += Math.abs(brightness - 128)
+            }
+            if (variation > 1000) { // Arbitrary threshold
+              detected = testDetected
+              console.log('[WM] Fallback detection found at:', testPos, 'size:', size)
+              break
+            }
+          }
+          if (detected) break
         }
-        console.log('[WM] Detected:', detected.position, 'logoSize:', detected.logoSize, 'gain:', detected.alphaGain)
       }
+      
+      if (!detected) {
+        setError('Tidak bisa mendeteksi watermark pada video ini')
+        setProcessing(false)
+        return
+      }
+      console.log('[WM] Detected:', detected.position, 'logoSize:', detected.logoSize, 'gain:', detected.alphaGain)
+    }
 
       // Start recording
       mediaRecorder.start(50) // smaller timeslice for more frequent data chunks
