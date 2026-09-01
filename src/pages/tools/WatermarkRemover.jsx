@@ -31,6 +31,9 @@ export default function WatermarkRemover() {
   // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
+  // Alpha gain control
+  const [alphaGain, setAlphaGain] = useState(1.0)
+
   // Fullscreen Modal & Zoom
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -351,7 +354,7 @@ export default function WatermarkRemover() {
     return candidates
   }
 
-  // Video Watermark Removal using canvas.captureStream(0) + requestFrame()
+  // Video Watermark Removal — captureStream(30) auto-capture
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
     setProcessing(true)
@@ -366,10 +369,10 @@ export default function WatermarkRemover() {
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    const ctx = canvas.getContext('2d')
 
-    // captureStream(0) = we control exactly when frames are captured via requestFrame()
-    const stream = canvas.captureStream(0)
+    // captureStream(30) = auto-capture at 30fps, we just draw to canvas
+    const stream = canvas.captureStream(30)
 
     let mimeType = 'video/webm;codecs=vp9'
     if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
@@ -428,6 +431,8 @@ export default function WatermarkRemover() {
           setProcessing(false)
           return
         }
+        // Apply user gain slider
+        detected.alphaGain = alphaGain
         console.log('[WM] Detected:', JSON.stringify(detected.position), 'gain:', detected.alphaGain)
       }
 
@@ -444,7 +449,7 @@ export default function WatermarkRemover() {
       const totalFrames = Math.ceil(video.duration * 30)
       let frameCount = 0
 
-      // requestVideoFrameCallback loop — fires when video has a new frame ready
+      // Frame loop: draw video → process → captureStream auto-captures
       const processNextFrame = () => {
         if (isCancelledRef.current || video.ended || video.currentTime >= video.duration - 0.05) {
           mediaRecorder.stop()
@@ -463,12 +468,6 @@ export default function WatermarkRemover() {
           const maskData = maskCtx.getImageData(0, 0, videoMaskSrc.width, videoMaskSrc.height)
           inpaintWatermark(imgData, maskData.data, inpaintRadius)
           ctx.putImageData(imgData, 0, 0)
-        }
-
-        // Tell captureStream "this canvas state is a new frame"
-        const tracks = stream.getVideoTracks()
-        if (tracks[0] && typeof tracks[0].requestFrame === 'function') {
-          tracks[0].requestFrame()
         }
 
         frameCount++
@@ -679,6 +678,35 @@ export default function WatermarkRemover() {
                   </span>
                 </button>
               </div>
+
+              {/* Alpha Gain Slider */}
+              {removalMode === 'gemini' && (
+                <div className="space-y-2 pt-2 border-t border-[--color-border]">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[--color-text-2] flex items-center gap-1.5">
+                      <SlidersHorizontal size={13} />
+                      Alpha Gain (Kekuatan Penghapusan)
+                    </label>
+                    <span className="text-xs font-mono text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
+                      {alphaGain.toFixed(2)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="2.0"
+                    step="0.05"
+                    value={alphaGain}
+                    onChange={(e) => setAlphaGain(parseFloat(e.target.value))}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-[--color-surface-3] accent-[--color-brand]"
+                  />
+                  <div className="flex justify-between text-[10px] text-[--color-text-3]">
+                    <span>0.10 (Lemah)</span>
+                    <span>1.00 (Default)</span>
+                    <span>2.00 (Kuat)</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
