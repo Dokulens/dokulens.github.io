@@ -7,6 +7,9 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { stripExt } from '../../utils/helpers'
 
+// Constants moved to module level to avoid any potential bundling/hot-reload issues
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 60, 72, 96]
+
 const FONT_FAMILIES = [
   { value: 'Arial', label: 'Arial' },
   { value: 'Helvetica', label: 'Helvetica' },
@@ -17,8 +20,6 @@ const FONT_FAMILIES = [
   { value: 'Impact', label: 'Impact' },
   { value: 'Comic Sans MS', label: 'Comic Sans MS' },
 ]
-
-const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 60, 72, 96]
 
 export default function ImageWatermark() {
   const [imageSrc, setImageSrc] = useState(null)
