@@ -110,6 +110,13 @@ export default function ImageCarver() {
   }, [maskCanvasElement, originalSize])
 
   useEffect(() => {
+    if (!isResizing && origOverlayCanvasRef.current) {
+      const ctx = origOverlayCanvasRef.current.getContext('2d')
+      ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
+    }
+  }, [isResizing])
+
+  useEffect(() => {
     if (isMaskModalOpen && modalCanvasRef.current && modalImgRef.current) {
       const canvas = modalCanvasRef.current
       canvas.width = modalImgRef.current.naturalWidth
