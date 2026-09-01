@@ -269,18 +269,17 @@ const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled })
 
     deleteSeamH(img, seam, size)
 
+    size.w -= 1
+
     if (onIteration) {
       await onIteration({
         energyMap,
         seam,
         img,
         size,
-        step: i,
-        steps: pxToRemove,
       })
     }
 
-    size.w -= 1
     await wait(0)
   }
 }
@@ -305,43 +304,37 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
 
     deleteSeamV(img, seam, size)
 
+    size.h -= 1
+
     if (onIteration) {
       await onIteration({
         energyMap,
         seam,
         img,
         size,
-        step: i,
-        steps: pxToRemove,
       })
     }
 
-    size.h -= 1
     await wait(0)
   }
 }
 
 export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled }) => {
-  const pxToRemoveH = img.width - toWidth
-  const pxToRemoveV = img.height - toHeight
+  const pxToRemoveH = Math.max(0, img.width - toWidth)
+  const pxToRemoveV = Math.max(0, img.height - toHeight)
+  const totalSteps = pxToRemoveH + pxToRemoveV
+  let step = 0
 
   const size = { w: img.width, h: img.height }
 
-  const globalSteps = Math.max(0, pxToRemoveH) + Math.max(0, pxToRemoveV)
-  let globalStep = 0
-
   const onResizeIteration = async (onIterationArgs) => {
-    const { seam, img: onIterationImg, size: onIterationSize, energyMap } = onIterationArgs
-    globalStep += 1
+    step += 1
 
     if (onIteration) {
       await onIteration({
-        seam,
-        img: onIterationImg,
-        size: { ...onIterationSize },
-        energyMap,
-        step: globalStep,
-        steps: globalSteps,
+        ...onIterationArgs,
+        step,
+        steps: totalSteps,
       })
     }
   }
