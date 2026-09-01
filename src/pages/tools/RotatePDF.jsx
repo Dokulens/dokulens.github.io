@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PDFDocument, degrees } from 'pdf-lib'
+import { PDFDocument } from 'pdf-lib'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors,
@@ -150,17 +150,30 @@ export default function RotatePDF() {
     setError('')
     try {
       const arrayBuf = await readAsArrayBuffer(file)
-      const srcDoc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
+      const srcDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) }).promise
       const outDoc = await PDFDocument.create()
 
       for (const p of pages) {
-        const srcPage = srcDoc.getPage(p.origIndex)
-        const origAngle = srcPage.getRotation().angle || 0
-        const finalAngle = ((origAngle + p.rotation) % 360 + 360) % 360
+        const page = await srcDoc.getPage(p.origIndex)
+        const viewport = page.getViewport({ scale: 2 })
+        const canvas = document.createElement('canvas')
 
-        const [copied] = await outDoc.copyPages(srcDoc, [p.origIndex])
-        copied.setRotation(degrees(finalAngle))
-        outDoc.addPage(copied)
+        const isSwap = p.rotation === 90 || p.rotation === 270
+        canvas.width = isSwap ? viewport.height : viewport.width
+        canvas.height = isSwap ? viewport.width : viewport.height
+
+        const ctx = canvas.getContext('2d')
+        ctx.translate(canvas.width / 2, canvas.height / 2)
+        ctx.rotate((p.rotation * Math.PI) / 180)
+        ctx.translate(-viewport.width / 2, -viewport.height / 2)
+        await page.render({ canvasContext: ctx, viewport }).promise
+
+        const imgDataUrl = canvas.toDataURL('image/png')
+        const imgBytes = Uint8Array.from(atob(imgDataUrl.split(',')[1]), (c) => c.charCodeAt(0))
+        const img = await outDoc.embedPng(imgBytes)
+
+        const newPage = outDoc.addPage([img.width, img.height])
+        newPage.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
       }
 
       const bytes = await outDoc.save()
