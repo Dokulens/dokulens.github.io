@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { Download, Loader2, ZoomIn } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Download, Loader2, ZoomIn, GripVertical } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
@@ -19,6 +19,84 @@ const OUTPUT_FORMATS = [
   { ext: 'webp', mime: 'image/webp', label: 'WebP (Ringan)' },
 ]
 
+function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
+  const containerRef = useRef(null)
+  const [pos, setPos] = useState(50)
+  const isDragging = useRef(false)
+
+  const updatePos = (e) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = (e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left
+    setPos(Math.max(2, Math.min(98, (x / rect.width) * 100)))
+  }
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!isDragging.current) return
+      e.preventDefault()
+      updatePos(e)
+    }
+    const onUp = () => { isDragging.current = false }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+  }, [])
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={containerRef}
+        className="relative rounded-lg border border-[--color-border] overflow-hidden cursor-ew-resize select-none bg-[--color-surface-2]"
+        onMouseDown={(e) => { isDragging.current = true; updatePos(e) }}
+        onTouchStart={(e) => { isDragging.current = true; updatePos(e) }}
+      >
+        {/* After (full width, behind) */}
+        <img src={afterSrc} alt="After" className="block w-full h-auto" draggable={false} />
+
+        {/* Before (clipped) */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{ width: `${pos}%` }}
+        >
+          <img
+            src={beforeSrc}
+            alt="Before"
+            className="block h-auto"
+            style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100%' }}
+            draggable={false}
+          />
+        </div>
+
+        {/* Divider line */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg z-10"
+          style={{ left: `${pos}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border-2 border-[--color-brand] shadow-lg flex items-center justify-center">
+            <GripVertical size={14} className="text-[--color-brand]" />
+          </div>
+        </div>
+
+        {/* Labels */}
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider z-20">
+          {beforeLabel}
+        </div>
+        <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider z-20">
+          {afterLabel}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ImageUpscaler() {
   const [file, setFile] = useState(null)
   useIncomingFile(setFile)
@@ -31,6 +109,7 @@ export default function ImageUpscaler() {
   const [error, setError] = useState('')
   const [previewUrl, setPreviewUrl] = useState(null)
   const [originalDims, setOriginalDims] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
 
   const handleFile = ([f]) => {
     if (!f) return
@@ -38,6 +117,7 @@ export default function ImageUpscaler() {
     setResult(null)
     setError('')
     setResultInfo('')
+    setResultUrl(null)
     const url = URL.createObjectURL(f)
     setPreviewUrl(url)
     const img = new Image()
@@ -64,14 +144,12 @@ export default function ImageUpscaler() {
       const dstW = srcW * scale
       const dstH = srcH * scale
 
-      // Step 1: draw original to temp canvas
       const tmpCanvas = document.createElement('canvas')
       tmpCanvas.width = srcW
       tmpCanvas.height = srcH
       const tmpCtx = tmpCanvas.getContext('2d')
       tmpCtx.drawImage(img, 0, 0)
 
-      // Step 2: progressive upscale for better quality (2x steps)
       let currentCanvas = tmpCanvas
       let currentW = srcW
       let currentH = srcH
@@ -86,8 +164,6 @@ export default function ImageUpscaler() {
         stepCanvas.width = stepW
         stepCanvas.height = stepH
         const stepCtx = stepCanvas.getContext('2d')
-
-        // Use high-quality interpolation
         stepCtx.imageSmoothingEnabled = true
         stepCtx.imageSmoothingQuality = 'high'
         stepCtx.drawImage(currentCanvas, 0, 0, stepW, stepH)
@@ -98,13 +174,13 @@ export default function ImageUpscaler() {
         remaining /= step
       }
 
-      // Step 3: final output
       const fmt = OUTPUT_FORMATS.find((f) => f.ext === outputFormat)
       const blob = await new Promise((resolve) => {
         currentCanvas.toBlob(resolve, fmt.mime, quality / 100)
       })
 
-      const outName = `${stripExt(file.name)}_${scale}x.${fmt.ext}`
+      const url = URL.createObjectURL(blob)
+      setResultUrl(url)
       setResultInfo(`${srcW}×${srcH} → ${dstW}×${dstH} (${scale}×) — ${fmtBytes(blob.size)}`)
       setResult(blob)
     } catch (e) {
@@ -131,7 +207,6 @@ export default function ImageUpscaler() {
 
       {file && !result && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
-          {/* Original info */}
           {originalDims && (
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-[--color-text] truncate">{file.name}</span>
@@ -141,7 +216,6 @@ export default function ImageUpscaler() {
             </div>
           )}
 
-          {/* Scale */}
           <div>
             <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
               Upscale Factor
@@ -167,7 +241,6 @@ export default function ImageUpscaler() {
             </div>
           </div>
 
-          {/* Output format */}
           <div>
             <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
               Format Output
@@ -189,7 +262,6 @@ export default function ImageUpscaler() {
             </div>
           </div>
 
-          {/* Quality (for lossy formats) */}
           {outputFormat !== 'png' && (
             <div>
               <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
@@ -225,6 +297,16 @@ export default function ImageUpscaler() {
         </button>
       )}
 
+      {/* Before / After Slider */}
+      {result && previewUrl && resultUrl && (
+        <BeforeAfterSlider
+          beforeSrc={previewUrl}
+          afterSrc={resultUrl}
+          beforeLabel="Original"
+          afterLabel={`${scale}× Upscaled`}
+        />
+      )}
+
       {result && (
         <ResultCard
           fileName={`${base}_${scale}x.${outputFormat}`}
@@ -236,6 +318,7 @@ export default function ImageUpscaler() {
             setResult(null)
             setFile(null)
             setResultInfo('')
+            setResultUrl(null)
             setOriginalDims(null)
           }}
         />
