@@ -1,13 +1,14 @@
 /**
- * Gemini Watermark Remover Engine using @pilio/gemini-watermark-remover
- * Uses the official package instead of local implementation.
+ * Gemini Watermark Remover Engine + Telea Inpainting for Arbitrary Logos
+ * Self-contained detection engine (no external dependencies).
  */
 
 import {
   removeWatermarkFromImage,
   createWatermarkEngine,
-  removeWatermarkFromImageData
-} from '@pilio/gemini-watermark-remover/browser'
+  calculateWatermarkPosition,
+  detectWatermarkConfig
+} from './geminiAutoDetect.js'
 
 let cachedEngine = null
 
@@ -19,7 +20,7 @@ async function getEngine() {
 }
 
 /**
- * Remove Gemini AI watermark using @pilio official package (for single images)
+ * Remove Gemini AI watermark using self-contained engine (for single images)
  */
 export async function removeOfficialGeminiWatermark(image, options = {}) {
   return await removeWatermarkFromImage(image, options)
