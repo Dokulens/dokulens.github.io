@@ -40,12 +40,15 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   return {
     /** Call once with the first frame to calibrate detection */
     async calibrate(frameCanvas) {
+      console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
       const { canvas: resultCanvas, meta } = await engine.removeWatermarkFromImage(frameCanvas)
 
       const candidate = meta?.selectedCandidate
       const position = candidate?.position ?? null
       const alphaGain = candidate?.config?.alphaGain ?? 1.0
       const logoSize = candidate?.config?.logoSize ?? candidate?.position?.width ?? 48
+
+      console.log('[WM] Calibration result:', { position, alphaGain, logoSize })
 
       if (!position) return null
 
