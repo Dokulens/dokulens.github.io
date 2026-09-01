@@ -34,9 +34,9 @@ export default function ResultCard({ fileName, blob, onReset, extraInfo, outputM
           <p className="mt-0.5 truncate text-sm text-[--color-text-2]">{fileName}</p>
           {extraInfo && <p className="mt-0.5 text-xs text-[--color-text-3]">{extraInfo}</p>}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 relative">
           {targets.length > 0 && (
-            <div className="relative" ref={menuRef}>
+            <>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]"
@@ -45,25 +45,36 @@ export default function ResultCard({ fileName, blob, onReset, extraInfo, outputM
                 <MoreVertical size={16} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-[--color-border] bg-[--color-surface] shadow-lg">
-                  <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[--color-text-3] border-b border-[--color-border]">
-                    <Send size={10} className="inline mr-1" />
-                    Kirim ke
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div
+                    ref={menuRef}
+                    className="absolute right-0 bottom-full mb-2 z-50 w-56 rounded-lg border shadow-lg overflow-hidden"
+                    style={{ background: 'var(--color-surface, #fff)', borderColor: 'var(--color-border, #e5e7eb)' }}
+                  >
+                    <div
+                      className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b"
+                      style={{ color: 'var(--color-text-3, #6b7280)', borderColor: 'var(--color-border, #e5e7eb)' }}
+                    >
+                      <Send size={10} className="inline mr-1" />
+                      Kirim ke
+                    </div>
+                    <div className="max-h-60 overflow-y-auto py-1">
+                      {targets.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleSendTo(t)}
+                          className="w-full px-3 py-2 text-left text-sm hover:opacity-80 flex items-center gap-2"
+                          style={{ color: 'var(--color-text-2, #374151)' }}
+                        >
+                          <span className="truncate">{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto py-1">
-                    {targets.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => handleSendTo(t)}
-                        className="w-full px-3 py-2 text-left text-sm text-[--color-text-2] hover:bg-[--color-surface-3] flex items-center gap-2"
-                      >
-                        <span className="truncate">{t.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                </>
               )}
-            </div>
+            </>
           )}
           <button
             onClick={onReset}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx'
-import { Loader2, FileText, CheckCircle2 } from 'lucide-react'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx'
+import { Loader2, FileText } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
@@ -8,6 +8,71 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+
+function mergeClosePositions(positions, threshold = 8) {
+  if (!positions.length) return []
+  const sorted = [...new Set(positions)].sort((a, b) => a - b)
+  const merged = [sorted[0]]
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - merged[merged.length - 1] < threshold) {
+      merged[merged.length - 1] = (merged[merged.length - 1] + sorted[i]) / 2
+    } else {
+      merged.push(sorted[i])
+    }
+  }
+  return merged
+}
+
+function detectTable(textItems, pageWidth) {
+  if (textItems.length < 6) return null
+
+  const colPositions = mergeClosePositions(textItems.map((t) => t.x0), pageWidth * 0.02)
+  const rowPositions = mergeClosePositions(textItems.map((t) => Math.round(t.y)), 6)
+
+  if (colPositions.length < 2 || rowPositions.length < 2) return null
+
+  const grid = []
+  for (let r = 0; r < rowPositions.length; r++) {
+    const row = []
+    for (let c = 0; c < colPositions.length; c++) {
+      const cellItems = textItems.filter((t) => {
+        const colDist = Math.abs(t.x0 - colPositions[c])
+        const rowDist = Math.abs(Math.round(t.y) - rowPositions[r])
+        return colDist < pageWidth * 0.04 && rowDist < 10
+      })
+      row.push(cellItems.map((t) => t.text).join(' ').trim())
+    }
+    grid.push(row)
+  }
+
+  const filledCells = grid.flat().filter((c) => c.length > 0).length
+  const totalCells = grid.length * grid[0].length
+  if (filledCells / totalCells < 0.3) return null
+
+  return grid
+}
+
+function detectHeading(textItems, medianSize) {
+  if (textItems.length === 0) return null
+  const maxSize = Math.max(...textItems.map((t) => t.fontSize))
+  const allBold = textItems.every((t) => t.bold)
+
+  if (maxSize >= medianSize * 1.4 && allBold) return HeadingLevel.HEADING_1
+  if (maxSize >= medianSize * 1.25 && allBold) return HeadingLevel.HEADING_2
+  if (maxSize >= medianSize * 1.15 && allBold) return HeadingLevel.HEADING_3
+  if (maxSize >= medianSize * 1.1) return HeadingLevel.HEADING_4
+  return null
+}
+
+function detectList(text) {
+  const trimmed = text.trim()
+  if (/^[•●○◦▪▸►→\-–—]\s/.test(trimmed)) return { type: 'bullet', text: trimmed.replace(/^[•●○◦▪▸►→\-–—]\s/, '') }
+  if (/^\d+[.)]\s/.test(trimmed)) {
+    const match = trimmed.match(/^(\d+[.)]\s)(.*)/)
+    return { type: 'numbered', text: match[2], number: match[1] }
+  }
+  return null
+}
 
 export default function PDFToDocx() {
   const [file, setFile] = useState(null)
@@ -38,69 +103,205 @@ export default function PDFToDocx() {
       const pdfDoc = await loadingTask.promise
       const totalPages = pdfDoc.numPages
 
-      const docSections = []
+      // Pass 1: collect all font sizes to compute median
+      const allFontSizes = []
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i)
+        const tc = await page.getTextContent()
+        for (const item of tc.items) {
+          if (!item.str?.trim()) continue
+          const fh = Math.abs(item.transform[3]) || 12
+          allFontSizes.push(fh)
+        }
+      }
+      allFontSizes.sort((a, b) => a - b)
+      const medianSize = allFontSizes[Math.floor(allFontSizes.length / 2)] || 12
+
+      // Pass 2: extract structured content per page
+      const docChildren = []
 
       for (let i = 1; i <= totalPages; i++) {
-        setProgressText(`Mengekstrak teks halaman ${i} dari ${totalPages}…`)
+        setProgressText(`Mengekstrak halaman ${i} dari ${totalPages}…`)
         setProgress(Math.round((i / totalPages) * 75))
 
         const page = await pdfDoc.getPage(i)
+        const viewport = page.getViewport({ scale: 1 })
+        const pageWidth = viewport.width
         const textContent = await page.getTextContent()
 
-        // Group text items by roughly their Y coordinate to reconstruct paragraphs
+        // Build rich text items with position and style info
+        const items = textContent.items
+          .filter((t) => t.str?.trim())
+          .map((t) => {
+            const fh = Math.abs(t.transform[3]) || 12
+            const fontName = (t.fontName || '').toLowerCase()
+            return {
+              text: t.str,
+              x0: t.transform[4],
+              y: t.transform[5],
+              x1: t.transform[4] + (t.width || 0),
+              fontSize: Math.round(fh * 2), // half-points for docx
+              rawFontSize: fh,
+              bold: fontName.includes('bold'),
+              italic: fontName.includes('italic'),
+              underline: fontName.includes('underline'),
+              strikethrough: fontName.includes('strike') || fontName.includes('line'),
+            }
+          })
+
+        if (items.length === 0) {
+          docChildren.push(new Paragraph({ text: '' }))
+          if (i < totalPages) docChildren.push(new Paragraph({ text: '', spacing: { after: 200 } }))
+          continue
+        }
+
+        // Try table detection
+        const tableGrid = detectTable(items, pageWidth)
+        if (tableGrid && tableGrid.length >= 2 && tableGrid[0].length >= 2) {
+          const table = new Table({
+            rows: tableGrid.map(
+              (row) =>
+                new TableRow({
+                  children: row.map(
+                    (cellText) =>
+                      new TableCell({
+                        children: [new Paragraph({ children: [new TextRun({ text: cellText || '', size: 20, font: 'Calibri' })] })],
+                        width: { size: Math.round(100 / row.length), type: WidthType.PERCENTAGE },
+                      })
+                  ),
+                })
+            ),
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          })
+          docChildren.push(table)
+          docChildren.push(new Paragraph({ text: '', spacing: { after: 120 } }))
+          continue
+        }
+
+        // Group items into lines by Y proximity
         const lines = []
         let currentLine = []
         let lastY = null
 
-        for (const item of textContent.items) {
-          if (!item.str || !item.str.trim()) continue
-
-          const y = Math.round(item.transform[5])
-          const fontHeight = Math.abs(item.transform[3]) || 12
-          const isBold = (item.fontName || '').toLowerCase().includes('bold')
-          const isItalic = (item.fontName || '').toLowerCase().includes('italic')
-
-          if (lastY !== null && Math.abs(y - lastY) > 6) {
-            if (currentLine.length) lines.push(currentLine)
+        const sortedItems = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0)
+        for (const item of sortedItems) {
+          if (lastY !== null && Math.abs(item.y - lastY) > 6) {
+            if (currentLine.length) {
+              lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
+            }
             currentLine = []
           }
-
-          currentLine.push({
-            text: item.str,
-            size: Math.max(16, Math.min(60, Math.round(fontHeight * 2))), // half-points in docx
-            bold: isBold,
-            italic: isItalic,
-          })
-          lastY = y
+          currentLine.push(item)
+          lastY = item.y
         }
-        if (currentLine.length) lines.push(currentLine)
+        if (currentLine.length) lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
 
-        const paragraphs = lines.map((lineItems) => {
-          return new Paragraph({
-            spacing: { after: 120, line: 260 },
-            children: lineItems.map(
-              (item) =>
-                new TextRun({
-                  text: item.text + ' ',
-                  size: item.size,
-                  bold: item.bold,
-                  italics: item.italic,
-                  font: 'Calibri',
-                }),
-            ),
-          })
-        })
+        // Group lines into paragraphs (by Y proximity between lines)
+        const paragraphs = []
+        let currentPara = []
+        let prevLineY = null
 
-        docSections.push({
-          children: paragraphs.length ? paragraphs : [new Paragraph({ text: '' })],
-        })
+        for (const line of lines) {
+          const lineY = line[0]?.y
+          if (prevLineY !== null && Math.abs(lineY - prevLineY) > 18) {
+            if (currentPara.length) paragraphs.push(currentPara)
+            currentPara = []
+          }
+          currentPara.push(line)
+          prevLineY = lineY
+        }
+        if (currentPara.length) paragraphs.push(currentPara)
+
+        // Convert paragraphs to DOCX elements
+        for (const paraLines of paragraphs) {
+          const allItems = paraLines.flat()
+          const fullText = allItems.map((t) => t.text).join(' ').trim()
+          if (!fullText) continue
+
+          // Check for heading
+          const heading = detectHeading(allItems, medianSize)
+          if (heading) {
+            docChildren.push(
+              new Paragraph({
+                heading,
+                spacing: { after: 200, line: 276 },
+                children: allItems.map(
+                  (item) =>
+                    new TextRun({
+                      text: item.text + ' ',
+                      size: item.fontSize,
+                      bold: true,
+                      font: 'Calibri',
+                    })
+                ),
+              })
+            )
+            continue
+          }
+
+          // Check for list
+          const listMatch = detectList(fullText)
+          if (listMatch) {
+            const indent = listMatch.type === 'bullet' ? 720 : 360
+            const prefix = listMatch.type === 'numbered' ? listMatch.number + ' ' : '• '
+            docChildren.push(
+              new Paragraph({
+                spacing: { after: 80, line: 260 },
+                indent: { left: indent, hanging: indent },
+                children: [
+                  new TextRun({ text: prefix, size: 20, font: 'Calibri' }),
+                  new TextRun({
+                    text: listMatch.text,
+                    size: 20,
+                    font: 'Calibri',
+                  }),
+                ],
+              })
+            )
+            continue
+          }
+
+          // Regular paragraph
+          docChildren.push(
+            new Paragraph({
+              spacing: { after: 120, line: 260 },
+              children: allItems.map(
+                (item) =>
+                  new TextRun({
+                    text: item.text + ' ',
+                    size: item.fontSize,
+                    bold: item.bold,
+                    italics: item.italic,
+                    underline: item.underline ? {} : undefined,
+                    strike: item.strikethrough ? {} : undefined,
+                    font: 'Calibri',
+                  })
+              ),
+            })
+          )
+        }
+
+        // Page break between pages (except last)
+        if (i < totalPages) {
+          docChildren.push(
+            new Paragraph({
+              spacing: { after: 200 },
+              pageBreakBefore: true,
+              children: [],
+            })
+          )
+        }
       }
 
       setProgressText('Menyusun file Word (.docx)…')
       setProgress(85)
 
       const docxFile = new Document({
-        sections: docSections,
+        sections: [
+          {
+            children: docChildren.length ? docChildren : [new Paragraph({ text: '' })],
+          },
+        ],
       })
 
       const blob = await Packer.toBlob(docxFile)
@@ -118,7 +319,7 @@ export default function PDFToDocx() {
   return (
     <ToolShell
       title="PDF → Word (.docx)"
-      description="Ekstrak teks dan struktur dari file PDF langsung menjadi dokumen Microsoft Word (.docx) yang bisa diedit."
+      description="Ekstrak teks, tabel, heading, dan struktur dari file PDF menjadi dokumen Word yang bisa diedit."
     >
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diubah ke Word" />
 
@@ -132,7 +333,7 @@ export default function PDFToDocx() {
           <div className="flex items-center gap-2 rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-xs text-[--color-text-2]">
             <FileText size={16} className="shrink-0 text-[--color-brand]" />
             <span>
-              Teks, paragraf, dan ukuran font akan diekspor menjadi format .docx standar yang kompatibel dengan Microsoft Word, Google Docs, dan LibreOffice.
+              Teks, paragraf, tabel, heading, daftar, dan gaya font (bold/italic/underline) akan dipertahankan dalam format .docx.
             </span>
           </div>
         </div>
