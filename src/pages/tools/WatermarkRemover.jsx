@@ -88,6 +88,13 @@ export default function WatermarkRemover() {
     const url = URL.createObjectURL(f)
     setMediaSrc(url)
 
+    if (isVid) {
+      // Pre-fetch SDK on video upload for browser CDN caching
+      import('../../utils/watermarkRemover').then(({ getGeminiEngine }) => {
+        getGeminiEngine().catch(() => {})
+      }).catch(() => {})
+    }
+
     if (!isVid) {
       const img = new Image()
       img.onload = () => {

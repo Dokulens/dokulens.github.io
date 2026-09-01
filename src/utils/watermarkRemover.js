@@ -94,9 +94,10 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
     },
 
     processFrame(frameCanvas, detected) {
-      if (!detected) return
+      if (!detected || !detected.position || !detected.alphaMap) return
       const { position, alphaMap, alphaGain } = detected
       const { x, y, width: wmW, height: wmH } = position
+      if (!wmW || !wmH || x < 0 || y < 0) return
 
       const ctx = frameCanvas.getContext('2d')
       const imgData = ctx.getImageData(x, y, wmW, wmH)
@@ -107,21 +108,25 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
       const MAX_ALPHA = 0.99
       const LOGO_VALUE = 255
 
+      // Detect alpha map dimensions (may differ from position if it's a fallback)
+      const alphaSize = Math.round(Math.sqrt(alphaMap.length))
+      const alphaDim = alphaSize || 48
+
       for (let row = 0; row < wmH; row++) {
         for (let col = 0; col < wmW; col++) {
-          const localIdx = row * wmW + col
+          // Sample alpha map with nearest-neighbor (handle size mismatch)
+          const ar = Math.min(alphaDim - 1, Math.floor((row / wmH) * alphaDim))
+          const ac = Math.min(alphaDim - 1, Math.floor((col / wmW) * alphaDim))
+          const localIdx = ar * alphaDim + ac
           const rawAlpha = alphaMap[localIdx] ?? 0
           const alphaMagnitude = Math.abs(rawAlpha)
+          if (alphaMagnitude < ALPHA_NOISE_FLOOR) continue
           const logoValue = rawAlpha < 0 ? 0 : LOGO_VALUE
-
-          const signalAlpha = Math.max(0, alphaMagnitude - ALPHA_NOISE_FLOOR) * alphaGain
-          if (signalAlpha < ALPHA_THRESHOLD) continue
-
           const alpha = Math.min(alphaMagnitude * alphaGain, MAX_ALPHA)
           const oneMinusAlpha = 1.0 - alpha
           if (oneMinusAlpha <= 0.001) continue
 
-          const pixIdx = localIdx * 4
+          const pixIdx = (row * wmW + col) * 4
           for (let ch = 0; ch < 3; ch++) {
             const watermarked = pixels[pixIdx + ch]
             const original = (watermarked - alpha * logoValue) / oneMinusAlpha
@@ -147,23 +152,35 @@ export async function findBestWatermarkPosition(frameCanvas, engine) {
   const seen = new Map()
 
   // 1. SDK position prediction
-  const sdkPos = calculateWatermarkPosition(w, h)
-  if (sdkPos) {
-    seen.set(`${sdkPos.x},${sdkPos.y},${sdkPos.width}`, { ...sdkPos, source: 'sdk' })
-  }
+  try {
+    const sdkPos = calculateWatermarkPosition(w, h)
+    if (sdkPos) {
+      seen.set(`${sdkPos.x},${sdkPos.y},${sdkPos.width}`, { ...sdkPos, source: 'sdk' })
+    }
+  } catch {}
 
-  // 2. All reasonable bottom-right positions
-  const sizes = [96, 72, 64, 48]
-  const margins = [32, 48, 64, 96, 128]
+  // 2. All reasonable bottom-right + top-right + bottom-left positions
+  const sizes = [96, 72, 64, 48, 36]
+  const margins = [24, 32, 48, 64, 96, 128]
 
   for (const size of sizes) {
     for (const margin of margins) {
-      const x = w - size - margin
-      const y = h - size - margin
-      if (x >= 0 && y >= 0) {
-        const key = `${x},${y},${size}`
-        if (!seen.has(key)) {
-          seen.set(key, { x, y, width: size, height: size })
+      // Bottom-right (most common Gemini location)
+      const positions = [
+        { x: w - size - margin, y: h - size - margin },
+        // Top-right
+        { x: w - size - margin, y: margin },
+        // Bottom-left
+        { x: margin, y: h - size - margin },
+        // Top-left
+        { x: margin, y: margin },
+      ]
+      for (const p of positions) {
+        if (p.x >= 0 && p.y >= 0 && p.x + size <= w && p.y + size <= h) {
+          const key = `${p.x},${p.y},${size}`
+          if (!seen.has(key)) {
+            seen.set(key, { x: p.x, y: p.y, width: size, height: size })
+          }
         }
       }
     }
@@ -171,20 +188,26 @@ export async function findBestWatermarkPosition(frameCanvas, engine) {
 
   const positions = []
   for (const pos of seen.values()) {
-    const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
-    let brightness = 0
-    for (let i = 0; i < pixelData.data.length; i += 4) {
-      brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
+    try {
+      const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
+      let brightness = 0
+      for (let i = 0; i < pixelData.data.length; i += 4) {
+        brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
+      }
+      const avg = brightness / (pixelData.data.length / 4)
+      positions.push({ ...pos, avgBrightness: avg })
+    } catch (e) {
+      // skip position if out of bounds
     }
-    const avg = brightness / (pixelData.data.length / 4)
-    positions.push({ ...pos, avgBrightness: avg })
   }
 
   // Sort by brightness descending
   positions.sort((a, b) => b.avgBrightness - a.avgBrightness)
-  console.log('[WM] Top 3 positions:', positions.slice(0, 3).map(p => ({ x: p.x, y: p.y, size: p.width, avg: p.avgBrightness.toFixed(1) })))
+  console.log('[WM] Top 5 positions:', positions.slice(0, 5).map(p => ({ x: p.x, y: p.y, size: p.width, avg: p.avgBrightness.toFixed(1) })))
 
-  const best = positions.find(p => p.avgBrightness > 50)
+  // Use top 3 brightest positions (video frames may be dark overall)
+  const topCandidates = positions.slice(0, 3)
+  const best = topCandidates.find(p => p.avgBrightness > 20) ?? topCandidates[0]
   if (!best) {
     // No bright enough area found — use the brightest available
     const fallback = positions[0]
