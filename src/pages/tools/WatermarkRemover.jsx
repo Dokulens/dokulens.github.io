@@ -484,7 +484,8 @@ export default function WatermarkRemover() {
 
             // Process watermark if gemini mode and detected
             if (removalMode === 'gemini' && detected) {
-              processor.processFrame(canvas, detected)
+              // Use engine's full method for better accuracy on video frames
+              await processor.engine.removeWatermarkFromImage(canvas)
             } else if (removalMode === 'inpaint' && videoMaskSrc) {
               const imgData = ctx.getImageData(0, 0, w, h)
               const maskCtx = videoMaskSrc.getContext('2d')
