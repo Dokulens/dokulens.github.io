@@ -61,6 +61,16 @@ button, a, input, select, textarea {
   touch-action: manipulation;
 }
 
+button:not([class*="border-"]),
+button:not([class*="border-"]):not([class*="border:"]) {
+  border: 1px solid var(--color-border);
+}
+
+button[class*="border-2"]:hover,
+button[class*="border-"]:hover {
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
 button:active:not(:disabled), a.btn:active {
   transform: scale(0.985);
 }
