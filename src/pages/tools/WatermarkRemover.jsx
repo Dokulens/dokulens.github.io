@@ -14,7 +14,8 @@ import {
   createVideoFrameProcessor,
   inpaintWatermark,
   detectGeminiWatermark,
-  getGeminiEngine
+  getGeminiEngine,
+  findBestWatermarkPosition
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -337,29 +338,6 @@ export default function WatermarkRemover() {
     }
   }
 
-  // Gemini video watermark candidates for known sizes
-  const getVideoWatermarkCandidates = (w, h) => {
-    const candidates = []
-    if (w === 1280 && h === 720) {
-      candidates.push({ x: 1280 - 48 - 72, y: 720 - 48 - 72, width: 48, height: 48, size: 48 })
-      candidates.push({ x: 1280 - 48 - 96, y: 720 - 48 - 96, width: 48, height: 48, size: 48 })
-      candidates.push({ x: 1280 - 44 - 29, y: 720 - 44 - 40, width: 44, height: 44, size: 44 })
-    } else if (w === 1920 && h === 1080) {
-      candidates.push({ x: 1920 - 72 - 108, y: 1080 - 72 - 108, width: 72, height: 72, size: 72 })
-      candidates.push({ x: 1920 - 72 - 144, y: 1080 - 72 - 144, width: 72, height: 72, size: 72 })
-    } else if (w === 1080 && h === 1920) {
-      candidates.push({ x: 1080 - 72 - 108, y: 1920 - 72 - 108, width: 72, height: 72, size: 72 })
-    } else if (w === 720 && h === 1280) {
-      candidates.push({ x: 720 - 48 - 72, y: 1280 - 48 - 72, width: 48, height: 48, size: 48 })
-    }
-    if (candidates.length === 0) {
-      if (w > 1024 || h > 1024) candidates.push({ x: w - 96 - 64, y: h - 96 - 64, width: 96, height: 96, size: 96 })
-      candidates.push({ x: w - 48 - 32, y: h - 48 - 32, width: 48, height: 48, size: 48 })
-      candidates.push({ x: w - 48 - 64, y: h - 48 - 64, width: 48, height: 48, size: 48 })
-    }
-    return candidates
-  }
-
   // Video Watermark Removal — captureStream(30) auto-capture
   const processVideoWatermark = async () => {
     if (!videoRef.current || processing) return
@@ -407,29 +385,14 @@ export default function WatermarkRemover() {
 
       let detected = null
       if (removalMode === 'gemini') {
-        // NCC template matching on frame 0
         ctx.drawImage(video, 0, 0, w, h)
         detected = await processor.calibrate(canvas)
 
-        // Fallback: try known video watermark catalog positions
+        // Fallback: try SDK position + multi-size scanning
         if (!detected) {
-          console.log('[WM] NCC failed, trying catalog positions...')
-          const candidates = getVideoWatermarkCandidates(w, h)
-          for (const cand of candidates) {
-            ctx.drawImage(video, 0, 0, w, h)
-            const alphaMap = await processor.getAlphaMap(cand.size)
-            const testData = ctx.getImageData(cand.x, cand.y, cand.size, cand.size)
-            const px = testData.data
-            let brightness = 0
-            for (let i = 0; i < px.length; i += 4) brightness += (px[i] + px[i + 1] + px[i + 2]) / 3
-            const avg = brightness / (px.length / 4)
-            console.log('[WM] Candidate:', JSON.stringify(cand), 'avgBrightness:', avg.toFixed(1))
-            if (avg > 80) {
-              detected = { position: cand, alphaMap, alphaGain: 1.0, logoSize: cand.size }
-              console.log('[WM] Selected:', JSON.stringify(cand))
-              break
-            }
-          }
+          console.log('[WM] Calibration failed, trying fallback positions...')
+          const engine = await getGeminiEngine()
+          detected = await findBestWatermarkPosition(canvas, engine)
         }
 
         if (!detected) {

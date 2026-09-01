@@ -53,14 +53,25 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
     async calibrate(frameCanvas) {
       console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
       const result = await removeWatermarkFromImage(frameCanvas, { engine })
-      const meta = result.__watermarkMeta
+      const meta = result?.meta ?? null
 
-      const candidate = meta?.selectedCandidate ?? meta?.detectedCandidate ?? null
+      const candidate =
+        meta?.selectedCandidate ??
+        meta?.position ??
+        null
       const position = candidate?.position ?? null
       const alphaGain = candidate?.config?.alphaGain ?? 1.0
-      const logoSize = candidate?.config?.logoSize ?? candidate?.position?.width ?? 48
+      const logoSize =
+        candidate?.config?.logoSize ??
+        candidate?.position?.width ??
+        48
 
-      console.log('[WM] Calibration result:', { position, alphaGain, logoSize, meta })
+      console.log('[WM] Calibration result:', {
+        position,
+        alphaGain,
+        logoSize,
+        metaKeys: meta ? Object.keys(meta) : null,
+      })
 
       if (!position) return null
 
@@ -108,6 +119,75 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
       ctx.putImageData(imgData, x, y)
     }
   }
+}
+
+/**
+ * Get all possible watermark positions for a given image size.
+ * Tries multiple positions (catalog + SDK prediction) and returns the one
+ * with the highest average brightness (likely a visible watermark).
+ */
+export async function findBestWatermarkPosition(frameCanvas, engine) {
+  const ctx = frameCanvas.getContext('2d')
+  const w = frameCanvas.width
+  const h = frameCanvas.height
+
+  const positions = []
+
+  // 1. SDK position prediction
+  const sdkPos = calculateWatermarkPosition(w, h)
+  if (sdkPos) {
+    positions.push({ ...sdkPos, source: 'sdk' })
+  }
+
+  // 2. Try all reasonable positions near bottom-right for common sizes
+  const candidates = []
+  const sizes = [96, 48, 72]
+  const margins = [32, 48, 64, 96]
+
+  for (const size of sizes) {
+    for (const margin of margins) {
+      const x = w - size - margin
+      const y = h - size - margin
+      if (x >= 0 && y >= 0) {
+        candidates.push({ x, y, width: size, height: size })
+      }
+    }
+  }
+
+  // Deduplicate
+  const seen = new Set()
+  for (const pos of [...positions, ...candidates]) {
+    const key = `${pos.x},${pos.y},${pos.width}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
+      let brightness = 0
+      for (let i = 0; i < pixelData.data.length; i += 4) {
+        brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
+      }
+      const avg = brightness / (pixelData.data.length / 4)
+      if (avg > 60) {
+        positions.push({ ...pos, avgBrightness: avg })
+      }
+    }
+  }
+
+  // Return the brightest position
+  positions.sort((a, b) => (b.avgBrightness ?? 0) - (a.avgBrightness ?? 0))
+
+  const best = positions[0]
+  if (best) {
+    const alphaMap = await engine.getAlphaMap(best.width)
+    console.log('[WM] Best position:', best)
+    return {
+      position: { x: best.x, y: best.y, width: best.width, height: best.height },
+      alphaMap,
+      alphaGain: 1.0,
+      logoSize: best.width,
+    }
+  }
+
+  return null
 }
 
 export function inpaintWatermark(imageData, maskData, radius = 5) {
