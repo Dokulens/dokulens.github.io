@@ -24,6 +24,7 @@ export const NAV_GROUPS = [
     label: 'Gambar & Media',
     items: [
       { path: 'watermark-remover', label: 'Hapus Watermark (AI/Foto)', icon: 'Eraser',       desc: 'Hapus logo, cap air & watermark AI (Reverse Alpha / Inpaint)' },
+      { path: 'object-remover',   label: 'AI Hapus Objek (Inpainting)', icon: 'Scissors',     desc: 'Hapus objek dari gambar dengan AI di browser (Moebius ONNX + WebGPU)' },
       { path: 'image-crop-rotate', label: 'Crop & Putar Gambar',       icon: 'Crop',         desc: 'Potong area drag manual, rotasi 90°, flip & aspek rasio' },
       { path: 'image-carver',    label: 'Image Carver (Seam Carving)', icon: 'Wand2',        desc: 'Content-aware resize & hapus objek pada foto' },
       { path: 'image-to-pdf',    label: 'Gambar → PDF',                icon: 'ImagePlus',    desc: 'Gabung JPG/PNG/WebP jadi PDF' },

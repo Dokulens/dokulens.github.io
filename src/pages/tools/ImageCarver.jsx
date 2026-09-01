@@ -27,6 +27,7 @@ export default function ImageCarver() {
 
   const [toWidthScale, setToWidthScale] = useState(80)
   const [toHeightScale, setToHeightScale] = useState(90)
+  const [lockRatio, setLockRatio] = useState(true)
   const [useHigherQuality, setUseHigherQuality] = useState(false)
   const [showEnergyMap, setShowEnergyMap] = useState(true)
   const [showSeams, setShowSeams] = useState(true)
@@ -346,7 +347,7 @@ export default function ImageCarver() {
             )}
 
             {/* Scale Sliders */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto_1fr] items-end">
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs">
                   <span className="font-semibold text-[--color-text-2]">Lebar (Width)</span>
@@ -360,10 +361,32 @@ export default function ImageCarver() {
                   max="100"
                   value={toWidthScale}
                   disabled={isResizing}
-                  onChange={(e) => setToWidthScale(Number(e.target.value))}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setToWidthScale(v)
+                    if (lockRatio && originalSize) {
+                      const h = Math.round(v * (originalSize.w / originalSize.h))
+                      setToHeightScale(Math.min(100, Math.max(20, h)))
+                    }
+                  }}
                   className="w-full"
                 />
               </div>
+
+              {/* Lock Ratio Toggle */}
+              <button
+                type="button"
+                onClick={() => setLockRatio(!lockRatio)}
+                className={[
+                  'flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-all whitespace-nowrap',
+                  lockRatio
+                    ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
+                    : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
+                ].join(' ')}
+                title={lockRatio ? 'Rasio terkunci — geser salah satu, yang lain ikut' : 'Rasio bebas — atur lebar & tinggi secara independen'}
+              >
+                {lockRatio ? '🔗 Terkunci' : '🔓 Bebas'}
+              </button>
 
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs">
@@ -378,7 +401,14 @@ export default function ImageCarver() {
                   max="100"
                   value={toHeightScale}
                   disabled={isResizing}
-                  onChange={(e) => setToHeightScale(Number(e.target.value))}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setToHeightScale(v)
+                    if (lockRatio && originalSize) {
+                      const w = Math.round(v * (originalSize.h / originalSize.w))
+                      setToWidthScale(Math.min(100, Math.max(20, w)))
+                    }
+                  }}
                   className="w-full"
                 />
               </div>
