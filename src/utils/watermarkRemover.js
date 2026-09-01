@@ -8,7 +8,8 @@ import {
   createWatermarkEngine,
   calculateWatermarkPosition,
   detectWatermarkConfig,
-  removeWatermarkFromImage
+  removeWatermarkFromImage,
+  removeRepeatedWatermarkLayers
 } from './geminiAutoDetect.js'
 
 let cachedEngine = null
@@ -39,64 +40,72 @@ export async function getGeminiEngine() {
 }
 
 /**
- * Create a video frame processor.
+ * Create a video frame processor using predicted position + multi-pass blend.
  *
- * Strategy: use the official SDK per-frame. It already does the full
- * detection + gradient/spatial scoring + calibrated reverse-alpha-blend.
- * Reusing a single engine keeps alpha maps cached.
+ * Strategy:
+ * 1. Get predicted position from size catalog (detectWatermarkConfig + calculateWatermarkPosition)
+ * 2. Get alpha map for predicted logo size
+ * 3. Apply removeRepeatedWatermarkLayers (multi-pass reverse-alpha) on every frame
+ *
+ * This avoids adaptive detection which fails on compressed video frames.
  */
 export async function createVideoFrameProcessor(videoWidth, videoHeight) {
   const engine = await getEngine()
 
-  let calibrated = false
-  let lastMeta = null
+  let wmPos = null
+  let wmAlphaMap = null
+  let wmLogoSize = 48
+
+  try {
+    const config = detectWatermarkConfig(videoWidth, videoHeight)
+    wmLogoSize = config.logoSize ?? (videoWidth >= 1024 || videoHeight >= 1024 ? 96 : 48)
+    console.log('[WM] Predicted config:', config)
+
+    const pos = calculateWatermarkPosition(videoWidth, videoHeight)
+    if (pos) {
+      wmPos = pos
+    } else {
+      const margin = wmLogoSize === 96 ? 64 : 32
+      wmPos = {
+        x: videoWidth - wmLogoSize - margin,
+        y: videoHeight - wmLogoSize - margin,
+        width: wmLogoSize,
+        height: wmLogoSize,
+      }
+    }
+    console.log('[WM] Predicted position:', wmPos)
+
+    wmAlphaMap = await engine.getAlphaMap(wmLogoSize)
+    console.log('[WM] Alpha map loaded, size:', wmAlphaMap.length)
+  } catch (e) {
+    console.error('[WM] Prediction setup error:', e?.message || e)
+  }
 
   return {
-    async calibrate(frameCanvas) {
-      try {
-        if (!frameCanvas || !frameCanvas.width || !frameCanvas.height) return null
-        console.log('[WM] Calibrating on frame...', frameCanvas.width, frameCanvas.height)
-        const result = await removeWatermarkFromImage(frameCanvas, {
-          engine,
-          adaptiveMode: 'auto',
-        })
-        const meta = result?.meta ?? null
-        lastMeta = meta
-        calibrated = !!meta?.applied
-        console.log('[WM] Calibration result:', {
-          applied: meta?.applied,
-          decisionTier: meta?.decisionTier,
-          position: meta?.position,
-          size: meta?.size,
-          metaKeys: meta ? Object.keys(meta) : null,
-        })
-        return { position: meta?.position ?? null, size: meta?.size ?? null, applied: calibrated }
-      } catch (e) {
-        console.error('[WM] Calibration error:', e?.message || e)
-        return null
-      }
+    calibrate(frameCanvas) {
+      return Promise.resolve({ position: wmPos, size: wmLogoSize, applied: !!wmPos })
     },
 
     async processFrame(frameCanvas) {
-      if (!calibrated && !lastMeta) return
+      if (!wmPos || !wmAlphaMap) return
       try {
-        const result = await removeWatermarkFromImage(frameCanvas, {
-          engine,
-          adaptiveMode: 'auto',
-        })
-        if (result?.canvas) {
-          const ctx = frameCanvas.getContext('2d')
-          ctx.clearRect(0, 0, frameCanvas.width, frameCanvas.height)
-          ctx.drawImage(result.canvas, 0, 0)
-        }
-        lastMeta = result?.meta ?? lastMeta
+        const ctx = frameCanvas.getContext('2d')
+        const imgData = ctx.getImageData(0, 0, frameCanvas.width, frameCanvas.height)
+
+        const result = removeRepeatedWatermarkLayers(
+          imgData,
+          wmAlphaMap,
+          wmPos,
+          { alphaGain: 1.0, maxPasses: 4, residualThreshold: 0.25 }
+        )
+
+        ctx.putImageData(result.imageData, 0, 0)
       } catch (e) {
-        if (!calibrated) return
-        console.warn('[WM] Frame process error, using last known state:', e?.message)
+        console.warn('[WM] processFrame error:', e?.message || e)
       }
     },
 
-    isReady() { return calibrated }
+    isReady() { return !!wmPos }
   }
 }
 

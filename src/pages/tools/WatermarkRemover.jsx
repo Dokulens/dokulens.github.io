@@ -408,12 +408,12 @@ export default function WatermarkRemover() {
           console.error('[WM] calibrate error:', e)
         }
 
-        if (!detected || !detected.applied) {
+        if (!detected || !detected.position) {
           setError('Tidak bisa mendeteksi watermark pada video ini')
           setProcessing(false)
           return
         }
-        console.log('[WM] Detected:', JSON.stringify(detected))
+        console.log('[WM] Using predicted position:', JSON.stringify(detected))
       }
 
       // Start recording
