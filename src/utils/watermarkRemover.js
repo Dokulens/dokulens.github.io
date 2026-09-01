@@ -136,77 +136,109 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
 }
 
 /**
- * Get all possible watermark positions for a given image size.
- * Tries multiple positions (catalog + SDK prediction) and returns the one
- * with the highest average brightness (likely a visible watermark).
+ * Scan all likely watermark positions and return the brightest candidate.
+ * Uses brightness threshold to find visible watermarks.
  */
 export async function findBestWatermarkPosition(frameCanvas, engine) {
-  try {
-    const ctx = frameCanvas.getContext('2d')
-    const w = frameCanvas.width
-    const h = frameCanvas.height
+  const ctx = frameCanvas.getContext('2d')
+  const w = frameCanvas.width
+  const h = frameCanvas.height
 
-  const positions = []
+  const seen = new Map()
 
   // 1. SDK position prediction
   const sdkPos = calculateWatermarkPosition(w, h)
   if (sdkPos) {
-    positions.push({ ...sdkPos, source: 'sdk' })
+    seen.set(`${sdkPos.x},${sdkPos.y},${sdkPos.width}`, { ...sdkPos, source: 'sdk' })
   }
 
-  // 2. Try all reasonable positions near bottom-right for common sizes
-  const candidates = []
-  const sizes = [96, 48, 72]
-  const margins = [32, 48, 64, 96]
+  // 2. All reasonable bottom-right positions
+  const sizes = [96, 72, 64, 48]
+  const margins = [32, 48, 64, 96, 128]
 
   for (const size of sizes) {
     for (const margin of margins) {
       const x = w - size - margin
       const y = h - size - margin
       if (x >= 0 && y >= 0) {
-        candidates.push({ x, y, width: size, height: size })
+        const key = `${x},${y},${size}`
+        if (!seen.has(key)) {
+          seen.set(key, { x, y, width: size, height: size })
+        }
       }
     }
   }
 
-  // Deduplicate
-  const seen = new Set()
-  for (const pos of [...positions, ...candidates]) {
-    const key = `${pos.x},${pos.y},${pos.width}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
-      let brightness = 0
-      for (let i = 0; i < pixelData.data.length; i += 4) {
-        brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
+  const positions = []
+  for (const pos of seen.values()) {
+    const pixelData = ctx.getImageData(pos.x, pos.y, pos.width, pos.height)
+    let brightness = 0
+    for (let i = 0; i < pixelData.data.length; i += 4) {
+      brightness += (pixelData.data[i] + pixelData.data[i + 1] + pixelData.data[i + 2]) / 3
+    }
+    const avg = brightness / (pixelData.data.length / 4)
+    positions.push({ ...pos, avgBrightness: avg })
+  }
+
+  // Sort by brightness descending
+  positions.sort((a, b) => b.avgBrightness - a.avgBrightness)
+  console.log('[WM] Top 3 positions:', positions.slice(0, 3).map(p => ({ x: p.x, y: p.y, size: p.width, avg: p.avgBrightness.toFixed(1) })))
+
+  const best = positions.find(p => p.avgBrightness > 50)
+  if (!best) {
+    // No bright enough area found — use the brightest available
+    const fallback = positions[0]
+    if (!fallback) return null
+    console.log('[WM] No bright watermark found, using fallback:', fallback)
+    try {
+      const alphaMap = engine ? await engine.getAlphaMap(fallback.width) : null
+      return {
+        position: { x: fallback.x, y: fallback.y, width: fallback.width, height: fallback.height },
+        alphaMap: alphaMap ?? generateFallbackAlphaMap(fallback.width),
+        alphaGain: 1.0,
+        logoSize: fallback.width,
       }
-      const avg = brightness / (pixelData.data.length / 4)
-      if (avg > 60) {
-        positions.push({ ...pos, avgBrightness: avg })
+    } catch {
+      return {
+        position: { x: fallback.x, y: fallback.y, width: fallback.width, height: fallback.height },
+        alphaMap: generateFallbackAlphaMap(fallback.width),
+        alphaGain: 1.0,
+        logoSize: fallback.width,
       }
     }
   }
 
-  // Return the brightest position
-  positions.sort((a, b) => (b.avgBrightness ?? 0) - (a.avgBrightness ?? 0))
-
-  const best = positions[0]
-  if (best) {
-    const alphaMap = await engine.getAlphaMap(best.width)
-    console.log('[WM] Best position:', best)
-    return {
-      position: { x: best.x, y: best.y, width: best.width, height: best.height },
-      alphaMap,
-      alphaGain: 1.0,
-      logoSize: best.width,
-    }
-  }
-
-    return null
+  console.log('[WM] Best position:', best)
+  let alphaMap = null
+  try {
+    alphaMap = engine ? await engine.getAlphaMap(best.width) : null
   } catch (e) {
-    console.error('[WM] findBestWatermarkPosition error:', e)
-    return null
+    console.warn('[WM] engine.getAlphaMap failed:', e)
   }
+
+  return {
+    position: { x: best.x, y: best.y, width: best.width, height: best.height },
+    alphaMap: alphaMap ?? generateFallbackAlphaMap(best.width),
+    alphaGain: 1.0,
+    logoSize: best.width,
+  }
+}
+
+/** Generate a simple circular alpha map as fallback when SDK fails */
+function generateFallbackAlphaMap(size) {
+  const map = new Float32Array(size * size)
+  const cx = size / 2
+  const cy = size / 2
+  const radius = size * 0.4
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const dist = Math.sqrt((r - cy) ** 2 + (c - cx) ** 2)
+      if (dist < radius) {
+        map[r * size + c] = Math.max(0, 1 - dist / radius)
+      }
+    }
+  }
+  return map
 }
 
 export function inpaintWatermark(imageData, maskData, radius = 5) {
