@@ -319,17 +319,60 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
   }
 }
 
-export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled }) => {
+export const countMaskedPixels = (img) => {
+  let count = 0
+  for (let i = 0; i < img.data.length; i += 4) {
+    if (img.data[i + 3] > ALPHA_DELETE_THRESHOLD) count += 1
+  }
+  return count
+}
+
+const clearMaskArea = async ({ img, size, onIteration, isCancelled, maxExtraSteps = 500 }) => {
+  let energyMap = null
+  let seam = null
+
+  for (let i = 0; i < maxExtraSteps; i += 1) {
+    if (isCancelled && isCancelled()) break
+    if (countMaskedPixels(img) === 0) break
+    if (size.w <= 10 || size.h <= 10) break
+
+    const useH = size.w >= size.h
+    if (useH) {
+      energyMap = energyMap && seam
+        ? reCalculateEnergyMapH(img, size, energyMap, seam)
+        : calculateEnergyMapH(img, size)
+      seam = findLowEnergySeamH(energyMap, size)
+      deleteSeamH(img, seam, size)
+      size.w -= 1
+    } else {
+      energyMap = energyMap && seam
+        ? reCalculateEnergyMapV(img, size, energyMap, seam)
+        : calculateEnergyMapV(img, size)
+      seam = findLowEnergySeamV(energyMap, size)
+      deleteSeamV(img, seam, size)
+      size.h -= 1
+    }
+
+    if (onIteration) {
+      await onIteration({ energyMap, seam, img, size, phase: 'mask-clear' })
+    }
+
+    await wait(0)
+  }
+}
+
+export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled, hasMask = false }) => {
   const pxToRemoveH = Math.max(0, img.width - toWidth)
   const pxToRemoveV = Math.max(0, img.height - toHeight)
-  const totalSteps = pxToRemoveH + pxToRemoveV
+  const resizeSteps = pxToRemoveH + pxToRemoveV
+  const maskSteps = hasMask ? 500 : 0
+  const totalSteps = resizeSteps + maskSteps
   let step = 0
 
   const size = { w: img.width, h: img.height }
 
   const onResizeIteration = async (onIterationArgs) => {
     step += 1
-
     if (onIteration) {
       await onIteration({
         ...onIterationArgs,
@@ -339,12 +382,18 @@ export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCance
     }
   }
 
+  // Phase 1: Normal resize
   if (toWidth < img.width) {
     await resizeImageWidth({ img, toSize: toWidth, size, onIteration: onResizeIteration, isCancelled })
   }
 
   if (toHeight < img.height) {
     await resizeImageHeight({ img, toSize: toHeight, size, onIteration: onResizeIteration, isCancelled })
+  }
+
+  // Phase 2: Clear remaining masked pixels
+  if (hasMask && countMaskedPixels(img) > 0) {
+    await clearMaskArea({ img, size, onIteration: onResizeIteration, isCancelled, maxExtraSteps: maskSteps })
   }
 
   return { img, size }

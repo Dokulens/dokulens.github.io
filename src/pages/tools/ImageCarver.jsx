@@ -40,6 +40,7 @@ export default function ImageCarver() {
   const [hasMask, setHasMask] = useState(false)
   const [maskCanvasElement, setMaskCanvasElement] = useState(null)
   const [error, setError] = useState('')
+  const [carvePhase, setCarvePhase] = useState('')
 
   const imgRef = useRef(null)
   const modalImgRef = useRef(null)
@@ -68,6 +69,7 @@ export default function ImageCarver() {
     setWorkingSize(null)
     setProgress(0)
     setError('')
+    setCarvePhase('')
     isCancelledRef.current = true
     setIsResizing(false)
     setMaskCanvasElement(null)
@@ -205,6 +207,7 @@ export default function ImageCarver() {
     setIsResizing(true)
     isCancelledRef.current = false
     setError('')
+    setCarvePhase('')
 
     const srcImg = imgRef.current
     let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
@@ -235,7 +238,7 @@ export default function ImageCarver() {
     setWorkingSize({ w, h })
 
     try {
-      const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps }) => {
+      const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps, phase }) => {
         if (workingCanvasRef.current) {
           workingCanvasRef.current.width = size.w
           workingCanvasRef.current.height = size.h
@@ -272,6 +275,9 @@ export default function ImageCarver() {
 
         setWorkingSize({ w: size.w, h: size.h })
         setProgress(Math.round((step / steps) * 100))
+        if (phase === 'mask-clear') {
+          setCarvePhase('mask-clear')
+        }
       }
 
       const res = await resizeImage({
@@ -280,6 +286,7 @@ export default function ImageCarver() {
         toHeight,
         onIteration,
         isCancelled: () => isCancelledRef.current,
+        hasMask,
       })
 
       if (!isCancelledRef.current) {
@@ -497,7 +504,7 @@ export default function ImageCarver() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Activity size={16} className="animate-pulse" />
-                  <span>Memproses Seam Carving… ({progress}%)</span>
+                  <span>{carvePhase === 'mask-clear' ? 'Membersihkan Masking…' : 'Memproses Seam Carving…'} ({progress}%)</span>
                 </div>
                 <button
                   onClick={cancelCarving}
@@ -506,7 +513,7 @@ export default function ImageCarver() {
                   <StopCircle size={14} /> Batal / Hentikan Proses
                 </button>
               </div>
-              <ProgressBar value={progress} label={`Menghitung energi piksel & memotong seams… ${progress}%`} />
+              <ProgressBar value={progress} label={carvePhase === 'mask-clear' ? `Membersihkan area masking… ${progress}%` : `Menghitung energi piksel & memotong seams… ${progress}%`} />
             </div>
           )}
 
@@ -560,7 +567,7 @@ export default function ImageCarver() {
               </div>
               <div className="relative flex items-center justify-center min-h-[260px] overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2] p-2">
                 <div className="relative inline-block">
-                  <canvas ref={workingCanvasRef} className="block max-h-[360px] w-auto border border-dashed border-gray-400" />
+                  <canvas ref={workingCanvasRef} className="block max-h-[360px] max-w-full w-auto border border-dashed border-gray-400" />
                   {showSeams && (
                     <canvas ref={seamsCanvasRef} className="absolute inset-0 block w-full h-full pointer-events-none" />
                   )}
