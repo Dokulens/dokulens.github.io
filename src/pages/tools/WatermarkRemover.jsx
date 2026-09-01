@@ -475,7 +475,7 @@ export default function WatermarkRemover() {
 
         frameCount++
         if (frameCount % 5 === 0) {
-          setProgress(10 + Math.round((frameCount / totalFrames) * 90))
+          setProgress(Math.min(99, 10 + Math.round((frameCount / totalFrames) * 90)))
         }
 
         if (!isCancelledRef.current && !video.ended) {
