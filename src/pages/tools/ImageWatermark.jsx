@@ -123,25 +123,29 @@ export default function ImageWatermark() {
     e.preventDefault()
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
+    const sx = canvas.width / rect.width
+    const sy = canvas.height / rect.height
+    const mouseCanvasX = (e.clientX - rect.left) * sx
+    const mouseCanvasY = (e.clientY - rect.top) * sy
 
     if (watermarkType === 'text') {
-      const sx = canvas.width / rect.width
-      const sy = canvas.height / rect.height
+      const pos = textPosRef.current
+      const markX = (pos.x / 100) * canvas.width
+      const markY = (pos.y / 100) * canvas.height
       dragStart.current = {
-        clientX: e.clientX,
-        clientY: e.clientY,
-        startPos: { ...textPosRef.current },
+        offsetX: mouseCanvasX - markX,
+        offsetY: mouseCanvasY - markY,
         scaleX: sx,
         scaleY: sy
       }
       setDragging('text')
     } else if (watermarkType === 'icon' && iconSrc) {
-      const sx = canvas.width / rect.width
-      const sy = canvas.height / rect.height
+      const pos = iconPosRef.current
+      const markX = (pos.x / 100) * canvas.width
+      const markY = (pos.y / 100) * canvas.height
       dragStart.current = {
-        clientX: e.clientX,
-        clientY: e.clientY,
-        startPos: { ...iconPosRef.current },
+        offsetX: mouseCanvasX - markX,
+        offsetY: mouseCanvasY - markY,
         scaleX: sx,
         scaleY: sy
       }
@@ -155,12 +159,13 @@ export default function ImageWatermark() {
     const onMove = (e) => {
       if (!dragStart.current || !canvasRef.current) return
       const canvas = canvasRef.current
-      const { clientX, clientY, startPos, scaleX, scaleY } = dragStart.current
-      const dx = (e.clientX - clientX) / scaleX
-      const dy = (e.clientY - clientY) / scaleY
+      const rect = canvas.getBoundingClientRect()
+      const { offsetX, offsetY } = dragStart.current
+      const mouseCanvasX = (e.clientX - rect.left) * (canvas.width / rect.width)
+      const mouseCanvasY = (e.clientY - rect.top) * (canvas.height / rect.height)
       const newPos = {
-        x: Math.max(0, Math.min(100, startPos.x + (dx / canvas.width) * 100)),
-        y: Math.max(0, Math.min(100, startPos.y + (dy / canvas.height) * 100))
+        x: Math.max(0, Math.min(100, ((mouseCanvasX - offsetX) / canvas.width) * 100)),
+        y: Math.max(0, Math.min(100, ((mouseCanvasY - offsetY) / canvas.height) * 100))
       }
 
       if (dragging === 'text') {
