@@ -64,22 +64,17 @@ export async function createVideoFrameProcessor(videoWidth, videoHeight) {
         let alphaGain = 1.0
         let logoSize = 48
 
-        if (meta) {
-          const candidate =
-            meta.selectedCandidate ??
-            meta.position ??
-            null
-          if (candidate) {
-            position = candidate.position ?? null
-            alphaGain = candidate.config?.alphaGain ?? 1.0
-            logoSize = candidate.config?.logoSize ?? candidate.position?.width ?? 48
-          }
+        if (meta && meta.position) {
+          position = meta.position
+          logoSize = meta.size ?? position.width ?? 48
         }
 
         console.log('[WM] Calibration result:', {
           position,
           alphaGain,
           logoSize,
+          applied: meta?.applied,
+          decisionTier: meta?.decisionTier,
           metaKeys: meta ? Object.keys(meta) : null,
         })
 
