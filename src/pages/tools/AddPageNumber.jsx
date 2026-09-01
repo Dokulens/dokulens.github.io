@@ -59,6 +59,8 @@ export default function AddPageNumber() {
   const [startNumber, setStartNumber] = useState(1)
   const [skipFirstPage, setSkipFirstPage] = useState(true)
   const [perPageOverrides, setPerPageOverrides] = useState({})
+  const [usePerPagePosition, setUsePerPagePosition] = useState(false)
+  const [perPagePositionOverrides, setPerPagePositionOverrides] = useState({})
 
   // Auto-detection state
   const [detectedPosition, setDetectedPosition] = useState(null)
@@ -79,6 +81,8 @@ export default function AddPageNumber() {
     setError('')
     setCurrentPage(1)
     setPerPageOverrides({})
+    setPerPagePositionOverrides({})
+    setUsePerPagePosition(false)
     setDetectedPosition(null)
     setDocxTextSummary('')
 
@@ -140,26 +144,31 @@ export default function AddPageNumber() {
   const startTagDrag = (e) => {
     e.stopPropagation()
     e.preventDefault()
+    const pagePos = getPagePosition(currentPage)
     isDraggingTagRef.current = true
     dragStartPosRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      origX: customX,
-      origY: customY,
+      origX: pagePos.x,
+      origY: pagePos.y,
     }
 
     const onMouseMove = (moveEvent) => {
       if (!isDraggingTagRef.current || !previewContainerRef.current) return
       const rect = previewContainerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - dragStartPosPosRef.current.startX) / rect.width) * 100
+      const dxPct = ((moveEvent.clientX - dragStartPosRef.current.startX) / rect.width) * 100
       const dyPct = ((moveEvent.clientY - dragStartPosRef.current.startY) / rect.height) * 100
 
       const newX = Math.max(3, Math.min(97, Math.round(dragStartPosRef.current.origX + dxPct)))
       const newY = Math.max(3, Math.min(97, Math.round(dragStartPosRef.current.origY + dyPct)))
 
-      setCustomX(newX)
-      setCustomY(newY)
-      setPositionPreset('custom')
+      if (usePerPagePosition) {
+        setCurrentPagePosition('custom', newX, newY)
+      } else {
+        setCustomX(newX)
+        setCustomY(newY)
+        setPositionPreset('custom')
+      }
     }
 
     const onMouseUp = () => {
@@ -217,11 +226,15 @@ export default function AddPageNumber() {
   }
 
   const selectPreset = (presetId) => {
-    setPositionPreset(presetId)
     const p = POSITION_PRESETS.find((pr) => pr.id === presetId)
-    if (p) {
-      setCustomX(p.xPct)
-      setCustomY(p.yPct)
+    if (usePerPagePosition) {
+      setCurrentPagePosition(presetId, p?.xPct ?? 50, p?.yPct ?? 95)
+    } else {
+      setPositionPreset(presetId)
+      if (p) {
+        setCustomX(p.xPct)
+        setCustomY(p.yPct)
+      }
     }
   }
 
@@ -245,6 +258,20 @@ export default function AddPageNumber() {
         ...prev[currentPage],
         enabled: prev[currentPage]?.enabled !== undefined ? !prev[currentPage].enabled : !isPageIncluded(currentPage),
       },
+    }))
+  }
+
+  const getPagePosition = (page) => {
+    if (usePerPagePosition && perPagePositionOverrides[page]) {
+      return perPagePositionOverrides[page]
+    }
+    return { preset: positionPreset, x: customX, y: customY }
+  }
+
+  const setCurrentPagePosition = (preset, x, y) => {
+    setPerPagePositionOverrides((prev) => ({
+      ...prev,
+      [currentPage]: { preset, x, y },
     }))
   }
 
@@ -293,12 +320,13 @@ export default function AddPageNumber() {
           const numText = getPageNumberText(i + 1, total)
           const textWidth = font.widthOfTextAtSize(numText, fontSize)
 
-          let targetX = (customX / 100) * pWidth
-          let targetY = pHeight - (customY / 100) * pHeight
+          const pagePos = getPagePosition(pageNum)
+          let targetX = (pagePos.x / 100) * pWidth
+          let targetY = pHeight - (pagePos.y / 100) * pHeight
 
-          if (positionPreset.includes('center')) {
+          if (pagePos.preset.includes('center')) {
             targetX -= textWidth / 2
-          } else if (positionPreset.includes('right')) {
+          } else if (pagePos.preset.includes('right')) {
             targetX -= textWidth
           }
 
@@ -376,28 +404,50 @@ export default function AddPageNumber() {
 
           {/* Settings Grid */}
           <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
+            {/* Per-page position toggle */}
+            {fileType === 'pdf' && (
+              <div className="flex items-center justify-between border-b border-[--color-border] pb-3">
+                <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={usePerPagePosition}
+                    onChange={(e) => setUsePerPagePosition(e.target.checked)}
+                  />
+                  <span className="font-semibold">Custom Posisi per Halaman</span>
+                </label>
+                {usePerPagePosition && (
+                  <span className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-0.5 rounded">
+                    Hal {currentPage}: {getPagePosition(currentPage).preset === 'custom' ? `${getPagePosition(currentPage).x}%, ${getPagePosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getPagePosition(currentPage).preset)?.label || 'Custom'}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Presets Button Row */}
             <div>
               <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                Posisi Nomor Halaman
+                {usePerPagePosition ? `Posisi Halaman ${currentPage}` : 'Posisi Nomor Halaman (Semua Halaman)'}
               </label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                {POSITION_PRESETS.map((pos) => (
-                  <button
-                    key={pos.id}
-                    type="button"
-                    onClick={() => selectPreset(pos.id)}
-                    className={[
-                      'flex flex-col items-center justify-center rounded border p-2.5 text-xs text-center transition-all',
-                      positionPreset === pos.id
-                        ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                        : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                    ].join(' ')}
-                  >
-                    <span>{pos.label}</span>
-                    <span className="text-[10px] opacity-75 font-normal">{pos.desc}</span>
-                  </button>
-                ))}
+                {POSITION_PRESETS.map((pos) => {
+                  const activePreset = usePerPagePosition ? getPagePosition(currentPage).preset : positionPreset
+                  return (
+                    <button
+                      key={pos.id}
+                      type="button"
+                      onClick={() => selectPreset(pos.id)}
+                      className={[
+                        'flex flex-col items-center justify-center rounded border p-2.5 text-xs text-center transition-all',
+                        activePreset === pos.id
+                          ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
+                          : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
+                      ].join(' ')}
+                    >
+                      <span>{pos.label}</span>
+                      <span className="text-[10px] opacity-75 font-normal">{pos.desc}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -566,24 +616,27 @@ export default function AddPageNumber() {
                     />
 
                     {/* Precise Draggable Number Tag (1:1 with output PDF) */}
-                    {currentIncluded && (
-                      <div
-                        onMouseDown={startTagDrag}
-                        className="absolute rounded bg-blue-500/10 border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
-                        style={{
-                          left: `${customX}%`,
-                          top: `${customY}%`,
-                          transform: 'translate(-50%, -50%)',
-                          color: fontColor,
-                          fontSize: `${Math.max(9, fontSize)}px`,
-                          fontWeight: isBold ? 'bold' : 'normal',
-                          fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        {previewNumText}
-                      </div>
-                    )}
+                    {currentIncluded && (() => {
+                      const pagePos = getPagePosition(currentPage)
+                      return (
+                        <div
+                          onMouseDown={startTagDrag}
+                          className="absolute rounded bg-blue-500/10 border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
+                          style={{
+                            left: `${pagePos.x}%`,
+                            top: `${pagePos.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            color: fontColor,
+                            fontSize: `${Math.max(9, fontSize)}px`,
+                            fontWeight: isBold ? 'bold' : 'normal',
+                            fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
+                            lineHeight: 1.1,
+                          }}
+                        >
+                          {previewNumText}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
