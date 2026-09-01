@@ -391,16 +391,17 @@ export default function WatermarkRemover() {
       }
     } catch {}
 
-    if (!stream) {
-      stream = canvas.captureStream(30)
-    }
+     if (!stream) {
+       stream = canvas.captureStream(30)
+     }
 
-    if (audioTrack) {
-      stream.addTrack(audioTrack)
-    }
+     // IMPORTANT: audio is NOT included due to MediaRecorder limitation
+     // Error: "MediaRecorder.start: MediaRecorder does not support recording more than one audio track"
+     // canvas.captureStream() and video.captureStream() both include audio tracks automatically
+     // Cannot add additional audio tracks without creating duplicate audio streams
+     // Future: Backend integration needed for video + audio support
 
-    let mimeType = 'video/webm;codecs=vp9'
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
+     let mimeType = 'video/webm;codecs=vp9,opus'
 
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType,
