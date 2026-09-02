@@ -1,20 +1,10 @@
 /* eslint-disable no-await-in-loop, no-param-reassign, object-curly-newline */
+import { getPixel, setPixel } from './image'
+import { wait } from './time'
 
 export const ALPHA_DELETE_THRESHOLD = 244
 export const MAX_WIDTH_LIMIT = 1500
 export const MAX_HEIGHT_LIMIT = 1500
-
-export const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
-
-export const getPixel = (img, { x, y }) => {
-  const i = y * img.width + x
-  return img.data.subarray(i * 4, i * 4 + 4)
-}
-
-export const setPixel = (img, { x, y }, color) => {
-  const i = y * img.width + x
-  img.data.set(color, i * 4)
-}
 
 const getPixelDeleteEnergy = () => {
   const numColors = 3
@@ -250,7 +240,7 @@ const deleteSeamV = (img, seam, { h }) => {
 }
 
 const resizeImageWidth = async (args) => {
-  const { img, toSize, onIteration, size, isCancelled } = args
+  const { img, toSize, onIteration, size } = args
 
   const pxToRemove = img.width - toSize
   if (pxToRemove < 0) {
@@ -261,8 +251,6 @@ const resizeImageWidth = async (args) => {
   let seam = null
 
   for (let i = 0; i < pxToRemove; i += 1) {
-    if (isCancelled && isCancelled()) break
-
     energyMap = energyMap && seam
       ? reCalculateEnergyMapH(img, size, energyMap, seam)
       : calculateEnergyMapH(img, size)
@@ -289,7 +277,7 @@ const resizeImageWidth = async (args) => {
 }
 
 const resizeImageHeight = async (args) => {
-  const { img, toSize, onIteration, size, isCancelled } = args
+  const { img, toSize, onIteration, size } = args
 
   const pxToRemove = img.height - toSize
   if (pxToRemove < 0) {
@@ -300,8 +288,6 @@ const resizeImageHeight = async (args) => {
   let seam = null
 
   for (let i = 0; i < pxToRemove; i += 1) {
-    if (isCancelled && isCancelled()) break
-
     energyMap = energyMap && seam
       ? reCalculateEnergyMapV(img, size, energyMap, seam)
       : calculateEnergyMapV(img, size)
@@ -333,7 +319,6 @@ export const resizeImage = async (args) => {
     toWidth,
     toHeight,
     onIteration,
-    isCancelled,
   } = args
 
   const pxToRemoveH = img.width - toWidth
@@ -368,8 +353,8 @@ export const resizeImage = async (args) => {
     })
   }
 
-  await resizeImageWidth({ img, toSize: toWidth, onIteration: onResizeIteration, size, isCancelled })
-  await resizeImageHeight({ img, toSize: toHeight, onIteration: onResizeIteration, size, isCancelled })
+  await resizeImageWidth({ img, toSize: toWidth, onIteration: onResizeIteration, size })
+  await resizeImageHeight({ img, toSize: toHeight, onIteration: onResizeIteration, size })
 }
 
 const getMaxEnergy = (energyMap, width, height) => {

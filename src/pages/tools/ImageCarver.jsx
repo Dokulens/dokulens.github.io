@@ -9,12 +9,11 @@ import ProgressBar from '../../components/ProgressBar'
 import {
   resizeImage,
   normalizeEnergyMap,
-  getPixel,
-  setPixel,
   ALPHA_DELETE_THRESHOLD,
   MAX_WIDTH_LIMIT,
   MAX_HEIGHT_LIMIT,
 } from '../../utils/contentAwareResizer'
+import { getPixel, setPixel } from '../../utils/image'
 import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -22,13 +21,6 @@ const defaultWidthScale = 50
 const defaultHeightScale = 70
 const minScale = 1
 const maxScale = 100
-
-const loadImage = (src) => new Promise((resolve, reject) => {
-  const img = new Image()
-  img.onload = () => resolve(img)
-  img.onerror = reject
-  img.src = src
-})
 
 export default function ImageCarver() {
   const [useNaturalSize, setUseNaturalSize] = useState(false)
@@ -55,7 +47,6 @@ export default function ImageCarver() {
   const imgRef = useRef(null)
   const canvasRef = useRef(null)
   const modalImgRef = useRef(null)
-  const isCancelledRef = useRef(false)
 
   useIncomingFile((f) => {
     const url = URL.createObjectURL(f)
@@ -136,7 +127,6 @@ export default function ImageCarver() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Build a tight ImageData frame matching current (w, h)
     const frame = ctx.createImageData(w, h)
     for (let y = 0; y < h; y += 1) {
       const srcStart = y * img.width * 4
@@ -153,76 +143,61 @@ export default function ImageCarver() {
     setProgress(step / steps)
   }, [])
 
-  const onResize = async () => {
-    if (!imageSrc && !file) return
+  const onResize = () => {
+    const srcImg = imgRef.current
+    if (!srcImg) return
     const canvas = canvasRef.current
     if (!canvas) return
 
     onReset()
     setIsResizing(true)
-    isCancelledRef.current = false
 
-    try {
-      let srcImg
-      if (file && typeof createImageBitmap === 'function') {
-        srcImg = await createImageBitmap(file)
-      } else {
-        srcImg = await loadImage(imageSrc)
-      }
+    let w = useNaturalSize ? srcImg.naturalWidth : srcImg.width
+    let h = useNaturalSize ? srcImg.naturalHeight : srcImg.height
+    if (!w || !h) {
+      w = srcImg.naturalWidth || 400
+      h = srcImg.naturalHeight || 300
+    }
+    const ratio = w / h
 
-      const imgW = srcImg.width || srcImg.naturalWidth
-      const imgH = srcImg.height || srcImg.naturalHeight
+    setOriginalImgViewSize({
+      w: srcImg.width || w,
+      h: srcImg.height || h,
+    })
 
-      let w = useNaturalSize ? imgW : Math.min(800, imgW)
-      let h = Math.floor(w * (imgH / imgW))
-      const ratio = w / h
+    if (w > MAX_WIDTH_LIMIT) {
+      w = MAX_WIDTH_LIMIT
+      h = Math.floor(w / ratio)
+    }
+    if (h > MAX_HEIGHT_LIMIT) {
+      h = MAX_HEIGHT_LIMIT
+      w = Math.floor(h * ratio)
+    }
 
-      setOriginalImgViewSize({
-        w: imgW,
-        h: imgH,
-      })
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-      if (w > MAX_WIDTH_LIMIT) {
-        w = MAX_WIDTH_LIMIT
-        h = Math.floor(w / ratio)
-      }
-      if (h > MAX_HEIGHT_LIMIT) {
-        h = MAX_HEIGHT_LIMIT
-        w = Math.floor(h * ratio)
-      }
+    ctx.drawImage(srcImg, 0, 0, w, h)
+    const img = ctx.getImageData(0, 0, w, h)
 
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
+    applyMask(img)
 
-      ctx.drawImage(srcImg, 0, 0, w, h)
-      const img = ctx.getImageData(0, 0, w, h)
+    const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
+    const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
 
-      applyMask(img)
-
-      const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
-      const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
-
-      await resizeImage({
-        img,
-        toWidth,
-        toHeight,
-        onIteration,
-        isCancelled: () => isCancelledRef.current,
-      })
-
+    resizeImage({
+      img,
+      toWidth,
+      toHeight,
+      onIteration,
+    }).then(() => {
       onFinish()
-    } catch (e) {
+    }).catch((e) => {
       setError(`Error: ${e.message}`)
       setIsResizing(false)
-    }
-  }
-
-  const cancelCarving = () => {
-    isCancelledRef.current = true
-    setIsResizing(false)
-    setProgress(0)
+    })
   }
 
   const handleImgLoad = () => {
@@ -339,12 +314,6 @@ export default function ImageCarver() {
           <Activity size={16} className="animate-pulse" />
           <span>Resizing image... ({Math.round(progress * 100)}%)</span>
         </div>
-        <button
-          onClick={cancelCarving}
-          className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
-        >
-          <StopCircle size={14} /> Cancel
-        </button>
       </div>
       <ProgressBar value={Math.round(progress * 100)} label={`Processing seam carving... ${Math.round(progress * 100)}%`} />
     </div>
