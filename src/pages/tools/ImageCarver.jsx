@@ -103,6 +103,12 @@ export default function ImageCarver() {
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
     renderOriginalOverlayMask()
+    if (workingCanvasRef.current) {
+      workingCanvasRef.current.width = w
+      workingCanvasRef.current.height = h
+      const ctx = workingCanvasRef.current.getContext('2d')
+      ctx.drawImage(imgRef.current, 0, 0, w, h)
+    }
   }
 
   const renderOriginalOverlayMask = () => {
@@ -214,11 +220,12 @@ export default function ImageCarver() {
 
   const startCarving = async () => {
     if (!imgRef.current || isResizing) return
-    onReset()
-    setIsResizing(true)
-    isCancelledRef.current = false
+    setResizedImgSrc(null)
+    setProgress(0)
     setError('')
     setCarvePhase('')
+    setIsResizing(true)
+    isCancelledRef.current = false
 
     const srcImg = imgRef.current
     let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
@@ -306,12 +313,7 @@ export default function ImageCarver() {
         outCanvas.height = res.size.h
         const outCtx = outCanvas.getContext('2d')
         outCtx.putImageData(res.img, 0, 0, 0, 0, res.size.w, res.size.h)
-
-        outCanvas.toBlob((blob) => {
-          if (blob) {
-            setResizedImgSrc(URL.createObjectURL(blob))
-          }
-        }, 'image/png')
+        setResizedImgSrc(outCanvas.toDataURL('image/png'))
       }
     } catch (e) {
       setError(`Gagal: ${e.message}`)
