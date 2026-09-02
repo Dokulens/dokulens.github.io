@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Shrink, Download, Sparkles, Activity, Sliders, Maximize2, X,
   Paintbrush, Check, AlertTriangle, StopCircle, Trash2,
-  ZoomIn, ZoomOut, Eye, EyeOff, MousePointer
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -23,44 +22,42 @@ const defaultWidthScale = 80
 const defaultHeightScale = 90
 
 export default function ImageCarver() {
+  const [useNaturalSize, setUseNaturalSize] = useState(false)
   const [imageSrc, setImageSrc] = useState(null)
+  const [file, setFile] = useState(null)
+  const [resizedImgSrc, setResizedImgSrc] = useState(null)
+  const [energyMap, setEnergyMap] = useState(null)
+  const [originalImgSize, setOriginalImgSize] = useState(null)
+  const [workingImgSize, setWorkingImgSize] = useState(null)
+  const [seam, setSeam] = useState(null)
+  const [isResizing, setIsResizing] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [maskImgData, setMaskImgData] = useState(null)
+  const [maskRevision, setMaskRevision] = useState(0)
+  const [toWidthScale, setToWidthScale] = useState(defaultWidthScale)
+  const [toHeightScale, setToHeightScale] = useState(defaultHeightScale)
+  const [error, setError] = useState('')
+  const [isMaskModalOpen, setIsMaskModalOpen] = useState(false)
+  const [brushSize, setBrushSize] = useState(16)
+  const [showEnergyMap, setShowEnergyMap] = useState(true)
+  const [showSeams, setShowSeams] = useState(true)
+
+  const imgRef = useRef(null)
+  const canvasRef = useRef(null)
+  const modalImgRef = useRef(null)
+  const isCancelledRef = useRef(false)
+
   useIncomingFile((f) => {
     const url = URL.createObjectURL(f)
     setImageSrc(url)
     setFile(f)
   })
-  const [file, setFile] = useState(null)
-  const [originalImgSize, setOriginalImgSize] = useState(null)
-  const [workingImgSize, setWorkingImgSize] = useState(null)
-  const [resizedImgSrc, setResizedImgSrc] = useState(null)
-  const [energyMap, setEnergyMap] = useState(null)
-  const [seam, setSeam] = useState(null)
-  const [toWidthScale, setToWidthScale] = useState(defaultWidthScale)
-  const [toHeightScale, setToHeightScale] = useState(defaultHeightScale)
-  const [useNaturalSize, setUseNaturalSize] = useState(false)
-  const [showEnergyMap, setShowEnergyMap] = useState(true)
-  const [showSeams, setShowSeams] = useState(true)
-  const [isResizing, setIsResizing] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [error, setError] = useState('')
-
-  const [isMaskModalOpen, setIsMaskModalOpen] = useState(false)
-  const [brushSize, setBrushSize] = useState(16)
-  const [maskImgData, setMaskImgData] = useState(null)
-  const [maskRevision, setMaskRevision] = useState(0)
-
-  const imgRef = useRef(null)
-  const canvasRef = useRef(null)
-  const modalImgRef = useRef(null)
-  const modalCanvasRef = useRef(null)
-  const isPaintingRef = useRef(false)
-  const isCancelledRef = useRef(false)
 
   const onReset = () => {
     setResizedImgSrc(null)
+    setSeam(null)
     setWorkingImgSize(null)
     setEnergyMap(null)
-    setSeam(null)
     setProgress(0)
     setError('')
   }
@@ -126,7 +123,7 @@ export default function ImageCarver() {
     setEnergyMap(nrgMap)
     setSeam(currentSeam)
     setWorkingImgSize({ w, h })
-    setProgress(Math.round((step / steps) * 100))
+    setProgress(step / steps)
   }, [])
 
   const onResize = () => {
@@ -162,8 +159,8 @@ export default function ImageCarver() {
 
     applyMask(img)
 
-    const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
-    const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
+    const toWidth = Math.floor((toWidthScale * w) / 100)
+    const toHeight = Math.floor((toHeightScale * h) / 100)
 
     resizeImage({
       img,
@@ -205,309 +202,261 @@ export default function ImageCarver() {
 
   const base = file ? stripExt(file.name) : 'image'
 
+  // ─── Reference: resizerControls ───
+  const resizerControls = (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <DropZone
+          accept="image/*,.jpg,.jpeg,.png,.webp"
+          onFiles={onFileSelect}
+          disabled={isResizing}
+          label="Pilih foto"
+          hint="JPG, PNG, WebP"
+        />
+        <button
+          onClick={onResize}
+          disabled={isResizing}
+          className="flex items-center gap-2 rounded bg-[--color-brand] px-4 py-2 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-all"
+        >
+          <Shrink size={14} /> Resize
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-xs">
+        <div className="flex items-center gap-1">
+          <span className="text-[--color-text-2]">Width</span>
+          <input
+            type="number" min="1" max="100"
+            value={toWidthScale}
+            disabled={isResizing}
+            onChange={(e) => setToWidthScale(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+            className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-[--color-text]"
+          />
+          <span className="text-[--color-text-3]">%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[--color-text-2]">Height</span>
+          <input
+            type="number" min="1" max="100"
+            value={toHeightScale}
+            disabled={isResizing}
+            onChange={(e) => setToHeightScale(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+            className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-[--color-text]"
+          />
+          <span className="text-[--color-text-3]">%</span>
+        </div>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" checked={useNaturalSize} onChange={(e) => setUseNaturalSize(e.target.checked)} disabled={isResizing} />
+          <span>Higher quality <span className="text-[--color-text-3]">(takes longer)</span></span>
+        </label>
+      </div>
+
+      {useNaturalSize && (
+        <div className="flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>Mode kualitas tinggi memproses seluruh piksel asli. Proses lebih berat.</span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMaskModalOpen(true)}
+            disabled={isResizing}
+            className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors disabled:opacity-50"
+          >
+            <Maximize2 size={13} /> Masking
+          </button>
+          {maskImgData && (
+            <div className="flex items-center gap-1.5">
+              <span className="rounded bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-600 dark:text-red-400">Mask Aktif</span>
+              <button onClick={onClearMask} className="text-[--color-text-3] hover:text-[--color-danger]">(Hapus)</button>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-4 text-[--color-text-2]">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showSeams} onChange={(e) => setShowSeams(e.target.checked)} />
+            <span>Seam</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={showEnergyMap} onChange={(e) => setShowEnergyMap(e.target.checked)} />
+            <span>Energy Map</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ─── Reference: progressBar ───
+  const progressBar = isResizing ? (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
+          <Activity size={16} className="animate-pulse" />
+          <span>Memproses Seam Carving... ({Math.round(progress * 100)}%)</span>
+        </div>
+        <button
+          onClick={cancelCarving}
+          className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+        >
+          <StopCircle size={14} /> Batal
+        </button>
+      </div>
+      <ProgressBar value={Math.round(progress * 100)} label={`Menghitung energi & memotong seams... ${Math.round(progress * 100)}%`} />
+    </div>
+  ) : null
+
+  // ─── Reference: workingImage ─── (hidden when resizedImgSrc OR !energyMap)
+  const workingImage = (
+    <div className={`rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 ${(resizedImgSrc || !energyMap) ? 'hidden' : ''}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+          Resized image {workingImgSize ? `(${workingImgSize.w} × ${workingImgSize.h} px)` : ''}
+        </span>
+        {isResizing && <span className="text-[11px] font-bold text-[--color-brand] animate-pulse">● Real-Time</span>}
+      </div>
+      <div className="overflow-auto rounded border border-[--color-border] bg-[--color-surface-2] p-2">
+        <div className="relative inline-block">
+          <canvas ref={canvasRef} className="block" />
+          {showSeams && seam && workingImgSize && (
+            <svg className="absolute top-0 left-0 pointer-events-none" width={workingImgSize.w} height={workingImgSize.h}>
+              {seam.map(({ x, y }, i) => (
+                <rect key={i} x={x} y={y} width={1} height={1} fill="rgba(239, 68, 68, 0.9)" />
+              ))}
+            </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  // ─── Reference: resultImage ─── (shown when workingImgSize && resizedImgSrc)
+  const resultImage = workingImgSize && resizedImgSrc ? (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+          Resized image ({workingImgSize.w} × {workingImgSize.h} px)
+        </span>
+      </div>
+      <img src={resizedImgSrc} width={workingImgSize.w} height={workingImgSize.h} alt="Resized" className="block max-w-full" />
+      <div className="flex items-center justify-between rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-3">
+        <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
+          <Sparkles size={16} /> Resize Berhasil!
+        </p>
+        <div className="flex items-center gap-2">
+          <button onClick={onReset} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]">✕</button>
+          <a href={resizedImgSrc} download={`${base}_carved.png`}
+            className="flex items-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 no-underline">
+            <Download size={16} /> Download
+          </a>
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  // ─── Reference: debugEnergyMap ───
+  const debugEnergyMap = showEnergyMap && workingImgSize ? (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+      <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
+        <Activity size={14} className="text-[--color-brand]" /> Energy Map
+      </span>
+      <div className="flex justify-center overflow-auto rounded border border-[--color-border] bg-black/90 p-2">
+        <EnergyMapCanvas energyMap={energyMap} width={workingImgSize.w} height={workingImgSize.h} />
+      </div>
+    </div>
+  ) : null
+
+  // ─── Reference: originalImage ───
+  const originalImage = (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+          Original image {originalImgSize ? `(${originalImgSize.w} × ${originalImgSize.h} px)` : ''}
+        </span>
+        <div className="flex items-center gap-2 text-[10px] text-[--color-text-3]">
+          <span>👆 Mask to remove</span>
+          <button onClick={() => setIsMaskModalOpen(true)} disabled={isResizing}
+            className="text-[--color-brand] hover:underline font-medium disabled:opacity-50">
+            <Paintbrush size={11} className="inline" /> {maskImgData ? 'Ubah' : 'Mask'}
+          </button>
+        </div>
+      </div>
+      <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2]">
+        <img ref={imgRef} src={imageSrc} alt="Original" onLoad={handleImgLoad}
+          className="block max-h-[360px] w-auto select-none" />
+      </div>
+    </div>
+  )
+
+  // ─── Error ───
+  const errorBar = error ? (
+    <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">{error}</p>
+  ) : null
+
   return (
     <ToolShell
       title="Image Carver (Content-Aware Seam Carving)"
-      description="Implementasi algoritma Seam Carving (terinspirasi dari trekhleb/js-image-carver). Kecilkan resolusi gambar tanpa merusak proporsi objek utama & hapus objek dengan masking."
+      description="Implementasi algoritma Seam Carving (trekhleb/js-image-carver). Kecilkan resolusi gambar tanpa merusak proporsi objek utama."
     >
-      <DropZone
-        accept="image/*,.jpg,.jpeg,.png,.webp"
-        onFiles={onFileSelect}
-        label="Pilih foto untuk di-carve"
-        hint="JPG, PNG, WebP — Content-Aware Image Resizing"
-      />
+      {resizerControls}
+      {progressBar}
+      {errorBar}
+      {workingImage}
+      {resultImage}
+      {debugEnergyMap}
+      {originalImage}
 
-      {imageSrc && (
-        <div className="space-y-4 animate-fade-in">
-          {/* Controls */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[--color-border] pb-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Sliders size={15} className="text-[--color-brand]" />
-                <span className="font-bold text-[--color-text]">Ukuran Target:</span>
-                <span className="text-[--color-text-2]">
-                  {originalImgSize
-                    ? `${Math.round((toWidthScale * originalImgSize.w) / 100)} × ${Math.round((toHeightScale * originalImgSize.h) / 100)} px (${toWidthScale}% × ${toHeightScale}%)`
-                    : `${toWidthScale}% × ${toHeightScale}%`}
-                </span>
-                {originalImgSize && (
-                  <span className="text-[--color-text-3]">
-                    (Asli: {originalImgSize.w} × {originalImgSize.h} px)
-                  </span>
-                )}
+      {/* Mask Modal */}
+      {isMaskModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsMaskModalOpen(false)}>
+          <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+                  <Paintbrush size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold leading-tight">Masking Objek</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Gambar area yang ingin dihapus</p>
+                </div>
               </div>
-              <label className="flex items-center gap-1.5 text-xs text-[--color-text-2] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useNaturalSize}
-                  onChange={(e) => setUseNaturalSize(e.target.checked)}
-                  disabled={isResizing}
-                />
-                <span>Kualitas Tinggi</span>
-              </label>
+              <button onClick={() => setIsMaskModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+                <X size={18} />
+              </button>
             </div>
-
-            {useNaturalSize && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
-                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                <span><strong>Peringatan:</strong> Mode kualitas tinggi memproses seluruh piksel asli. Proses lebih berat.</span>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area objek yang ingin dihapus. Area merah akan direkonstruksi.</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
+                <input type="range" min="4" max="60" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
+                <span className="text-[11px] font-mono text-gray-500 w-8">{brushSize}px</span>
               </div>
-            )}
-
-            {/* Sliders */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-end">
-              <div>
-                <div className="flex justify-between items-center mb-1 text-xs">
-                  <span className="font-semibold text-[--color-text-2]">Lebar</span>
-                  <span className="font-bold text-[--color-brand]">{toWidthScale}%</span>
+              <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
+                <div className="relative inline-flex items-center justify-center">
+                  <img ref={modalImgRef} src={imageSrc} alt="Mask Target"
+                    className="block max-h-[60vh] max-w-full rounded pointer-events-none" />
+                  <MaskCanvas
+                    width={modalImgRef.current?.naturalWidth || 400}
+                    height={modalImgRef.current?.naturalHeight || 300}
+                    brushSize={brushSize}
+                    revision={maskRevision}
+                    onDrawEnd={onMaskDrawEnd}
+                    disabled={isResizing}
+                  />
                 </div>
-                <input
-                  type="range" min="1" max="100" value={toWidthScale}
-                  disabled={isResizing}
-                  onChange={(e) => setToWidthScale(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1 text-xs">
-                  <span className="font-semibold text-[--color-text-2]">Tinggi</span>
-                  <span className="font-bold text-[--color-brand]">{toHeightScale}%</span>
-                </div>
-                <input
-                  type="range" min="1" max="100" value={toHeightScale}
-                  disabled={isResizing}
-                  onChange={(e) => setToHeightScale(Number(e.target.value))}
-                  className="w-full"
-                />
               </div>
             </div>
-
-            {/* Mask + Options */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsMaskModalOpen(true)}
-                  disabled={isResizing}
-                  className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <Maximize2 size={13} />
-                  Masking Objek
-                </button>
-                {maskImgData && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
-                      Mask Aktif
-                    </span>
-                    <button onClick={onClearMask} className="text-xs text-[--color-text-3] hover:text-[--color-danger]">
-                      (Hapus)
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-4 text-[--color-text-2]">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showSeams} onChange={(e) => setShowSeams(e.target.checked)} />
-                  <span>Seam</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={showEnergyMap} onChange={(e) => setShowEnergyMap(e.target.checked)} />
-                  <span>Energy Map</span>
-                </label>
-              </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+              <button onClick={onClearMask} className="text-xs text-red-500 hover:underline font-semibold">
+                <Trash2 size={12} className="inline mr-1" />Hapus
+              </button>
+              <button onClick={() => setIsMaskModalOpen(false)}
+                className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors">
+                <Check size={14} className="inline mr-1" />Selesai
+              </button>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          {!resizedImgSrc && !isResizing && (
-            <button
-              onClick={onResize}
-              className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] transition-all active:scale-[0.99]"
-            >
-              <Shrink size={16} />
-              Mulai Content-Aware Resize ({toWidthScale}% × {toHeightScale}%)
-            </button>
-          )}
-
-          {isResizing && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
-                  <Activity size={16} className="animate-pulse" />
-                  <span>Memproses Seam Carving... ({progress}%)</span>
-                </div>
-                <button
-                  onClick={cancelCarving}
-                  className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                >
-                  <StopCircle size={14} /> Batal
-                </button>
-              </div>
-              <ProgressBar value={progress} label={`Menghitung energi & memotong seams... ${progress}%`} />
-            </div>
-          )}
-
-          {error && (
-            <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">
-              {error}
-            </p>
-          )}
-
-          {/* Working / Result Canvas */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                {resizedImgSrc ? 'Hasil Resize' : 'Proses Carving'} {workingImgSize ? `(${workingImgSize.w} × ${workingImgSize.h} px)` : ''}
-              </span>
-              {isResizing && (
-                <span className="text-[11px] font-bold text-[--color-brand] animate-pulse">● Real-Time</span>
-              )}
-            </div>
-            <div className="flex justify-center overflow-auto rounded border border-[--color-border] bg-[--color-surface-2] p-2 min-h-[200px]">
-              <div className="relative inline-block">
-                <canvas ref={canvasRef} className="block max-h-[400px] w-auto" />
-                {showSeams && seam && workingImgSize && !resizedImgSrc && (
-                  <svg
-                    className="absolute top-0 left-0 pointer-events-none"
-                    width={workingImgSize.w}
-                    height={workingImgSize.h}
-                  >
-                    {seam.map(({ x, y }, i) => (
-                      <rect key={i} x={x} y={y} width={1} height={1} fill="rgba(239, 68, 68, 0.9)" />
-                    ))}
-                  </svg>
-                )}
-              </div>
-            </div>
-
-              {/* Download */}
-              {resizedImgSrc && (
-                <div className="flex items-center justify-between rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
-                      <Sparkles size={16} /> Resize Berhasil!
-                    </p>
-                    <p className="mt-0.5 text-sm text-[--color-text-2]">
-                      {workingImgSize?.w} × {workingImgSize?.h} px
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={onReset} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]">✕</button>
-                    <a
-                      href={resizedImgSrc}
-                      download={`${base}_carved.png`}
-                      className="flex items-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 no-underline"
-                    >
-                      <Download size={16} /> Download
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          {/* Energy Map */}
-          {showEnergyMap && energyMap && workingImgSize && !resizedImgSrc && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
-                <Activity size={14} className="text-[--color-brand]" />
-                Energy Map
-              </span>
-              <div className="flex justify-center overflow-auto rounded border border-[--color-border] bg-black/90 p-2">
-                <EnergyMapCanvas energyMap={energyMap} width={workingImgSize.w} height={workingImgSize.h} />
-              </div>
-            </div>
-          )}
-
-          {/* Original Image */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                Gambar Asli {originalImgSize ? `(${originalImgSize.w} × ${originalImgSize.h} px)` : ''}
-              </span>
-              <div className="flex items-center gap-2">
-                {maskImgData && (
-                  <span className="rounded bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-600 dark:text-red-400">
-                    Mask Aktif
-                  </span>
-                )}
-                <button
-                  onClick={() => setIsMaskModalOpen(true)}
-                  disabled={isResizing}
-                  className="text-xs text-[--color-brand] hover:underline flex items-center gap-1 font-medium disabled:opacity-50"
-                >
-                  <Paintbrush size={12} /> {maskImgData ? 'Ubah Mask' : 'Masking'}
-                </button>
-              </div>
-            </div>
-            <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2]">
-              <img
-                ref={imgRef}
-                src={imageSrc}
-                alt="Original"
-                onLoad={handleImgLoad}
-                className="block max-h-[360px] w-auto select-none"
-              />
-            </div>
-          </div>
-
-          {/* Mask Modal */}
-          {isMaskModalOpen && (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsMaskModalOpen(false)}>
-              <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                      <Paintbrush size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-tight">Masking Objek</p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">Gambar area yang ingin dihapus</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setIsMaskModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="px-5 py-4 space-y-3">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area objek yang ingin dihapus. Area merah akan direkonstruksi oleh algoritma.</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
-                    <input type="range" min="4" max="60" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
-                    <span className="text-[11px] font-mono text-gray-500 w-8">{brushSize}px</span>
-                  </div>
-                  <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
-                    <div className="relative inline-flex items-center justify-center">
-                      <img
-                        ref={modalImgRef}
-                        src={imageSrc}
-                        alt="Mask Target"
-                        className="block max-h-[60vh] max-w-full rounded pointer-events-none"
-                      />
-                      <MaskCanvas
-                        width={modalImgRef.current?.naturalWidth || 400}
-                        height={modalImgRef.current?.naturalHeight || 300}
-                        brushSize={brushSize}
-                        revision={maskRevision}
-                        onDrawEnd={onMaskDrawEnd}
-                        disabled={isResizing}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <button onClick={onClearMask} className="text-xs text-red-500 hover:underline font-semibold">
-                    <Trash2 size={12} className="inline mr-1" />Hapus
-                  </button>
-                  <button
-                    onClick={() => setIsMaskModalOpen(false)}
-                    className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors"
-                  >
-                    <Check size={14} className="inline mr-1" />Selesai
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </ToolShell>
@@ -517,7 +466,6 @@ export default function ImageCarver() {
 /* ─── Energy Map Canvas ─── */
 function EnergyMapCanvas({ energyMap, width, height }) {
   const ref = useRef(null)
-
   useEffect(() => {
     const canvas = ref.current
     if (!canvas || !energyMap) return
@@ -528,50 +476,49 @@ function EnergyMapCanvas({ energyMap, width, height }) {
     const normalized = normalizeEnergyMap(energyMap, width, height)
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
-        const val = normalized[y][x]
-        setPixel(imgData, { x, y }, [val, val, val, 255])
+        setPixel(imgData, { x, y }, [normalized[y][x], normalized[y][x], normalized[y][x], 255])
       }
     }
     ctx.putImageData(imgData, 0, 0)
   }, [energyMap, width, height])
-
   return <canvas ref={ref} className="block max-h-[300px] w-auto" />
 }
 
-/* ─── Mask Canvas (inline component matching trekhleb/Mask.tsx) ─── */
+/* ─── Mask Canvas (trekhleb/Mask.tsx replica) ─── */
 function MaskCanvas({ width, height, brushSize, revision, onDrawEnd, disabled }) {
   const canvasRef = useRef(null)
   const [isPainting, setIsPainting] = useState(false)
-  const [mousePosition, setMousePosition] = useState(null)
+  const [mousePos, setMousePos] = useState(null)
 
-  const getCoordinates = useCallback((e) => {
-    const canvas = canvasRef.current
-    if (!canvas) return null
-    return { x: e.clientX - canvas.getBoundingClientRect().left, y: e.clientY - canvas.getBoundingClientRect().top }
+  const getCoords = useCallback((e) => {
+    const c = canvasRef.current
+    if (!c) return null
+    const rect = c.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }, [])
 
   const startPaint = useCallback((e) => {
     if (disabled) return
-    const coord = getCoordinates(e)
-    if (coord) { setMousePosition(coord); setIsPainting(true) }
-  }, [disabled, getCoordinates])
+    const coord = getCoords(e)
+    if (coord) { setMousePos(coord); setIsPainting(true) }
+  }, [disabled, getCoords])
 
   const paint = useCallback((e) => {
     if (!isPainting || !canvasRef.current || disabled) return
-    const newPos = getCoordinates(e)
-    if (mousePosition && newPos) {
+    const newPos = getCoords(e)
+    if (mousePos && newPos) {
       const ctx = canvasRef.current.getContext('2d')
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)'
       ctx.lineJoin = 'round'
       ctx.lineWidth = brushSize
       ctx.beginPath()
-      ctx.moveTo(mousePosition.x, mousePosition.y)
+      ctx.moveTo(mousePos.x, mousePos.y)
       ctx.lineTo(newPos.x, newPos.y)
       ctx.closePath()
       ctx.stroke()
-      setMousePosition(newPos)
+      setMousePos(newPos)
     }
-  }, [isPainting, mousePosition, brushSize, disabled, getCoordinates])
+  }, [isPainting, mousePos, brushSize, disabled, getCoords])
 
   const exitPaint = useCallback(() => {
     if (canvasRef.current && onDrawEnd) {
@@ -579,7 +526,7 @@ function MaskCanvas({ width, height, brushSize, revision, onDrawEnd, disabled })
       onDrawEnd(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height))
     }
     setIsPainting(false)
-    setMousePosition(null)
+    setMousePos(null)
   }, [onDrawEnd])
 
   useEffect(() => {
@@ -613,12 +560,8 @@ function MaskCanvas({ width, height, brushSize, revision, onDrawEnd, disabled })
   }, [revision])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
+    <canvas ref={canvasRef} width={width} height={height}
       className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-      style={{ width: '100%', height: '100%', touchAction: 'none' }}
-    />
+      style={{ width: '100%', height: '100%', touchAction: 'none' }} />
   )
 }
