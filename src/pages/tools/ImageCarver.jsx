@@ -89,14 +89,6 @@ export default function ImageCarver() {
       const ctx = origOverlayCanvasRef.current.getContext('2d')
       ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
     }
-    if (imgRef.current && workingCanvasRef.current) {
-      const w = imgRef.current.naturalWidth
-      const h = imgRef.current.naturalHeight
-      workingCanvasRef.current.width = w
-      workingCanvasRef.current.height = h
-      const ctx = workingCanvasRef.current.getContext('2d')
-      ctx.drawImage(imgRef.current, 0, 0)
-    }
   }
 
   const cancelCarving = () => {
@@ -110,22 +102,6 @@ export default function ImageCarver() {
     const w = imgRef.current.naturalWidth
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
-    setWorkingSize({ w, h })
-
-    if (workingCanvasRef.current) {
-      workingCanvasRef.current.width = w
-      workingCanvasRef.current.height = h
-      const ctx = workingCanvasRef.current.getContext('2d')
-      ctx.drawImage(imgRef.current, 0, 0)
-    }
-
-    if (seamsCanvasRef.current) {
-      seamsCanvasRef.current.width = w
-      seamsCanvasRef.current.height = h
-      const sctx = seamsCanvasRef.current.getContext('2d')
-      sctx.clearRect(0, 0, w, h)
-    }
-
     renderOriginalOverlayMask()
   }
 
@@ -237,72 +213,48 @@ export default function ImageCarver() {
   }
 
   const startCarving = async () => {
-    if (!imageSrc || isResizing) return
+    if (!imgRef.current || isResizing) return
+    onReset()
     setIsResizing(true)
     isCancelledRef.current = false
     setError('')
     setCarvePhase('')
-    setResizedImgSrc(null)
-    setProgress(0)
+
+    const srcImg = imgRef.current
+    let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
+    let h = useHigherQuality ? srcImg.naturalHeight : Math.min(srcImg.naturalHeight, Math.round((600 * srcImg.naturalHeight) / srcImg.naturalWidth))
+    const ratio = w / h
+
+    if (w > MAX_WIDTH_LIMIT) {
+      w = MAX_WIDTH_LIMIT
+      h = Math.floor(w / ratio)
+    }
+    if (h > MAX_HEIGHT_LIMIT) {
+      h = MAX_HEIGHT_LIMIT
+      w = Math.floor(h * ratio)
+    }
+
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = w
+    tempCanvas.height = h
+    const tempCtx = tempCanvas.getContext('2d')
+    tempCtx.drawImage(srcImg, 0, 0, w, h)
+
+    const img = tempCtx.getImageData(0, 0, w, h)
+    applyMaskToImageData(img)
+
+    const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
+    const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
+
+    setWorkingSize({ w, h })
 
     try {
-      const loadedImg = new Image()
-      loadedImg.crossOrigin = 'anonymous'
-      await new Promise((resolve, reject) => {
-        loadedImg.onload = resolve
-        loadedImg.onerror = () => reject(new Error('Gagal memuat piksel gambar'))
-        loadedImg.src = imageSrc
-      })
-
-      let w = useHigherQuality ? loadedImg.naturalWidth : Math.min(loadedImg.naturalWidth, 600)
-      let h = useHigherQuality ? loadedImg.naturalHeight : Math.min(loadedImg.naturalHeight, Math.round((600 * loadedImg.naturalHeight) / loadedImg.naturalWidth))
-      const ratio = w / h
-
-      if (w > MAX_WIDTH_LIMIT) {
-        w = MAX_WIDTH_LIMIT
-        h = Math.floor(w / ratio)
-      }
-      if (h > MAX_HEIGHT_LIMIT) {
-        h = MAX_HEIGHT_LIMIT
-        w = Math.floor(h * ratio)
-      }
-
-      const tempCanvas = document.createElement('canvas')
-      tempCanvas.width = w
-      tempCanvas.height = h
-      const tempCtx = tempCanvas.getContext('2d')
-      tempCtx.drawImage(loadedImg, 0, 0, w, h)
-
-      const imgData = tempCtx.getImageData(0, 0, w, h)
-      applyMaskToImageData(imgData)
-
-      const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
-      const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
-
-      setWorkingSize({ w, h })
-
-      if (workingCanvasRef.current) {
-        workingCanvasRef.current.width = w
-        workingCanvasRef.current.height = h
-        const ctx = workingCanvasRef.current.getContext('2d')
-        ctx.drawImage(loadedImg, 0, 0, w, h)
-      }
-
       const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps, phase }) => {
         if (workingCanvasRef.current) {
           workingCanvasRef.current.width = size.w
           workingCanvasRef.current.height = size.h
           const ctx = workingCanvasRef.current.getContext('2d')
-          const croppedImgData = ctx.createImageData(size.w, size.h)
-          for (let y = 0; y < size.h; y++) {
-            const srcRowOffset = y * currentImg.width * 4
-            const dstRowOffset = y * size.w * 4
-            croppedImgData.data.set(
-              currentImg.data.subarray(srcRowOffset, srcRowOffset + size.w * 4),
-              dstRowOffset
-            )
-          }
-          ctx.putImageData(croppedImgData, 0, 0)
+          ctx.putImageData(currentImg, 0, 0, 0, 0, size.w, size.h)
         }
 
         if (showSeams && seamsCanvasRef.current) {
@@ -320,7 +272,7 @@ export default function ImageCarver() {
           energyCanvasRef.current.width = size.w
           energyCanvasRef.current.height = size.h
           const eCtx = energyCanvasRef.current.getContext('2d')
-          const eImgData = eCtx.createImageData(size.w, size.h)
+          const eImgData = eCtx.getImageData(0, 0, size.w, size.h)
           const normalized = normalizeEnergyMap(energyMap, size.w, size.h)
 
           for (let ey = 0; ey < size.h; ey += 1) {
@@ -340,7 +292,7 @@ export default function ImageCarver() {
       }
 
       const res = await resizeImage({
-        img: imgData,
+        img,
         toWidth,
         toHeight,
         onIteration,
@@ -353,26 +305,24 @@ export default function ImageCarver() {
         outCanvas.width = res.size.w
         outCanvas.height = res.size.h
         const outCtx = outCanvas.getContext('2d')
-        const finalImgData = outCtx.createImageData(res.size.w, res.size.h)
-        for (let y = 0; y < res.size.h; y++) {
-          const srcRowOffset = y * res.img.width * 4
-          const dstRowOffset = y * res.size.w * 4
-          finalImgData.data.set(
-            res.img.data.subarray(srcRowOffset, srcRowOffset + res.size.w * 4),
-            dstRowOffset
-          )
-        }
-        outCtx.putImageData(finalImgData, 0, 0)
+        outCtx.putImageData(res.img, 0, 0, 0, 0, res.size.w, res.size.h)
 
-        const finalUrl = outCanvas.toDataURL('image/png')
-        setResizedImgSrc(finalUrl)
-        setProgress(100)
+        outCanvas.toBlob((blob) => {
+          if (blob) {
+            setResizedImgSrc(URL.createObjectURL(blob))
+          }
+        }, 'image/png')
       }
     } catch (e) {
       setError(`Gagal: ${e.message}`)
-      console.error('[Carver Error]', e)
     } finally {
       setIsResizing(false)
+      setMaskCanvasElement(null)
+      setHasMask(false)
+      if (origOverlayCanvasRef.current) {
+        const ctx = origOverlayCanvasRef.current.getContext('2d')
+        ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
+      }
     }
   }
 
