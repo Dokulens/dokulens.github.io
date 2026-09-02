@@ -35,7 +35,7 @@ export default function Landing() {
         {FEATURES.map((f) => (
           <div
             key={f.title}
-            className="interactive-card rounded-lg border border-[--color-border] bg-[--color-surface] p-4 transition-all"
+            className="interactive-card rounded-lg bg-[--color-surface] p-4 transition-all"
           >
             <div className="mb-3 flex h-9 w-9 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
               <NavIcon name={f.icon} size={18} />
