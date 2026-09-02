@@ -57,6 +57,7 @@ export default function WatermarkRemover() {
 
   // Video masking
   const [videoMaskSrc, setVideoMaskSrc] = useState(null)
+  const [videoPosterUrl, setVideoPosterUrl] = useState(null)
   const videoMaskCanvasRef = useRef(null)
   const videoModalCanvasRef = useRef(null)
   const videoModalImgRef = useRef(null)
@@ -80,6 +81,7 @@ export default function WatermarkRemover() {
     setError('')
     setHasMask(false)
     setZoomLevel(1)
+    setVideoPosterUrl(null)
 
     const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name)
     setActiveMedia(isVid ? 'video' : 'image')
@@ -282,15 +284,40 @@ export default function WatermarkRemover() {
       if (img.complete && img.naturalWidth > 0) initCanvas()
       else img.onload = initCanvas
     }
-    if (activeMedia === 'video' && videoModalCanvasRef.current && videoRef.current) {
-      const vc = videoModalCanvasRef.current
-      const vw = videoRef.current.videoWidth || 1280
-      const vh = videoRef.current.videoHeight || 720
-      vc.width = vw
-      vc.height = vh
-      const ctx = vc.getContext('2d')
-      ctx.clearRect(0, 0, vw, vh)
-      if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
+    if (activeMedia === 'video' && videoRef.current) {
+      const v = videoRef.current
+      const captureFrame = () => {
+        if (!v.videoWidth || !v.videoHeight) return
+        const vw = v.videoWidth
+        const vh = v.videoHeight
+        setOrigDims({ w: vw, h: vh })
+
+        try {
+          const c = document.createElement('canvas')
+          c.width = vw
+          c.height = vh
+          const ctx = c.getContext('2d')
+          ctx.drawImage(v, 0, 0, vw, vh)
+          setVideoPosterUrl(c.toDataURL('image/png'))
+        } catch (e) {
+          console.warn('Failed to capture frame:', e)
+        }
+
+        if (videoModalCanvasRef.current) {
+          const vc = videoModalCanvasRef.current
+          vc.width = vw
+          vc.height = vh
+          const vctx = vc.getContext('2d')
+          vctx.clearRect(0, 0, vw, vh)
+          if (videoMaskSrc) vctx.drawImage(videoMaskSrc, 0, 0)
+        }
+      }
+
+      if (v.readyState >= 2) {
+        captureFrame()
+      } else {
+        v.onloadeddata = captureFrame
+      }
     }
   }, [isModalOpen, activeMedia])
 
@@ -858,40 +885,20 @@ export default function WatermarkRemover() {
                   <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
                     {activeMedia === 'video' ? (
                       <div className="relative inline-flex items-center justify-center">
+                        {videoPosterUrl ? (
+                          <img
+                            ref={videoModalImgRef}
+                            src={videoPosterUrl}
+                            alt="Video Frame Preview"
+                            className="block max-h-[60vh] max-w-full rounded pointer-events-none"
+                          />
+                        ) : (
+                          <div className="flex h-[300px] w-[500px] items-center justify-center rounded bg-slate-900 text-xs text-slate-400">
+                            Memuat frame video...
+                          </div>
+                        )}
                         <canvas
-                          ref={(el) => {
-                            if (el && mediaSrc) {
-                              const vw = videoRef.current?.videoWidth || origDims.w || 1280
-                              const vh = videoRef.current?.videoHeight || origDims.h || 720
-                              el.width = vw
-                              el.height = vh
-                              const ctx = el.getContext('2d')
-                              if (videoRef.current && videoRef.current.readyState >= 2) {
-                                ctx.drawImage(videoRef.current, 0, 0, vw, vh)
-                              } else {
-                                const tempVid = document.createElement('video')
-                                tempVid.muted = true
-                                tempVid.src = mediaSrc
-                                tempVid.currentTime = 0
-                                tempVid.onseeked = () => ctx.drawImage(tempVid, 0, 0, vw, vh)
-                              }
-                            }
-                          }}
-                          className="block max-h-[60vh] max-w-full rounded pointer-events-none"
-                        />
-                        <canvas
-                          ref={(el) => {
-                            videoModalCanvasRef.current = el
-                            if (el) {
-                              const vw = videoRef.current?.videoWidth || origDims.w || 1280
-                              const vh = videoRef.current?.videoHeight || origDims.h || 720
-                              el.width = vw
-                              el.height = vh
-                              const ctx = el.getContext('2d')
-                              ctx.clearRect(0, 0, vw, vh)
-                              if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
-                            }
-                          }}
+                          ref={videoModalCanvasRef}
                           onMouseDown={startVideoModalPaint}
                           onMouseMove={paintVideoModal}
                           onMouseUp={stopVideoModalPaint}
