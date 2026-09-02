@@ -49,6 +49,13 @@ export const TOOL_REGISTRY = [
     accepts: ['application/pdf'],
   },
   {
+    id: 'merge-pdf',
+    route: 'merge-pdf',
+    label: 'Merge PDF / Gambar',
+    icon: 'Combine',
+    accepts: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
+  },
+  {
     id: 'pdf-to-image',
     route: 'pdf-to-image',
     label: 'PDF → Gambar',
