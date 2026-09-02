@@ -87,12 +87,13 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
   const isImg = page.type === 'image'
+  const isLandscape = page.rotation === 90 || page.rotation === 270
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative flex flex-col items-center rounded-lg border border-[--color-border] bg-[--color-surface] p-2 select-none transition-all ${
+      className={`group relative flex flex-col items-center rounded-lg border border-[--color-border] bg-[--color-surface] p-2 select-none transition-all duration-300 ${
         isDragging ? 'shadow-xl ring-2 ring-[--color-brand]' : 'hover:border-[--color-brand-light]'
       }`}
     >
@@ -108,13 +109,17 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
         </button>
       </div>
 
-      <div className="relative w-full aspect-[3/4] overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center border border-[--color-border]">
+      <div className={`relative w-full overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center border border-[--color-border] transition-all duration-300 ${
+        isLandscape ? 'aspect-[4/3]' : 'aspect-[3/4]'
+      }`}>
         {page.preview ? (
           <img
             src={page.preview}
             alt={page.fileName}
             style={{ transform: `rotate(${page.rotation}deg)` }}
-            className="max-h-full max-w-full object-contain transition-transform duration-300"
+            className={`max-h-full max-w-full object-contain transition-transform duration-300 ${
+              isLandscape ? 'scale-125' : ''
+            }`}
           />
         ) : (
           <div className="flex flex-col items-center gap-1">
@@ -134,7 +139,7 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
       </div>
 
       <div className="mt-2 flex w-full items-center justify-between px-1">
-        <span className="text-[10px] text-[--color-text-3]">
+        <span className="text-[10px] font-mono font-bold text-[--color-brand]">
           {page.rotation > 0 ? `${page.rotation}°` : '0°'}
         </span>
         <button
