@@ -664,46 +664,19 @@ export default function AddPageNumber() {
             </div>
 
             {/* Font Styling Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-[--color-border] pt-3">
-              {/* Word-style Font Size Slider & Stepper Controls */}
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[--color-text-2]">
-                  Ukuran Font: <span className="font-mono text-[--color-brand] font-bold">{fontSize}pt</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-[--color-border] pt-3">
+              <div>
+                <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
+                  Ukuran Font (pt)
                 </label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setFontSize((prev) => Math.max(6, prev - 1))}
-                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer font-bold text-xs shrink-0 select-none"
-                    title="Kecilkan Font (-1pt)"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min="6"
-                    max="72"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Math.max(6, Math.min(72, Number(e.target.value) || 6)))}
-                    className="h-7 w-12 text-center rounded border border-[--color-border] bg-[--color-surface] text-xs font-mono font-bold text-[--color-text] outline-none focus:border-[--color-brand]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFontSize((prev) => Math.min(72, prev + 1))}
-                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer font-bold text-xs shrink-0 select-none"
-                    title="Besarkan Font (+1pt)"
-                  >
-                    +
-                  </button>
-                  <input
-                    type="range"
-                    min="6"
-                    max="72"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="flex-1 h-1.5 accent-[--color-brand] cursor-pointer"
-                  />
-                </div>
+                <input
+                  type="number"
+                  min="6"
+                  max="72"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Math.max(6, Math.min(72, Number(e.target.value) || 6)))}
+                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                />
               </div>
 
               {fileType === 'pdf' && (
