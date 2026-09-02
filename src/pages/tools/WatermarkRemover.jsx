@@ -3,7 +3,7 @@ import {
   Sparkles, Wand2, Paintbrush, Trash2, Download,
   Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
   Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2, SlidersHorizontal, ArrowLeftRight
+  StopCircle, CheckCircle2, SlidersHorizontal, ArrowLeftRight, AlertTriangle
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -433,7 +433,14 @@ export default function WatermarkRemover() {
 
     const video = videoRef.current
 
+    const handleBeforeUnload = (e) => {
+      e.preventDefault()
+      e.returnValue = 'Proses pemrosesan video sedang berjalan. Harap jangan pindah tab atau menutup browser.'
+      return e.returnValue
+    }
+
     try {
+      window.addEventListener('beforeunload', handleBeforeUnload)
       setProgress(1)
 
       // Ensure video is loaded
@@ -483,6 +490,7 @@ export default function WatermarkRemover() {
       setError(`Gagal memproses video: ${e.message}`)
       console.error('[WM] Video error:', e)
     } finally {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
       video.pause()
       setProcessing(false)
     }
@@ -798,6 +806,18 @@ export default function WatermarkRemover() {
                 )}
               </div>
               <ProgressBar value={progress} />
+
+              {activeMedia === 'video' && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-900 dark:text-amber-200">
+                  <AlertTriangle size={16} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Perhatian Penting:</p>
+                    <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed">
+                      Harap <strong>tetap berada di halaman ini (jangan berpindah tab atau meminimize browser)</strong> selama pemrosesan video berlangsung agar perekaman stream berjalan lancar dan tidak terhenti.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
