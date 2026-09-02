@@ -80,11 +80,17 @@ export default function ImageCarver() {
   const onFinish = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      setResizedImgSrc(URL.createObjectURL(blob))
+    try {
+      const dataUrl = canvas.toDataURL('image/png')
+      setResizedImgSrc(dataUrl)
       setIsResizing(false)
-    }, 'image/png')
+    } catch {
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        setResizedImgSrc(URL.createObjectURL(blob))
+        setIsResizing(false)
+      }, 'image/png')
+    }
   }, [])
 
   const applyMask = useCallback((img) => {
@@ -130,6 +136,13 @@ export default function ImageCarver() {
       const srcEnd = srcStart + w * 4
       const dstStart = y * w * 4
       frame.data.set(img.data.subarray(srcStart, srcEnd), dstStart)
+    }
+
+    // Ensure display frame pixels stay opaque so masked areas don't render black patches during carving
+    for (let i = 3; i < frame.data.length; i += 4) {
+      if (frame.data[i] === ALPHA_DELETE_THRESHOLD) {
+        frame.data[i] = 255
+      }
     }
 
     ctx.putImageData(frame, 0, 0)
@@ -358,7 +371,7 @@ export default function ImageCarver() {
           Resized image ({workingImgSize.w} × {workingImgSize.h} px)
         </span>
       </div>
-      <img src={resizedImgSrc} width={workingImgSize.w} height={workingImgSize.h} alt="Resized" className="block max-w-full rounded border border-[--color-border]" />
+      <img src={resizedImgSrc} alt="Resized" className="block max-w-full h-auto rounded border border-[--color-border]" />
       <div className="flex items-center justify-between rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-3">
         <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
           <Sparkles size={16} /> Resize Complete!
