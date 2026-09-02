@@ -12,6 +12,7 @@ import FilePreview from '../../components/FilePreview'
 import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 
 const FONT_OPTIONS = [
   { id: 'Helvetica', label: 'Helvetica / Arial (Modern Sans-Serif)', css: 'font-sans' },
@@ -306,7 +307,7 @@ export default function EditPDF() {
               <button
                 type="button"
                 onClick={() => setShowDetectedBoxes(!showDetectedBoxes)}
-                className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1 text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
+                className={`flex items-center gap-1 rounded px-2.5 py-1 transition-colors ${showDetectedBoxes ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}
                 title="Tampilkan / Sembunyikan Kotak Deteksi"
               >
                 {showDetectedBoxes ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -549,7 +550,7 @@ export default function EditPDF() {
         <button
           onClick={savePDF}
           disabled={processing || editedCount === 0}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-all active:scale-[0.99]"
+          className={`flex w-full items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-medium transition-all active:scale-[0.99] disabled:opacity-50 ${processing ? BTN_CARD_INACTIVE : BTN_CARD_ACTIVE}`}
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing

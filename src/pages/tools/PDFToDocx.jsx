@@ -9,6 +9,7 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 
 function mergeClosePositions(positions, threshold = 8) {
   if (!positions.length) return []
@@ -357,7 +358,7 @@ export default function PDFToDocx() {
         <button
           onClick={convert}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
+          className={`flex w-full items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-medium transition-all active:scale-[0.99] disabled:opacity-60 ${processing ? BTN_CARD_INACTIVE : BTN_CARD_ACTIVE}`}
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Mengonversi…' : 'Konversi ke Word (.docx)'}

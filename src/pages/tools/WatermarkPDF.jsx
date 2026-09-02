@@ -8,6 +8,7 @@ import FilePreview from '../../components/FilePreview'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE, BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
 
 const COLORS = [
   '#ff0000', '#000000', '#ffffff', '#0000ff', '#00ff00',
@@ -340,11 +341,7 @@ export default function WatermarkPDF() {
               <div className="flex items-end">
                 <button
                   onClick={() => setIsBold(!isBold)}
-                  className={`w-full rounded border px-3 py-2 text-sm font-bold transition-all ${
-                    isBold
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                      : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                  }`}
+                  className={`w-full rounded border px-3 py-2 text-sm font-bold transition-all ${isBold ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}
                 >
                   Bold
                 </button>
@@ -365,21 +362,13 @@ export default function WatermarkPDF() {
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => setApplyMode('all')}
-                  className={`flex-1 rounded border px-3 py-2 text-xs font-bold transition-all ${
-                    applyMode === 'all'
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                      : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                  }`}
+                  className={`flex-1 rounded border px-3 py-2 text-xs font-bold transition-all ${applyMode === 'all' ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   Semua Halaman ({totalPages})
                 </button>
                 <button
                   onClick={() => setApplyMode('custom')}
-                  className={`flex-1 rounded border px-3 py-2 text-xs font-bold transition-all ${
-                    applyMode === 'custom'
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                      : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                  }`}
+                  className={`flex-1 rounded border px-3 py-2 text-xs font-bold transition-all ${applyMode === 'custom' ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   Pilih Halaman
                 </button>

@@ -9,6 +9,7 @@ import ResultCard from '../../components/ResultCard'
 import FilePreview from '../../components/FilePreview'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 
 const ASPECT_RATIOS = [
   { id: 'free', label: 'Bebas', ratio: null },
@@ -331,11 +332,11 @@ export default function ImageCropRotate() {
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setFlipH(!flipH)}
-                  className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition ${flipH ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold' : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]'}`}>
+                  className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition ${flipH ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}>
                   <FlipHorizontal size={13} /> Flip H
                 </button>
                 <button onClick={() => setFlipV(!flipV)}
-                  className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition ${flipV ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold' : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]'}`}>
+                  className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition ${flipV ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}>
                   <FlipVertical size={13} /> Flip V
                 </button>
               </div>
@@ -358,7 +359,7 @@ export default function ImageCropRotate() {
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
                 {ASPECT_RATIOS.map((item) => (
                   <button key={item.id} onClick={() => applyAspect(item.id)}
-                    className={`rounded border py-1 px-2 text-[10px] font-medium transition text-center ${aspectId === item.id ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold' : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]'}`}>
+                    className={`rounded border py-1 px-2 text-[10px] font-medium transition text-center ${aspectId === item.id ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}>
                     {item.label}
                   </button>
                 ))}
@@ -381,7 +382,7 @@ export default function ImageCropRotate() {
               <span className="font-semibold text-[--color-text-3]">Format:</span>
               {['png', 'jpg', 'webp'].map((fmt) => (
                 <button key={fmt} onClick={() => setExportFormat(fmt)}
-                  className={`rounded border px-2 py-0.5 font-bold uppercase transition ${exportFormat === fmt ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]' : 'border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3]'}`}>
+                  className={`rounded border px-2 py-0.5 font-bold uppercase transition ${exportFormat === fmt ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}>
                   {fmt}
                 </button>
               ))}

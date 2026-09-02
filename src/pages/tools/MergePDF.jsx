@@ -21,6 +21,7 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_SEG_ACTIVE, BTN_SEG_INACTIVE, BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
 
 /* ─── Helper: Convert image file to PNG Uint8Array bytes ─── */
 async function convertImageToPngBytes(file) {
@@ -737,7 +738,7 @@ export default function MergePDF() {
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                    viewMode === 'grid' ? 'bg-[--color-brand] text-white' : 'text-[--color-text-2] hover:text-[--color-text]'
+                    viewMode === 'grid' ? BTN_SEG_ACTIVE : BTN_SEG_INACTIVE
                   }`}
                 >
                   <Grid size={13} /> Visual Grid
@@ -745,7 +746,7 @@ export default function MergePDF() {
                 <button
                   onClick={() => setViewMode('file')}
                   className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
-                    viewMode === 'file' ? 'bg-[--color-brand] text-white' : 'text-[--color-text-2] hover:text-[--color-text]'
+                    viewMode === 'file' ? BTN_SEG_ACTIVE : BTN_SEG_INACTIVE
                   }`}
                 >
                   <List size={13} /> Daftar File

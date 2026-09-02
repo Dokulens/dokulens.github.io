@@ -7,6 +7,7 @@ import ResultCard from '../../components/ResultCard'
 import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_TAB_ACTIVE, BTN_TAB_INACTIVE } from '../../utils/activeButtonStyles'
 
 export default function PasswordPDF() {
   const [activeTab, setActiveTab] = useState('protect') // 'protect' | 'remove'
@@ -128,24 +129,14 @@ export default function PasswordPDF() {
       <div className="flex border-b border-[--color-border]">
         <button
           onClick={() => { setActiveTab('protect'); setResult(null); setError(''); setSuccessMsg('') }}
-          className={[
-            'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-            activeTab === 'protect'
-              ? 'border-[--color-brand] text-[--color-brand] font-semibold'
-              : 'border-transparent text-[--color-text-2] hover:text-[--color-text]',
-          ].join(' ')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'protect' ? BTN_TAB_ACTIVE : BTN_TAB_INACTIVE}`}
         >
           <Lock size={15} />
           Beri Password (Enkripsi)
         </button>
         <button
           onClick={() => { setActiveTab('remove'); setResult(null); setError(''); setSuccessMsg('') }}
-          className={[
-            'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-            activeTab === 'remove'
-              ? 'border-[--color-brand] text-[--color-brand] font-semibold'
-              : 'border-transparent text-[--color-text-2] hover:text-[--color-text]',
-          ].join(' ')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'remove' ? BTN_TAB_ACTIVE : BTN_TAB_INACTIVE}`}
         >
           <Unlock size={15} />
           Buka Kunci Password

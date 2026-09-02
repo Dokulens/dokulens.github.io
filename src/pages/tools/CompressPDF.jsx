@@ -9,6 +9,7 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_RADIO_ACTIVE, BTN_RADIO_INACTIVE } from '../../utils/activeButtonStyles'
 
 const COMPRESSION_LEVELS = [
   { label: 'Rendah (Kualitas Tinggi)', scale: 1.5, quality: 0.85, desc: 'Pengurangan ukuran ~30-50%, kualitas visual tetap sangat baik' },
@@ -112,12 +113,7 @@ export default function CompressPDF() {
               {COMPRESSION_LEVELS.map((lvl, idx) => (
                 <label
                   key={lvl.label}
-                  className={[
-                    'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                    levelIdx === idx
-                      ? 'border-[--color-brand] bg-[--color-brand-light]'
-                      : 'border-[--color-border] bg-[--color-surface] hover:border-[--color-border-strong]',
-                  ].join(' ')}
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${levelIdx === idx ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   <input
                     type="radio"

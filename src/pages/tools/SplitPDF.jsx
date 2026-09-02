@@ -7,6 +7,7 @@ import DropZone from '../../components/DropZone'
 import FilePreview from '../../components/FilePreview'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 
 export default function SplitPDF() {
   const [file, setFile] = useState(null)
@@ -136,7 +137,7 @@ export default function SplitPDF() {
         <button
           onClick={split}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className={`flex w-full items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 ${processing ? BTN_CARD_INACTIVE : BTN_CARD_ACTIVE}`}
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Memproses…' : 'Pisahkan'}

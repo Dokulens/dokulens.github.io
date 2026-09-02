@@ -15,6 +15,7 @@ import { pdfjsLib, renderPageToDataUrl, extractPageTextItems } from '../../utils
 import { addPageNumberToDocx } from '../../utils/docxNumbering'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_CHECK_ACTIVE, BTN_CHECK_INACTIVE, BTN_SEG_ACTIVE, BTN_SEG_INACTIVE } from '../../utils/activeButtonStyles'
 
 function toRoman(num, isUpper = true) {
   if (num <= 0) return String(num)
@@ -507,19 +508,59 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box (solid paper color)
+          // 1) White-out Box — detect old page number position per-page
           if (woEnabled) {
-            const woPos = getWoPosition(pageNum)
-            let woX = (woPos.x / 100) * pWidth
-            let woY = pHeight - (woPos.y / 100) * pHeight
-            if (woPos.preset.includes('center')) woX -= woWidth / 2
-            else if (woPos.preset.includes('right')) woX -= woWidth
             const paperRgb = hexToRgb(paperColor)
-            page.drawRectangle({
-              x: woX, y: woY - woHeight / 2,
-              width: woWidth, height: woHeight,
-              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-            })
+            let woDrawn = false
+
+            // Try to detect existing page number on this page
+            try {
+              const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
+              const pdfDoc = await loadingTask.promise
+              const pdfPage = await pdfDoc.getPage(pageNum)
+              const textContent = await pdfPage.getTextContent()
+              const viewport = pdfPage.getViewport({ scale: 1.0 })
+
+              for (const item of textContent.items) {
+                const str = item.str.trim()
+                if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
+                  // Convert pdfjs coords to pdf-lib coords
+                  const itemX = item.transform[4]
+                  const itemY = item.transform[5]
+                  const itemW = item.width
+                  const itemH = item.height
+                  // pdfjs Y is bottom-up, pdf-lib Y is bottom-up too
+                  const woX = itemX - 10
+                  const woY = itemY - 4
+                  const woW = Math.max(woWidth, itemW + 20)
+                  const woH = Math.max(woHeight, itemH + 8)
+
+                  page.drawRectangle({
+                    x: woX, y: woY,
+                    width: woW, height: woH,
+                    color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+                  })
+                  woDrawn = true
+                  break
+                }
+              }
+            } catch {
+              // Ignore detection errors, fall back to manual position
+            }
+
+            // Fallback: use user-set position
+            if (!woDrawn) {
+              const woPos = getWoPosition(pageNum)
+              let woX = (woPos.x / 100) * pWidth
+              let woY = pHeight - (woPos.y / 100) * pHeight
+              if (woPos.preset.includes('center')) woX -= woWidth / 2
+              else if (woPos.preset.includes('right')) woX -= woWidth
+              page.drawRectangle({
+                x: woX, y: woY - woHeight / 2,
+                width: woWidth, height: woHeight,
+                color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+              })
+            }
           }
 
           // 2) Font background (paper color behind new page number text)
@@ -644,12 +685,11 @@ export default function AddPageNumber() {
                       key={pos.id}
                       type="button"
                       onClick={() => selectPreset(pos.id)}
-                      className={[
-                        'flex flex-col items-center justify-center rounded border p-2.5 text-xs text-center transition-all',
+                      className={`flex flex-col items-center justify-center rounded border p-2.5 text-xs text-center transition-all ${
                         activePreset === pos.id
-                          ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                          : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                      ].join(' ')}
+                          ? BTN_CARD_ACTIVE
+                          : BTN_CARD_INACTIVE
+                      }`}
                     >
                       <span>{pos.label}</span>
                       <span className="text-[10px] opacity-75 font-normal">{pos.desc}</span>
@@ -670,10 +710,10 @@ export default function AddPageNumber() {
                   <button
                     type="button"
                     onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
-                    className={`rounded px-2.5 py-1 text-[11px] font-medium border transition-colors cursor-pointer ${
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                       targetPageMode === 'all'
-                        ? 'bg-[--color-brand] text-white border-[--color-brand]'
-                        : 'bg-[--color-surface-2] text-[--color-text-2] border-[--color-border] hover:bg-[--color-surface-3]'
+                        ? BTN_SEG_ACTIVE
+                        : BTN_SEG_INACTIVE
                     }`}
                   >
                     Semua Halaman
@@ -681,10 +721,10 @@ export default function AddPageNumber() {
                   <button
                     type="button"
                     onClick={() => setTargetPageMode('specific')}
-                    className={`rounded px-2.5 py-1 text-[11px] font-medium border transition-colors cursor-pointer ${
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                       targetPageMode === 'specific'
-                        ? 'bg-[--color-brand] text-white border-[--color-brand]'
-                        : 'bg-[--color-surface-2] text-[--color-text-2] border-[--color-border] hover:bg-[--color-surface-3]'
+                        ? BTN_SEG_ACTIVE
+                        : BTN_SEG_INACTIVE
                     }`}
                   >
                     Pilih Halaman Tertentu
@@ -744,8 +784,8 @@ export default function AddPageNumber() {
                             onClick={() => togglePageCheck(pNum)}
                             className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-all cursor-pointer ${
                               isChecked
-                                ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                                : 'border-[--color-border] bg-[--color-surface-2] text-[--color-text-3] hover:text-[--color-text-2]'
+                                ? BTN_CHECK_ACTIVE
+                                : BTN_CHECK_INACTIVE
                             }`}
                           >
                             <span>{isChecked ? '✓' : '✗'}</span>
@@ -918,11 +958,11 @@ export default function AddPageNumber() {
                           const active = usePerPageWo ? getWoPosition(currentPage).preset : woPreset
                           return (
                             <button key={pos.id} type="button" onClick={() => selectWoPreset(pos.id)}
-                              className={['flex flex-col items-center justify-center rounded border p-1.5 text-[11px] text-center transition-all',
+                              className={`flex flex-col items-center justify-center rounded border p-1.5 text-[11px] text-center transition-all ${
                                 active === pos.id
-                                  ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold shadow-xs'
-                                  : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]'
-                              ].join(' ')}>
+                                  ? `${BTN_CARD_ACTIVE} border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/30`
+                                  : `${BTN_CARD_INACTIVE} hover:border-[--color-border-strong]`
+                              }`}>
                               <span>{pos.label}</span>
                             </button>
                           )

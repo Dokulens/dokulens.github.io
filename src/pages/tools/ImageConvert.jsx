@@ -7,6 +7,7 @@ import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
 
 const TARGET_FORMATS = [
   { label: 'WebP (Kompresi Terbaik & Ringan)', ext: 'webp', mime: 'image/webp' },
@@ -239,12 +240,7 @@ export default function ImageConvert() {
                   key={opt.id}
                   type="button"
                   onClick={() => setResizeMode(opt.id)}
-                  className={[
-                    'rounded border py-2 px-3 text-xs font-medium transition-colors',
-                    resizeMode === opt.id
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-semibold'
-                      : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
+                  className={`rounded py-2 px-3 text-xs font-medium transition-colors ${resizeMode === opt.id ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   {opt.label}
                 </button>

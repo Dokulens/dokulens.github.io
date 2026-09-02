@@ -6,6 +6,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { stripExt } from '../../utils/helpers'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 60, 72, 96]
@@ -260,23 +261,13 @@ export default function ImageWatermark() {
             <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex gap-1.5">
               <button
                 onClick={() => { setWatermarkType('text'); requestAnimationFrame(redraw) }}
-                className={[
-                  'flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all',
-                  watermarkType === 'text'
-                    ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                    : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                ].join(' ')}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${watermarkType === 'text' ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
               >
                 <Type size={13} /> Teks
               </button>
               <button
                 onClick={() => { setWatermarkType('icon'); requestAnimationFrame(redraw) }}
-                className={[
-                  'flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all',
-                  watermarkType === 'icon'
-                    ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                    : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                ].join(' ')}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${watermarkType === 'icon' ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
               >
                 <ImageIcon size={13} /> Ikon
               </button>
@@ -313,12 +304,7 @@ export default function ImageWatermark() {
                       <button
                         key={s}
                         onClick={() => setFontSize(s)}
-                        className={[
-                          'text-[9px] font-bold px-1.5 py-0.5 rounded border transition-all',
-                          fontSize === s
-                            ? 'bg-[--color-brand] text-white border-[--color-brand]'
-                            : 'bg-[--color-surface-3] text-[--color-text-3] border-[--color-border]'
-                        ].join(' ')}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition-all ${fontSize === s ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}
                       >{s}</button>
                     ))}
                   </div>

@@ -1,0 +1,13 @@
+// Shared active/inactive button className patterns for all tools
+export const BTN_CARD_ACTIVE = 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold shadow-xs ring-1 ring-[--color-brand]/30'
+export const BTN_CARD_INACTIVE = 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3] hover:border-[--color-border-strong]'
+export const BTN_TOGGLE_ACTIVE = 'border-[--color-brand] bg-[--color-brand] text-white font-semibold shadow-xs'
+export const BTN_TOGGLE_INACTIVE = 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text-2]'
+export const BTN_SEG_ACTIVE = 'bg-[--color-brand] text-white font-semibold shadow-xs'
+export const BTN_SEG_INACTIVE = 'text-[--color-text-2] hover:text-[--color-text] hover:bg-[--color-surface-3]'
+export const BTN_TAB_ACTIVE = 'border-b-2 border-[--color-brand] text-[--color-brand] font-semibold'
+export const BTN_TAB_INACTIVE = 'border-b-2 border-transparent text-[--color-text-2] hover:text-[--color-text]'
+export const BTN_CHECK_ACTIVE = 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold shadow-xs'
+export const BTN_CHECK_INACTIVE = 'border-[--color-border] bg-[--color-surface-2] text-[--color-text-3] hover:text-[--color-text-2]'
+export const BTN_RADIO_ACTIVE = 'border-[--color-brand] bg-[--color-brand-light] ring-1 ring-[--color-brand]/30'
+export const BTN_RADIO_INACTIVE = 'border-[--color-border] bg-[--color-surface] hover:border-[--color-border-strong]'

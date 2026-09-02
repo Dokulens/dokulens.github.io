@@ -5,6 +5,7 @@ import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import { createWorker } from 'tesseract.js'
 import { inpaintWatermark } from '../../utils/watermarkRemover'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 
 const FONT_FAMILIES = [
   { id: 'Arial', label: 'Arial' },
@@ -385,11 +386,7 @@ export default function ImageEditText() {
                           key={c}
                           type="button"
                           onClick={() => setFontColor(i)}
-                          className={`w-6 h-6 rounded border-2 transition-all ${
-                            fontColor === i
-                              ? 'border-[--color-brand] ring-2 ring-[--color-brand] scale-110'
-                              : 'border-[--color-border] hover:border-[--color-text-3]'
-                          }`}
+                          className={`w-6 h-6 rounded border-2 transition-all ${fontColor === i ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                           style={{ backgroundColor: c }}
                           title={c}
                         />

@@ -7,6 +7,7 @@ import FilePreview from '../../components/FilePreview'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 import Upscaler from 'upscaler'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
 
 const SCALE_OPTIONS = [
   { value: 2, label: '2×', desc: 'Dua kali lipat' },
@@ -216,11 +217,7 @@ export default function ImageUpscaler() {
                 <button
                   key={opt.value}
                   onClick={() => setScale(opt.value)}
-                  className={`flex flex-col items-center rounded-lg border p-3 text-center transition-all ${
-                    scale === opt.value
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] font-bold shadow-xs'
-                      : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-2] hover:bg-[--color-surface]'
-                  }`}
+                  className={`flex flex-col items-center rounded-lg border p-3 text-center transition-all ${scale === opt.value ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   <span className="text-lg font-bold">{opt.label}</span>
                   <span className="text-[10px] opacity-70">{opt.desc}</span>
@@ -241,11 +238,7 @@ export default function ImageUpscaler() {
                 <button
                   key={fmt.ext}
                   onClick={() => setOutputFormat(fmt.ext)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
-                    outputFormat === fmt.ext
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand]'
-                      : 'border-[--color-border] bg-[--color-surface-3] text-[--color-text-3]'
-                  }`}
+                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${outputFormat === fmt.ext ? BTN_CARD_ACTIVE : BTN_CARD_INACTIVE}`}
                 >
                   {fmt.label}
                 </button>
