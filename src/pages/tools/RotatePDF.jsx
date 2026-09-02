@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { PDFDocument, degrees } from 'pdf-lib'
+import JSZip from 'jszip'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors,
@@ -10,7 +11,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal,
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal, Download,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -48,7 +49,6 @@ async function convertImageToPngBytes(file) {
 function SortablePageCard({ id, page, index, onRotate, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
-
   const isImg = page.type === 'image'
 
   return (
@@ -89,12 +89,10 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
           </div>
         )}
 
-        {/* Global Sequence Badge */}
         <span className="absolute top-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
           #{index + 1}
         </span>
 
-        {/* Page Origin Badge */}
         <span className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[9px] font-bold text-white shadow ${
           isImg ? 'bg-emerald-600' : 'bg-[--color-brand]'
         }`}>
@@ -120,13 +118,14 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
 }
 
 export default function RotatePDF() {
-  const [files, setFiles] = useState([]) // [{ id, file, type, firstPageWidth, firstPageHeight }]
+  const [files, setFiles] = useState([]) // [{ id, file, type, pdfjsDoc, pdfLibDoc, firstPageWidth }]
   const [pages, setPages] = useState([]) // [{ id, fileId, type, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc, file }]
-  const [widthOption, setWidthOption] = useState('original') // 'original' | 'file-0' | 'file-1' | etc.
+  const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | etc.
+  const [exportFormat, setExportFormat] = useState('pdf') // 'pdf' | 'png' | 'jpg'
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState(null) // { blob, mime, ext }
   const [error, setError] = useState('')
 
   const fileInputRef = useRef(null)
@@ -157,7 +156,6 @@ export default function RotatePDF() {
           const totalPages = pdfjsDoc.numPages
           const firstPage = pdfLibDoc.getPage(0)
           const firstPageWidth = firstPage ? firstPage.getWidth() : 595.28
-          const firstPageHeight = firstPage ? firstPage.getHeight() : 841.89
 
           addedFiles.push({
             id: fileId,
@@ -166,7 +164,6 @@ export default function RotatePDF() {
             pdfjsDoc,
             pdfLibDoc,
             firstPageWidth,
-            firstPageHeight,
           })
 
           for (let p = 0; p < totalPages; p++) {
@@ -180,17 +177,16 @@ export default function RotatePDF() {
               rotation: 0,
               preview: null,
               pdfLibDoc,
+              pdfjsDoc,
             })
           }
         } else {
           // Image File (JPG, PNG, WebP, etc.)
           const previewUrl = URL.createObjectURL(file)
           let imgW = 600
-          let imgH = 800
           try {
             const bitmap = await createImageBitmap(file)
             imgW = bitmap.width
-            imgH = bitmap.height
           } catch {
             // fallback
           }
@@ -200,7 +196,6 @@ export default function RotatePDF() {
             file,
             type: 'image',
             firstPageWidth: imgW,
-            firstPageHeight: imgH,
           })
           addedPages.push({
             id: crypto.randomUUID(),
@@ -287,9 +282,10 @@ export default function RotatePDF() {
     setResult(null)
     setError('')
     setWidthOption('original')
+    setExportFormat('pdf')
   }
 
-  /* Save & Merge PDF with page width scaling options */
+  /* Save Output in PDF or Image (PNG/JPG/ZIP) format */
   const savePDF = async () => {
     if (!pages.length) {
       setError('Tidak ada halaman tersisa untuk disimpan.')
@@ -299,92 +295,174 @@ export default function RotatePDF() {
     setError('')
 
     try {
-      const outDoc = await PDFDocument.create()
+      if (exportFormat === 'pdf') {
+        const outDoc = await PDFDocument.create()
 
-      // Calculate target page width if scaled option selected
-      let targetWidth = null
-      if (widthOption === 'a4') {
-        targetWidth = 595.28
-      } else if (widthOption === 'letter') {
-        targetWidth = 612
-      } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
-        const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
-        if (files[fileIdx] && files[fileIdx].firstPageWidth) {
-          targetWidth = files[fileIdx].firstPageWidth
+        let targetWidth = null
+        if (widthOption === 'a4') {
+          targetWidth = 595.28
+        } else if (widthOption === 'letter') {
+          targetWidth = 612
+        } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
+          const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
+          if (files[fileIdx] && files[fileIdx].firstPageWidth) {
+            targetWidth = files[fileIdx].firstPageWidth
+          }
         }
-      }
 
-      for (const pObj of pages) {
-        if (pObj.type === 'pdf') {
-          const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
-          if (pObj.rotation > 0) {
-            const origAngle = copiedPage.getRotation().angle
-            copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
-          }
-          if (targetWidth && targetWidth > 0) {
-            const curW = copiedPage.getWidth()
-            if (curW && Math.abs(curW - targetWidth) > 1) {
-              const scale = targetWidth / curW
-              copiedPage.scale(scale, scale)
+        for (const pObj of pages) {
+          if (pObj.type === 'pdf') {
+            const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
+            if (pObj.rotation > 0) {
+              const origAngle = copiedPage.getRotation().angle
+              copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
             }
-          }
-          outDoc.addPage(copiedPage)
-        } else {
-          // Embed image file into PDF page
-          let embeddedImg
-          const imgBuf = await readAsArrayBuffer(pObj.file)
-          const isJpg = pObj.file.type === 'image/jpeg' || pObj.file.name.toLowerCase().endsWith('.jpg') || pObj.file.name.toLowerCase().endsWith('.jpeg')
-          const isPng = pObj.file.type === 'image/png' || pObj.file.name.toLowerCase().endsWith('.png')
+            if (targetWidth && targetWidth > 0) {
+              const curW = copiedPage.getWidth()
+              if (curW && Math.abs(curW - targetWidth) > 1) {
+                const scale = targetWidth / curW
+                copiedPage.scale(scale, scale)
+              }
+            }
+            outDoc.addPage(copiedPage)
+          } else {
+            // Embed image file into PDF page
+            let embeddedImg
+            const imgBuf = await readAsArrayBuffer(pObj.file)
+            const isJpg = pObj.file.type === 'image/jpeg' || pObj.file.name.toLowerCase().endsWith('.jpg') || pObj.file.name.toLowerCase().endsWith('.jpeg')
+            const isPng = pObj.file.type === 'image/png' || pObj.file.name.toLowerCase().endsWith('.png')
 
-          if (isJpg) {
-            embeddedImg = await outDoc.embedJpg(imgBuf)
-          } else if (isPng) {
-            try {
-              embeddedImg = await outDoc.embedPng(imgBuf)
-            } catch {
+            if (isJpg) {
+              embeddedImg = await outDoc.embedJpg(imgBuf)
+            } else if (isPng) {
+              try {
+                embeddedImg = await outDoc.embedPng(imgBuf)
+              } catch {
+                const pngBytes = await convertImageToPngBytes(pObj.file)
+                embeddedImg = await outDoc.embedPng(pngBytes)
+              }
+            } else {
               const pngBytes = await convertImageToPngBytes(pObj.file)
               embeddedImg = await outDoc.embedPng(pngBytes)
             }
-          } else {
-            const pngBytes = await convertImageToPngBytes(pObj.file)
-            embeddedImg = await outDoc.embedPng(pngBytes)
-          }
 
-          let finalW = embeddedImg.width
-          let finalH = embeddedImg.height
+            let finalW = embeddedImg.width
+            let finalH = embeddedImg.height
 
-          if (targetWidth && targetWidth > 0 && Math.abs(finalW - targetWidth) > 1) {
-            const scale = targetWidth / finalW
-            finalW = targetWidth
-            finalH = finalH * scale
-          }
+            if (targetWidth && targetWidth > 0 && Math.abs(finalW - targetWidth) > 1) {
+              const scale = targetWidth / finalW
+              finalW = targetWidth
+              finalH = finalH * scale
+            }
 
-          const newPage = outDoc.addPage([finalW, finalH])
-          newPage.drawImage(embeddedImg, { x: 0, y: 0, width: finalW, height: finalH })
-          if (pObj.rotation > 0) {
-            newPage.setRotation(degrees(pObj.rotation))
+            const newPage = outDoc.addPage([finalW, finalH])
+            newPage.drawImage(embeddedImg, { x: 0, y: 0, width: finalW, height: finalH })
+            if (pObj.rotation > 0) {
+              newPage.setRotation(degrees(pObj.rotation))
+            }
           }
         }
-      }
 
-      const bytes = await outDoc.save()
-      setResult(new Blob([bytes], { type: 'application/pdf' }))
+        const bytes = await outDoc.save()
+        setResult({ blob: new Blob([bytes], { type: 'application/pdf' }), mime: 'application/pdf', ext: 'pdf' })
+      } else {
+        // Export to Image (PNG or JPG)
+        const isJpg = exportFormat === 'jpg'
+        const mimeType = isJpg ? 'image/jpeg' : 'image/png'
+        const ext = isJpg ? 'jpg' : 'png'
+        const pageImages = []
+
+        for (let i = 0; i < pages.length; i++) {
+          const pObj = pages[i]
+          if (pObj.type === 'pdf') {
+            const parentFile = files.find((f) => f.id === pObj.fileId)
+            const pdfDocToUse = parentFile?.pdfjsDoc || pObj.pdfjsDoc
+            if (pdfDocToUse) {
+              const { dataUrl } = await renderPageToDataUrl(pdfDocToUse, pObj.pageIndex + 1, 2.0, pObj.rotation)
+              if (isJpg) {
+                const canvas = document.createElement('canvas')
+                const img = new Image()
+                await new Promise((res) => { img.onload = res; img.src = dataUrl })
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext('2d')
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                ctx.drawImage(img, 0, 0)
+                pageImages.push(canvas.toDataURL('image/jpeg', 0.92))
+              } else {
+                pageImages.push(dataUrl)
+              }
+            }
+          } else {
+            // Image file
+            const imgUrl = URL.createObjectURL(pObj.file)
+            const img = new Image()
+            await new Promise((res) => { img.onload = res; img.src = imgUrl })
+            const canvas = document.createElement('canvas')
+            const rot = pObj.rotation || 0
+            if (rot === 90 || rot === 270) {
+              canvas.width = img.naturalHeight || img.height
+              canvas.height = img.naturalWidth || img.width
+            } else {
+              canvas.width = img.naturalWidth || img.width
+              canvas.height = img.naturalHeight || img.height
+            }
+            const ctx = canvas.getContext('2d')
+            if (isJpg) {
+              ctx.fillStyle = '#ffffff'
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+            if (rot === 90) {
+              ctx.translate(canvas.width, 0)
+              ctx.rotate(Math.PI / 2)
+            } else if (rot === 180) {
+              ctx.translate(canvas.width, canvas.height)
+              ctx.rotate(Math.PI)
+            } else if (rot === 270) {
+              ctx.translate(0, canvas.height)
+              ctx.rotate(-Math.PI / 2)
+            }
+            ctx.drawImage(img, 0, 0)
+            pageImages.push(canvas.toDataURL(mimeType, isJpg ? 0.92 : undefined))
+            URL.revokeObjectURL(imgUrl)
+          }
+        }
+
+        if (pages.length === 1) {
+          const dataUrl = pageImages[0]
+          const base64 = dataUrl.split(',')[1]
+          const binary = atob(base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          setResult({ blob: new Blob([bytes], { type: mimeType }), mime: mimeType, ext })
+        } else {
+          // Multiple pages -> zip
+          const zip = new JSZip()
+          for (let i = 0; i < pageImages.length; i++) {
+            const base64 = pageImages[i].split(',')[1]
+            zip.file(`halaman_${i + 1}.${ext}`, base64, { base64: true })
+          }
+          const zipBlob = await zip.generateAsync({ type: 'blob' })
+          setResult({ blob: zipBlob, mime: 'application/zip', ext: 'zip' })
+        }
+      }
     } catch (e) {
-      setError(`Gagal menyimpan PDF: ${e.message}`)
+      setError(`Gagal menyimpan: ${e.message}`)
     } finally {
       setProcessing(false)
     }
   }
 
   const isMultiFile = files.length > 1
-  const outputFileName = isMultiFile
-    ? 'merged_document.pdf'
-    : (files[0] ? `${stripExt(files[0].file.name)}_organize.pdf` : 'output.pdf')
+  const outputFileName = result
+    ? (result.ext === 'zip' ? 'merged_images.zip' : (result.ext === 'pdf' ? (isMultiFile ? 'merged_document.pdf' : `${stripExt(files[0]?.file?.name || 'output')}_organize.pdf`) : `halaman_1.${result.ext}`))
+    : 'output.pdf'
 
   return (
     <ToolShell
-      title="Rotate, Reorder & Merge PDF / Gambar"
-      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), atur orientasi & susunan halaman, samakan lebar halaman, dan hapus halaman yang tidak terpakai menjadi satu dokumen PDF murni."
+      title="Merge PDF / Image (Rotate & Reorder)"
+      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), atur orientasi & susunan halaman, samakan lebar halaman, dan ekspor ke format PDF atau Gambar."
     >
       <DropZone
         accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
@@ -454,14 +532,57 @@ export default function RotatePDF() {
             </div>
           </div>
 
-          {/* Page Width Option Selector (Only visible when multi-files uploaded) */}
-          {files.length > 1 && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3 space-y-2 text-xs">
+          {/* Export Format Option */}
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-semibold text-[--color-text]">
+              <Sparkles size={14} className="text-[--color-brand]" />
+              <span>Format Hasil Output (Export Format):</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="exportFormat"
+                  value="pdf"
+                  checked={exportFormat === 'pdf'}
+                  onChange={() => setExportFormat('pdf')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Dokumen PDF <span className="text-[--color-text-3]">(.pdf)</span></span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="exportFormat"
+                  value="png"
+                  checked={exportFormat === 'png'}
+                  onChange={() => setExportFormat('png')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Gambar PNG <span className="text-[--color-text-3]">{pages.length > 1 ? '(.zip)' : '(.png)'}</span></span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="exportFormat"
+                  value="jpg"
+                  checked={exportFormat === 'jpg'}
+                  onChange={() => setExportFormat('jpg')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Gambar JPG <span className="text-[--color-text-3]">{pages.length > 1 ? '(.zip)' : '(.jpg)'}</span></span>
+              </label>
+            </div>
+          </div>
+
+          {/* Page Width Option Selector (Visible when >1 files uploaded & output format is PDF) */}
+          {files.length > 1 && exportFormat === 'pdf' && (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
               <div className="flex items-center gap-2 font-semibold text-[--color-text]">
                 <SlidersHorizontal size={14} className="text-[--color-brand]" />
                 <span>Opsi Ukuran / Lebar Halaman Hasil Merge:</span>
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-[--color-text-2]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -548,10 +669,10 @@ export default function RotatePDF() {
         >
           {processing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           {processing
-            ? 'Memproses PDF...'
-            : isMultiFile
-            ? `Gabungkan & Simpan ${pages.length} Halaman`
-            : `Simpan ${pages.length} Halaman PDF Baru`}
+            ? 'Memproses Hasil...'
+            : exportFormat === 'pdf'
+            ? (isMultiFile ? `Gabungkan & Simpan ${pages.length} Halaman PDF` : `Simpan ${pages.length} Halaman PDF Baru`)
+            : `Ekspor ${pages.length} Halaman ke Format ${exportFormat.toUpperCase()} ${pages.length > 1 ? '(.ZIP)' : ''}`}
         </button>
       )}
 
@@ -559,9 +680,9 @@ export default function RotatePDF() {
       {result && (
         <ResultCard
           fileName={outputFileName}
-          blob={result}
-          extraInfo={`${pages.length} halaman ${isMultiFile ? `(digabung dari ${files.length} file)` : ''} → ${fmtBytes(result.size)}`}
-          outputMimeType="application/pdf"
+          blob={result.blob}
+          extraInfo={`${pages.length} halaman → ${fmtBytes(result.blob.size)}`}
+          outputMimeType={result.mime}
           sourceRoute="rotate-pdf"
           onReset={clearAll}
         />

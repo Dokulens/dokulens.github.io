@@ -1,15 +1,6 @@
 import { useState } from 'react'
 import { PDFDocument } from 'pdf-lib'
-import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor,
-  useSensor, useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates,
-  verticalListSortingStrategy, useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, X, Loader2 } from 'lucide-react'
+import { Loader2, FileImage } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
@@ -32,125 +23,71 @@ const DIMS = {
   letter_landscape: [792, 612],
 }
 
-function SortableItem({ id, item, index, onRemove }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-3 rounded border border-[--color-border] bg-[--color-surface] p-2"
-    >
-      <button {...attributes} {...listeners} className="cursor-grab text-[--color-text-3]">
-        <GripVertical size={16} />
-      </button>
-      <img src={item.preview} alt="" className="h-12 w-12 rounded object-cover border border-[--color-border]" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-[--color-text]">{item.file.name}</p>
-        <p className="text-xs text-[--color-text-3]">{fmtBytes(item.file.size)}</p>
-      </div>
-      <span className="text-xs text-[--color-text-3]">Hal {index + 1}</span>
-      <button onClick={() => onRemove(id)} className="text-[--color-text-3] hover:text-[--color-danger]">
-        <X size={16} />
-      </button>
-    </div>
-  )
-}
-
 export default function ImageToPDF() {
-  const [items, setItems] = useState([]) // [{id, file, preview}]
-  useIncomingFile((f) => setItems(prev => [...prev, { id: crypto.randomUUID(), file: f, preview: URL.createObjectURL(f) }]))
+  const [file, setFile] = useState(null)
+  useIncomingFile((f) => setFile(f))
   const [pageSize, setPageSize] = useState('fit')
   const [margin, setMargin] = useState(0) // pt
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
-
   const handleFiles = (files) => {
-    const newItems = files.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      preview: URL.createObjectURL(file),
-    }))
-    setItems((prev) => [...prev, ...newItems])
+    if (!files || !files.length) return
+    setFile(files[0])
     setResult(null)
     setError('')
   }
 
-  const removeItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id))
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event
-    if (active.id !== over?.id) {
-      setItems((prev) => {
-        const oldIdx = prev.findIndex((i) => i.id === active.id)
-        const newIdx = prev.findIndex((i) => i.id === over.id)
-        return arrayMove(prev, oldIdx, newIdx)
-      })
-    }
-  }
-
   const convert = async () => {
-    if (!items.length) return
+    if (!file) return
     setProcessing(true)
     setError('')
     try {
       const doc = await PDFDocument.create()
+      const buf = await readAsArrayBuffer(file)
+      const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')
 
-      for (const { file } of items) {
-        const buf = await readAsArrayBuffer(file)
-        const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')
+      let img
+      if (isPng) {
+        img = await doc.embedPng(buf)
+      } else if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+        img = await doc.embedJpg(buf)
+      } else {
+        // Fallback render to JPG canvas
+        const blobUrl = URL.createObjectURL(file)
+        const htmlImg = await new Promise((res, rej) => {
+          const i = new Image()
+          i.onload = () => res(i)
+          i.onerror = rej
+          i.src = blobUrl
+        })
+        const canvas = document.createElement('canvas')
+        canvas.width = htmlImg.naturalWidth || htmlImg.width
+        canvas.height = htmlImg.naturalHeight || htmlImg.height
+        canvas.getContext('2d').drawImage(htmlImg, 0, 0)
+        const jpgData = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92))
+        const jpgBuf = await readAsArrayBuffer(jpgData)
+        img = await doc.embedJpg(jpgBuf)
+        URL.revokeObjectURL(blobUrl)
+      }
 
-        let img
-        if (isPng) {
-          img = await doc.embedPng(buf)
-        } else {
-          // For JPG/WebP/others, convert to JPG via canvas first if needed
-          if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
-            img = await doc.embedJpg(buf)
-          } else {
-            // Fallback render to JPG canvas
-            const blobUrl = URL.createObjectURL(file)
-            const htmlImg = await new Promise((res, rej) => {
-              const i = new Image()
-              i.onload = () => res(i)
-              i.onerror = rej
-              i.src = blobUrl
-            })
-            const canvas = document.createElement('canvas')
-            canvas.width = htmlImg.naturalWidth
-            canvas.height = htmlImg.naturalHeight
-            canvas.getContext('2d').drawImage(htmlImg, 0, 0)
-            const jpgData = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92))
-            const jpgBuf = await readAsArrayBuffer(jpgData)
-            img = await doc.embedJpg(jpgBuf)
-            URL.revokeObjectURL(blobUrl)
-          }
-        }
+      const { width: imgW, height: imgH } = img.scale(1)
 
-        const { width: imgW, height: imgH } = img.scale(1)
-
-        if (pageSize === 'fit') {
-          const page = doc.addPage([imgW + margin * 2, imgH + margin * 2])
-          page.drawImage(img, { x: margin, y: margin, width: imgW, height: imgH })
-        } else {
-          const [pw, ph] = DIMS[pageSize]
-          const page = doc.addPage([pw, ph])
-          const availW = pw - margin * 2
-          const availH = ph - margin * 2
-          const scale = Math.min(availW / imgW, availH / imgH)
-          const dw = imgW * scale
-          const dh = imgH * scale
-          const x = margin + (availW - dw) / 2
-          const y = margin + (availH - dh) / 2
-          page.drawImage(img, { x, y, width: dw, height: dh })
-        }
+      if (pageSize === 'fit') {
+        const page = doc.addPage([imgW + margin * 2, imgH + margin * 2])
+        page.drawImage(img, { x: margin, y: margin, width: imgW, height: imgH })
+      } else {
+        const [pw, ph] = DIMS[pageSize]
+        const page = doc.addPage([pw, ph])
+        const availW = pw - margin * 2
+        const availH = ph - margin * 2
+        const scale = Math.min(availW / imgW, availH / imgH)
+        const dw = imgW * scale
+        const dh = imgH * scale
+        const x = margin + (availW - dw) / 2
+        const y = margin + (availH - dh) / 2
+        page.drawImage(img, { x, y, width: dw, height: dh })
       }
 
       const bytes = await doc.save()
@@ -162,23 +99,25 @@ export default function ImageToPDF() {
     }
   }
 
+  const outputName = file ? `${file.name.replace(/\.[^/.]+$/, '')}.pdf` : 'converted.pdf'
+
   return (
     <ToolShell
       title="Gambar → PDF"
-      description="Gabung gambar (JPG, PNG, WebP) menjadi satu file PDF."
+      description="Konversi 1 file gambar (JPG, PNG, WebP) menjadi dokumen PDF murni."
     >
       <DropZone
         accept="image/*,.jpg,.jpeg,.png,.webp"
-        multiple
+        multiple={false}
         onFiles={handleFiles}
-        label="Pilih atau drop file gambar"
-        hint="JPG, PNG, WebP — drag untuk mengatur urutan halaman"
+        label="Pilih atau drop 1 file gambar"
+        hint="JPG, PNG, WebP — maksimal 1 gambar per konversi"
       />
-      {items.length > 0 && <FilePreview file={items[0]?.file} />}
+      {file && <FilePreview file={file} />}
 
-      {items.length > 0 && (
+      {file && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 grid grid-cols-2 gap-4">
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
                 Ukuran Halaman
@@ -186,10 +125,12 @@ export default function ImageToPDF() {
               <select
                 value={pageSize}
                 onChange={(e) => setPageSize(e.target.value)}
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm text-[--color-text] outline-none focus:border-[--color-brand]"
               >
                 {Object.entries(PAGE_SIZES).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                  <option key={k} value={k} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
+                    {v}
+                  </option>
                 ))}
               </select>
             </div>
@@ -204,46 +145,36 @@ export default function ImageToPDF() {
                 step="5"
                 value={margin}
                 onChange={(e) => setMargin(Number(e.target.value))}
-                className="w-full mt-2"
+                className="w-full mt-2 accent-[--color-brand]"
               />
             </div>
           </div>
-
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map((it) => it.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {items.map((item, i) => (
-                  <SortableItem key={item.id} id={item.id} item={item} index={i} onRemove={removeItem} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
         </div>
       )}
 
       {error && <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">{error}</p>}
 
-      {items.length > 0 && !result && (
+      {file && !result && (
         <button
           onClick={convert}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors cursor-pointer"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
-          {processing ? 'Memproses…' : `Konversi ${items.length} Gambar ke PDF`}
+          {processing ? 'Memproses…' : 'Konversi Gambar ke PDF'}
         </button>
       )}
 
       {result && (
         <ResultCard
-          fileName="images.pdf"
+          fileName={outputName}
           blob={result}
-          extraInfo={`${items.length} gambar → ${fmtBytes(result.size)}`}
+          extraInfo={`Gambar dikonversi ke PDF → ${fmtBytes(result.size)}`}
           outputMimeType="application/pdf"
           sourceRoute="image-to-pdf"
           onReset={() => {
             setResult(null)
-            setItems([])
+            setFile(null)
           }}
         />
       )}

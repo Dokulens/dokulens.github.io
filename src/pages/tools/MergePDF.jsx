@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { PDFDocument, degrees } from 'pdf-lib'
+import JSZip from 'jszip'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors,
@@ -226,11 +227,12 @@ export default function MergePDF() {
   const [files, setFiles] = useState([]) // [{ id, file, type, totalPages, pdfDoc, pdfLibDoc, firstPageWidth, firstPageHeight, pageRangeInput }]
   const [pages, setPages] = useState([]) // [{ id, fileId, type, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc, file, enabled }]
   const [viewMode, setViewMode] = useState('grid') // 'grid' | 'file'
-  const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | 'file-1' | etc.
+  const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | etc.
+  const [exportFormat, setExportFormat] = useState('pdf') // 'pdf' | 'png' | 'jpg'
   const [loading, setLoading] = useState(false)
   const [loadProgress, setLoadProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState(null) // { blob, mime, ext }
   const [error, setError] = useState('')
 
   const fileInputRef = useRef(null)
@@ -286,6 +288,7 @@ export default function MergePDF() {
               rotation: 0,
               preview: null,
               pdfLibDoc,
+              pdfDoc: pdfjsDoc,
               enabled: true,
             })
           }
@@ -448,11 +451,12 @@ export default function MergePDF() {
     setResult(null)
     setError('')
     setWidthOption('original')
+    setExportFormat('pdf')
   }
 
   const activePages = pages.filter((p) => p.enabled)
 
-  /* ─── Merge PDF with exact page settings & page width option ─── */
+  /* ─── Merge PDF / Image Export ─── */
   const merge = async () => {
     if (activePages.length === 0) {
       setError('Tidak ada halaman aktif yang dipilih.')
@@ -462,87 +466,174 @@ export default function MergePDF() {
     setError('')
 
     try {
-      const mergedPdf = await PDFDocument.create()
+      if (exportFormat === 'pdf') {
+        const mergedPdf = await PDFDocument.create()
 
-      // Calculate target page width if scaled option selected
-      let targetWidth = null
-      if (widthOption === 'a4') {
-        targetWidth = 595.28
-      } else if (widthOption === 'letter') {
-        targetWidth = 612
-      } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
-        const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
-        if (files[fileIdx] && files[fileIdx].firstPageWidth) {
-          targetWidth = files[fileIdx].firstPageWidth
+        let targetWidth = null
+        if (widthOption === 'a4') {
+          targetWidth = 595.28
+        } else if (widthOption === 'letter') {
+          targetWidth = 612
+        } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
+          const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
+          if (files[fileIdx] && files[fileIdx].firstPageWidth) {
+            targetWidth = files[fileIdx].firstPageWidth
+          }
         }
-      }
 
-      for (const pageObj of activePages) {
-        if (pageObj.type === 'pdf') {
-          const [copiedPage] = await mergedPdf.copyPages(pageObj.pdfLibDoc, [pageObj.pageIndex])
-          if (pageObj.rotation > 0) {
-            const origAngle = copiedPage.getRotation().angle
-            copiedPage.setRotation(degrees((origAngle + pageObj.rotation) % 360))
-          }
-          if (targetWidth && targetWidth > 0) {
-            const curW = copiedPage.getWidth()
-            if (curW && Math.abs(curW - targetWidth) > 1) {
-              const scale = targetWidth / curW
-              copiedPage.scale(scale, scale)
+        for (const pageObj of activePages) {
+          if (pageObj.type === 'pdf') {
+            const [copiedPage] = await mergedPdf.copyPages(pageObj.pdfLibDoc, [pageObj.pageIndex])
+            if (pageObj.rotation > 0) {
+              const origAngle = copiedPage.getRotation().angle
+              copiedPage.setRotation(degrees((origAngle + pageObj.rotation) % 360))
             }
-          }
-          mergedPdf.addPage(copiedPage)
-        } else {
-          // Embed image file into PDF page
-          let embeddedImg
-          const imgBuf = await readAsArrayBuffer(pageObj.file)
-          const isJpg = pageObj.file.type === 'image/jpeg' || pageObj.file.name.toLowerCase().endsWith('.jpg') || pageObj.file.name.toLowerCase().endsWith('.jpeg')
-          const isPng = pageObj.file.type === 'image/png' || pageObj.file.name.toLowerCase().endsWith('.png')
+            if (targetWidth && targetWidth > 0) {
+              const curW = copiedPage.getWidth()
+              if (curW && Math.abs(curW - targetWidth) > 1) {
+                const scale = targetWidth / curW
+                copiedPage.scale(scale, scale)
+              }
+            }
+            mergedPdf.addPage(copiedPage)
+          } else {
+            // Embed image file into PDF page
+            let embeddedImg
+            const imgBuf = await readAsArrayBuffer(pageObj.file)
+            const isJpg = pageObj.file.type === 'image/jpeg' || pageObj.file.name.toLowerCase().endsWith('.jpg') || pageObj.file.name.toLowerCase().endsWith('.jpeg')
+            const isPng = pageObj.file.type === 'image/png' || pageObj.file.name.toLowerCase().endsWith('.png')
 
-          if (isJpg) {
-            embeddedImg = await mergedPdf.embedJpg(imgBuf)
-          } else if (isPng) {
-            try {
-              embeddedImg = await mergedPdf.embedPng(imgBuf)
-            } catch {
+            if (isJpg) {
+              embeddedImg = await mergedPdf.embedJpg(imgBuf)
+            } else if (isPng) {
+              try {
+                embeddedImg = await mergedPdf.embedPng(imgBuf)
+              } catch {
+                const pngBytes = await convertImageToPngBytes(pageObj.file)
+                embeddedImg = await mergedPdf.embedPng(pngBytes)
+              }
+            } else {
               const pngBytes = await convertImageToPngBytes(pageObj.file)
               embeddedImg = await mergedPdf.embedPng(pngBytes)
             }
-          } else {
-            const pngBytes = await convertImageToPngBytes(pageObj.file)
-            embeddedImg = await mergedPdf.embedPng(pngBytes)
-          }
 
-          let finalW = embeddedImg.width
-          let finalH = embeddedImg.height
+            let finalW = embeddedImg.width
+            let finalH = embeddedImg.height
 
-          if (targetWidth && targetWidth > 0 && Math.abs(finalW - targetWidth) > 1) {
-            const scale = targetWidth / finalW
-            finalW = targetWidth
-            finalH = finalH * scale
-          }
+            if (targetWidth && targetWidth > 0 && Math.abs(finalW - targetWidth) > 1) {
+              const scale = targetWidth / finalW
+              finalW = targetWidth
+              finalH = finalH * scale
+            }
 
-          const newPage = mergedPdf.addPage([finalW, finalH])
-          newPage.drawImage(embeddedImg, { x: 0, y: 0, width: finalW, height: finalH })
-          if (pageObj.rotation > 0) {
-            newPage.setRotation(degrees(pageObj.rotation))
+            const newPage = mergedPdf.addPage([finalW, finalH])
+            newPage.drawImage(embeddedImg, { x: 0, y: 0, width: finalW, height: finalH })
+            if (pageObj.rotation > 0) {
+              newPage.setRotation(degrees(pageObj.rotation))
+            }
           }
         }
-      }
 
-      const bytes = await mergedPdf.save()
-      setResult(new Blob([bytes], { type: 'application/pdf' }))
+        const bytes = await mergedPdf.save()
+        setResult({ blob: new Blob([bytes], { type: 'application/pdf' }), mime: 'application/pdf', ext: 'pdf' })
+      } else {
+        // Export to Image (PNG or JPG)
+        const isJpg = exportFormat === 'jpg'
+        const mimeType = isJpg ? 'image/jpeg' : 'image/png'
+        const ext = isJpg ? 'jpg' : 'png'
+        const pageImages = []
+
+        for (let i = 0; i < activePages.length; i++) {
+          const pageObj = activePages[i]
+          if (pageObj.type === 'pdf') {
+            const parentFile = files.find((f) => f.id === pageObj.fileId)
+            const pdfDocToUse = parentFile?.pdfDoc || pageObj.pdfDoc
+            if (pdfDocToUse) {
+              const { dataUrl } = await renderPageToDataUrl(pdfDocToUse, pageObj.pageIndex + 1, 2.0, pageObj.rotation)
+              if (isJpg) {
+                const canvas = document.createElement('canvas')
+                const img = new Image()
+                await new Promise((res) => { img.onload = res; img.src = dataUrl })
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext('2d')
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                ctx.drawImage(img, 0, 0)
+                pageImages.push(canvas.toDataURL('image/jpeg', 0.92))
+              } else {
+                pageImages.push(dataUrl)
+              }
+            }
+          } else {
+            // Image file
+            const imgUrl = URL.createObjectURL(pageObj.file)
+            const img = new Image()
+            await new Promise((res) => { img.onload = res; img.src = imgUrl })
+            const canvas = document.createElement('canvas')
+            const rot = pageObj.rotation || 0
+            if (rot === 90 || rot === 270) {
+              canvas.width = img.naturalHeight || img.height
+              canvas.height = img.naturalWidth || img.width
+            } else {
+              canvas.width = img.naturalWidth || img.width
+              canvas.height = img.naturalHeight || img.height
+            }
+            const ctx = canvas.getContext('2d')
+            if (isJpg) {
+              ctx.fillStyle = '#ffffff'
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+            if (rot === 90) {
+              ctx.translate(canvas.width, 0)
+              ctx.rotate(Math.PI / 2)
+            } else if (rot === 180) {
+              ctx.translate(canvas.width, canvas.height)
+              ctx.rotate(Math.PI)
+            } else if (rot === 270) {
+              ctx.translate(0, canvas.height)
+              ctx.rotate(-Math.PI / 2)
+            }
+            ctx.drawImage(img, 0, 0)
+            pageImages.push(canvas.toDataURL(mimeType, isJpg ? 0.92 : undefined))
+            URL.revokeObjectURL(imgUrl)
+          }
+        }
+
+        if (activePages.length === 1) {
+          const dataUrl = pageImages[0]
+          const base64 = dataUrl.split(',')[1]
+          const binary = atob(base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          setResult({ blob: new Blob([bytes], { type: mimeType }), mime: mimeType, ext })
+        } else {
+          // Multiple pages -> zip
+          const zip = new JSZip()
+          for (let i = 0; i < pageImages.length; i++) {
+            const base64 = pageImages[i].split(',')[1]
+            zip.file(`halaman_${i + 1}.${ext}`, base64, { base64: true })
+          }
+          const zipBlob = await zip.generateAsync({ type: 'blob' })
+          setResult({ blob: zipBlob, mime: 'application/zip', ext: 'zip' })
+        }
+      }
     } catch (e) {
-      setError(`Gagal menggabungkan PDF: ${e.message}`)
+      setError(`Gagal menggabungkan: ${e.message}`)
     } finally {
       setProcessing(false)
     }
   }
 
+  const isMultiFile = files.length > 1
+  const outputFileName = result
+    ? (result.ext === 'zip' ? 'merged_images.zip' : (result.ext === 'pdf' ? 'merged_output.pdf' : `halaman_1.${result.ext}`))
+    : 'merged_output.pdf'
+
   return (
     <ToolShell
       title="Merge PDF / Gambar"
-      description="Gabung beberapa file PDF dan gambar (JPG, PNG, WebP) menjadi satu dokumen PDF murni. Bebas samakan lebar halaman, atur urutan per-halaman, dan putar orientasi."
+      description="Gabung beberapa file PDF dan gambar (JPG, PNG, WebP) menjadi dokumen PDF atau Gambar. Bebas samakan lebar halaman, atur urutan per-halaman, dan ekspor ke PDF/Gambar."
     >
       <DropZone
         accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
@@ -629,8 +720,51 @@ export default function MergePDF() {
             </div>
           </div>
 
-          {/* Page Width Option Selector (Visible when >1 files uploaded) */}
-          {files.length > 1 && (
+          {/* Export Format Option */}
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-semibold text-[--color-text]">
+              <Sparkles size={14} className="text-[--color-brand]" />
+              <span>Format Hasil Output (Export Format):</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="mergeExportFormat"
+                  value="pdf"
+                  checked={exportFormat === 'pdf'}
+                  onChange={() => setExportFormat('pdf')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Dokumen PDF <span className="text-[--color-text-3]">(.pdf)</span></span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="mergeExportFormat"
+                  value="png"
+                  checked={exportFormat === 'png'}
+                  onChange={() => setExportFormat('png')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Gambar PNG <span className="text-[--color-text-3]">{activePages.length > 1 ? '(.zip)' : '(.png)'}</span></span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="mergeExportFormat"
+                  value="jpg"
+                  checked={exportFormat === 'jpg'}
+                  onChange={() => setExportFormat('jpg')}
+                  className="accent-[--color-brand]"
+                />
+                <span className="font-medium">Gambar JPG <span className="text-[--color-text-3]">{activePages.length > 1 ? '(.zip)' : '(.jpg)'}</span></span>
+              </label>
+            </div>
+          </div>
+
+          {/* Page Width Option Selector (Visible when >1 files uploaded & export format is PDF) */}
+          {files.length > 1 && exportFormat === 'pdf' && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
               <div className="flex items-center gap-2 font-semibold text-[--color-text]">
                 <SlidersHorizontal size={14} className="text-[--color-brand]" />
@@ -742,17 +876,21 @@ export default function MergePDF() {
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[--color-brand] px-4 py-3 text-sm font-bold text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors cursor-pointer shadow-md"
         >
           {processing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          {processing ? 'Menggabungkan Dokumen...' : `Gabungkan ${activePages.length} Halaman PDF`}
+          {processing
+            ? 'Memproses Hasil...'
+            : exportFormat === 'pdf'
+            ? `Gabungkan ${activePages.length} Halaman ke PDF`
+            : `Ekspor ${activePages.length} Halaman ke Format ${exportFormat.toUpperCase()} ${activePages.length > 1 ? '(.ZIP)' : ''}`}
         </button>
       )}
 
       {/* Result Card */}
       {result && (
         <ResultCard
-          fileName="merged_output.pdf"
-          blob={result}
-          extraInfo={`${activePages.length} halaman digabung dari ${files.length} file → ${fmtBytes(result.size)}`}
-          outputMimeType="application/pdf"
+          fileName={outputFileName}
+          blob={result.blob}
+          extraInfo={`${activePages.length} halaman → ${fmtBytes(result.blob.size)}`}
+          outputMimeType={result.mime}
           sourceRoute="merge-pdf"
           onReset={() => { setResult(null); setFiles([]); setPages([]) }}
         />
