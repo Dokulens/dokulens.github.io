@@ -269,8 +269,6 @@ const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled })
 
     deleteSeamH(img, seam, size)
 
-    size.w -= 1
-
     if (onIteration) {
       await onIteration({
         energyMap,
@@ -280,7 +278,9 @@ const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled })
       })
     }
 
-    await wait(0)
+    size.w -= 1
+
+    await wait(1)
   }
 }
 
@@ -304,8 +304,6 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
 
     deleteSeamV(img, seam, size)
 
-    size.h -= 1
-
     if (onIteration) {
       await onIteration({
         energyMap,
@@ -315,7 +313,9 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
       })
     }
 
-    await wait(0)
+    size.h -= 1
+
+    await wait(1)
   }
 }
 
