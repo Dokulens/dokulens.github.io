@@ -16,7 +16,6 @@ const WatermarkRemover = lazy(() => import('./pages/tools/WatermarkRemover'))
 const ObjectRemover = lazy(() => import('./pages/tools/ObjectRemover'))
 const ImageWatermark = lazy(() => import('./pages/tools/ImageWatermark'))
 const ImageCropRotate = lazy(() => import('./pages/tools/ImageCropRotate'))
-const ImageCarver = lazy(() => import('./pages/tools/ImageCarver'))
 const ImageToPDF = lazy(() => import('./pages/tools/ImageToPDF'))
 const PDFToImage = lazy(() => import('./pages/tools/PDFToImage'))
 const RotatePDF = lazy(() => import('./pages/tools/RotatePDF'))
@@ -54,7 +53,6 @@ export default function App() {
               <Route path="image-watermark" element={<ImageWatermark />} />
               <Route path="object-remover" element={<ObjectRemover />} />
               <Route path="image-crop-rotate" element={<ImageCropRotate />} />
-              <Route path="image-carver" element={<ImageCarver />} />
               <Route path="image-to-pdf" element={<ImageToPDF />} />
               <Route path="pdf-to-image" element={<PDFToImage />} />
               <Route path="rotate-pdf" element={<RotatePDF />} />

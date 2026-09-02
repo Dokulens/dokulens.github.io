@@ -9,13 +9,6 @@ const LIBRARIES = [
     license: 'MIT',
   },
   {
-    name: 'js-image-carver (Seam Carving Algorithm)',
-    category: 'Content-Aware Image Resizing',
-    desc: 'Algoritma Dual-Gradient Energy & Dynamic Programming untuk resize foto cerdas tanpa distorsi dan penghapusan objek bertarget.',
-    link: 'https://github.com/trekhleb/js-image-carver',
-    license: 'MIT',
-  },
-  {
     name: 'pdf-lib & @cantoo/pdf-lib',
     category: 'Manipulasi & Enkripsi PDF',
     desc: 'Membuat, menggabungkan, membagi, memutar, memberi watermark, nomor halaman, dan menerapkan enkripsi password dokumen PDF standar.',
