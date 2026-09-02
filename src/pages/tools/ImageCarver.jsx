@@ -123,7 +123,15 @@ export default function ImageCarver() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    ctx.putImageData(img, 0, 0, 0, 0, w, h)
+    const frame = ctx.createImageData(w, h)
+    for (let y = 0; y < h; y += 1) {
+      const srcStart = y * img.width * 4
+      const srcEnd = srcStart + w * 4
+      const dstStart = y * w * 4
+      frame.data.set(img.data.subarray(srcStart, srcEnd), dstStart)
+    }
+
+    ctx.putImageData(frame, 0, 0)
 
     setEnergyMap(nrgMap)
     setSeam(currentSeam)
@@ -141,13 +149,13 @@ export default function ImageCarver() {
     setIsResizing(true)
     isCancelledRef.current = false
 
-    let w = useNaturalSize ? srcImg.naturalWidth : srcImg.width
-    let h = useNaturalSize ? srcImg.naturalHeight : srcImg.height
+    let w = useNaturalSize ? (srcImg.naturalWidth || srcImg.width) : (srcImg.width || srcImg.naturalWidth)
+    let h = useNaturalSize ? (srcImg.naturalHeight || srcImg.height) : (srcImg.height || srcImg.naturalHeight)
     const ratio = w / h
 
     setOriginalImgViewSize({
-      w: srcImg.width,
-      h: srcImg.height,
+      w: srcImg.width || w,
+      h: srcImg.height || h,
     })
 
     if (w > MAX_WIDTH_LIMIT) {
