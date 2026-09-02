@@ -22,12 +22,6 @@ import { useIncomingFile } from '../../hooks/useIncomingFile'
 export default function ImageCarver() {
   const [imageSrc, setImageSrc] = useState(null)
   useIncomingFile((f) => {
-    setFile(f)
-    onReset()
-    setToWidthScale(80)
-    setToHeightScale(90)
-    setHasMask(false)
-    setMaskCanvasElement(null)
     const url = URL.createObjectURL(f)
     setImageSrc(url)
   })
@@ -117,19 +111,6 @@ export default function ImageCarver() {
       ctx.drawImage(maskCanvasElement, 0, 0, canvas.width, canvas.height)
     }
   }
-
-  useEffect(() => {
-    if (imageSrc && workingCanvasRef.current && imgRef.current) {
-      const w = imgRef.current.naturalWidth
-      const h = imgRef.current.naturalHeight
-      if (w && h) {
-        workingCanvasRef.current.width = w
-        workingCanvasRef.current.height = h
-        const ctx = workingCanvasRef.current.getContext('2d')
-        ctx.drawImage(imgRef.current, 0, 0, w, h)
-      }
-    }
-  }, [imageSrc])
 
   useEffect(() => {
     renderOriginalOverlayMask()
@@ -227,12 +208,11 @@ export default function ImageCarver() {
 
   const startCarving = async () => {
     if (!imgRef.current || isResizing) return
-    setResizedImgSrc(null)
-    setProgress(0)
-    setError('')
-    setCarvePhase('')
+    onReset()
     setIsResizing(true)
     isCancelledRef.current = false
+    setError('')
+    setCarvePhase('')
 
     const srcImg = imgRef.current
     let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
@@ -320,7 +300,12 @@ export default function ImageCarver() {
         outCanvas.height = res.size.h
         const outCtx = outCanvas.getContext('2d')
         outCtx.putImageData(res.img, 0, 0, 0, 0, res.size.w, res.size.h)
-        setResizedImgSrc(outCanvas.toDataURL('image/png'))
+
+        outCanvas.toBlob((blob) => {
+          if (blob) {
+            setResizedImgSrc(URL.createObjectURL(blob))
+          }
+        }, 'image/png')
       }
     } catch (e) {
       setError(`Gagal: ${e.message}`)
