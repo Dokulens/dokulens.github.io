@@ -519,43 +519,49 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box — detect old page number per-page, cover at exact position
-          if (woEnabled && pdfjsDoc) {
-            try {
-              const pdfPage = await pdfjsDoc.getPage(pageNum)
-              const textContent = await pdfPage.getTextContent()
-              const paperRgb = hexToRgb(paperColor)
-
-              for (const item of textContent.items) {
-                const str = item.str.trim()
-                if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
-                  const itemX = item.transform[4]
-                  const itemY = item.transform[5]
-                  const itemW = item.width
-                  const itemH = item.height
-                  page.drawRectangle({
-                    x: itemX - 10, y: itemY - 4,
-                    width: Math.max(woWidth, itemW + 20),
-                    height: Math.max(woHeight, itemH + 8),
-                    color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-                  })
-                  break
-                }
-              }
-            } catch { /* ignore per-page errors */ }
-          } else if (woEnabled) {
-            // Fallback: manual position
+          // 1) White-out Box — detect old page number per-page, fallback to manual position
+          if (woEnabled) {
             const paperRgb = hexToRgb(paperColor)
-            const woPos = getWoPosition(pageNum)
-            let woX = (woPos.x / 100) * pWidth
-            let woY = pHeight - (woPos.y / 100) * pHeight
-            if (woPos.preset.includes('center')) woX -= woWidth / 2
-            else if (woPos.preset.includes('right')) woX -= woWidth
-            page.drawRectangle({
-              x: woX, y: woY - woHeight / 2,
-              width: woWidth, height: woHeight,
-              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-            })
+            let woDrawn = false
+
+            // Try auto-detect via pdfjs
+            if (pdfjsDoc) {
+              try {
+                const pdfPage = await pdfjsDoc.getPage(pageNum)
+                const textContent = await pdfPage.getTextContent()
+                for (const item of textContent.items) {
+                  const str = item.str.trim()
+                  if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
+                    const itemX = item.transform[4]
+                    const itemY = item.transform[5]
+                    const itemW = item.width
+                    const itemH = item.height
+                    page.drawRectangle({
+                      x: itemX - 10, y: itemY - 4,
+                      width: Math.max(woWidth, itemW + 20),
+                      height: Math.max(woHeight, itemH + 8),
+                      color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+                    })
+                    woDrawn = true
+                    break
+                  }
+                }
+              } catch { /* ignore per-page errors */ }
+            }
+
+            // Fallback: manual position
+            if (!woDrawn) {
+              const woPos = getWoPosition(pageNum)
+              let woX = (woPos.x / 100) * pWidth
+              let woY = pHeight - (woPos.y / 100) * pHeight
+              if (woPos.preset.includes('center')) woX -= woWidth / 2
+              else if (woPos.preset.includes('right')) woX -= woWidth
+              page.drawRectangle({
+                x: woX, y: woY - woHeight / 2,
+                width: woWidth, height: woHeight,
+                color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+              })
+            }
           }
 
           // 2) Font background (paper color behind new page number text)
