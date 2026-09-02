@@ -16,6 +16,7 @@ import {
   inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
+import { magicWandAppend } from '../../utils/magicWand'
 import { fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -31,6 +32,9 @@ export default function WatermarkRemover() {
   const [brushSize, setBrushSize] = useState(24)
   const [inpaintRadius, setInpaintRadius] = useState(5)
   const [hasMask, setHasMask] = useState(false)
+  const [maskTool, setMaskTool] = useState('brush') // 'brush' | 'wand'
+  const [tolerance, setTolerance] = useState(32)
+  const [history, setHistory] = useState([])
 
   // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
@@ -177,6 +181,54 @@ export default function WatermarkRemover() {
 
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
+  }
+
+  const handleModalCanvasMouseDown = (e) => {
+    if (maskTool === 'wand') {
+      if (!modalCanvasRef.current || !modalImgRef.current) return
+      const canvas = modalCanvasRef.current
+      const img = modalImgRef.current
+
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      const startX = Math.floor((e.clientX - rect.left) * scaleX)
+      const startY = Math.floor((e.clientY - rect.top) * scaleY)
+
+      const snapshot = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
+      setHistory((prev) => [...prev, snapshot])
+
+      const offCanvas = document.createElement('canvas')
+      offCanvas.width = canvas.width
+      offCanvas.height = canvas.height
+      const imgCtx = offCanvas.getContext('2d', { willReadFrequently: true })
+      imgCtx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      const selCtx = canvas.getContext('2d')
+
+      magicWandAppend({
+        imgCtx,
+        selCtx,
+        width: canvas.width,
+        height: canvas.height,
+        startX,
+        startY,
+        tolerance,
+        maskColor: { r: 239, g: 68, b: 68, a: 216 }
+      })
+
+      setHasMask(true)
+    } else {
+      startModalPaint(e)
+    }
+  }
+
+  const handleUndoSelection = () => {
+    if (history.length === 0 || !modalCanvasRef.current) return
+    const selCtx = modalCanvasRef.current.getContext('2d')
+    const last = history[history.length - 1]
+    selCtx.putImageData(last, 0, 0)
+    setHistory((prev) => prev.slice(0, -1))
   }
 
   const startModalPaint = (e) => {
@@ -872,13 +924,74 @@ export default function WatermarkRemover() {
 
                 {/* Body */}
                 <div className="px-5 py-4 space-y-3">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Pilih alat seleksi lalu tandai area watermark yang ingin dihapus.
+                  </p>
 
-                  {/* Brush Size */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
-                    <input type="range" min="6" max="80" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
-                    <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
+                  {/* Mode & Tools Selector */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/60 p-2.5">
+                    <div className="flex items-center gap-1 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setMaskTool('brush')}
+                        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                          maskTool === 'brush'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Paintbrush size={13} /> Kuas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMaskTool('wand')}
+                        className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                          maskTool === 'wand'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Wand2 size={13} /> Magic Wand
+                      </button>
+                    </div>
+
+                    {maskTool === 'brush' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
+                        <input
+                          type="range"
+                          min="6"
+                          max="80"
+                          value={brushSize}
+                          onChange={(e) => setBrushSize(Number(e.target.value))}
+                          className="h-1.5 w-24 sm:w-28 accent-blue-600"
+                        />
+                        <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Toleransi (0-150):</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="150"
+                            value={tolerance}
+                            onChange={(e) => setTolerance(Number(e.target.value))}
+                            className="h-1.5 w-24 sm:w-28 accent-blue-600"
+                          />
+                          <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-6">{tolerance}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleUndoSelection}
+                          disabled={history.length === 0}
+                          className="rounded bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          ↩ Undo
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Preview Canvas */}
@@ -912,11 +1025,11 @@ export default function WatermarkRemover() {
                         <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[60vh] max-w-full rounded pointer-events-none" />
                         <canvas
                           ref={modalCanvasRef}
-                          onMouseDown={startModalPaint}
+                          onMouseDown={handleModalCanvasMouseDown}
                           onMouseMove={paintModal}
                           onMouseUp={stopModalPaint}
                           onMouseLeave={stopModalPaint}
-                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
+                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded cursor-crosshair"
                           style={{ width: '100%', height: '100%' }}
                         />
                       </div>
