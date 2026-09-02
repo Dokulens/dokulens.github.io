@@ -654,48 +654,57 @@ export default function AddPageNumber() {
           )}
 
           {/* Settings Grid */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-5">
+          <div className="space-y-4">
             
             {/* STEP 1: Position */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-[--color-border]">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[--color-brand] text-[10px] font-bold text-white">1</div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text]">Posisi Nomor Halaman</h3>
+            <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-brand] text-sm font-bold text-white shrink-0">1</div>
+                <div>
+                  <h3 className="text-sm font-bold text-[--color-text]">Posisi Nomor Halaman</h3>
+                  <p className="text-[11px] text-[--color-text-3]">Pilih letak nomor di halaman</p>
+                </div>
                 {fileType === 'pdf' && (
-                  <label className="flex items-center gap-1.5 text-[10px] text-[--color-text-3] cursor-pointer ml-auto">
+                  <label className="flex items-center gap-2 text-xs text-[--color-brand] cursor-pointer ml-auto bg-[--color-brand-light] px-3 py-1.5 rounded-full">
                     <input
                       type="checkbox"
                       checked={usePerPagePosition}
                       onChange={(e) => setUsePerPagePosition(e.target.checked)}
                       className="accent-[--color-brand]"
                     />
-                    <span>Beda per Halaman</span>
+                    <span className="font-semibold">Beda tiap halaman</span>
                   </label>
                 )}
               </div>
               
               {usePerPagePosition && (
-                <div className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-1 rounded w-fit">
-                  Hal {currentPage}: {getPagePosition(currentPage).preset === 'custom' ? `${getPagePosition(currentPage).x}%, ${getPagePosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getPagePosition(currentPage).preset)?.label || 'Custom'}
+                <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-[11px] text-blue-700 dark:text-blue-300">
+                  <strong>Sedang mengatur Halaman {currentPage}:</strong> {getPagePosition(currentPage).preset === 'custom' ? `Posisi kustom (${getPagePosition(currentPage).x}%, ${getPagePosition(currentPage).y}%)` : POSITION_PRESETS.find(p => p.id === getPagePosition(currentPage).preset)?.label || 'Custom'}
                 </div>
               )}
               
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 {POSITION_PRESETS.map((pos) => {
                   const activePreset = usePerPagePosition ? getPagePosition(currentPage).preset : positionPreset
+                  const isActive = activePreset === pos.id
                   return (
                     <button
                       key={pos.id}
                       type="button"
                       onClick={() => selectPreset(pos.id)}
-                      className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-xs text-center transition-all ${
-                        activePreset === pos.id
-                          ? BTN_CARD_ACTIVE
-                          : BTN_CARD_INACTIVE
+                      className={`relative flex flex-col items-center justify-center rounded-xl border-2 p-3 text-xs text-center transition-all ${
+                        isActive
+                          ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] shadow-md'
+                          : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:border-[--color-border-strong] hover:bg-[--color-surface-3]'
                       }`}
                     >
-                      <span className="font-medium">{pos.label}</span>
-                      <span className="text-[10px] opacity-70 mt-0.5">{pos.desc}</span>
+                      {isActive && (
+                        <div className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-[--color-brand] flex items-center justify-center">
+                          <span className="text-white text-[10px]">✓</span>
+                        </div>
+                      )}
+                      <span className="font-semibold text-sm">{pos.label}</span>
+                      <span className="text-[10px] opacity-70 mt-1">{pos.desc}</span>
                     </button>
                   )
                 })}
@@ -703,80 +712,88 @@ export default function AddPageNumber() {
             </div>
 
             {/* STEP 2: Which Pages */}
-            <div className="space-y-3 pt-2 border-t border-[--color-border]">
-              <div className="flex items-center gap-2 pb-2 border-b border-[--color-border]">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[--color-brand] text-[10px] font-bold text-white">2</div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text]">Halaman yang Diberi Nomor</h3>
-                <span className="ml-auto text-[10px] font-semibold text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
-                  {getIncludedPagesList().length} dari {totalPages} halaman
-                </span>
+            <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-brand] text-sm font-bold text-white shrink-0">2</div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-[--color-text]">Halaman yang Diberi Nomor</h3>
+                  <p className="text-[11px] text-[--color-text-3]">Pilih halaman mana saja yang akan diberi nomor</p>
+                </div>
+                <div className="text-xs font-bold text-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 rounded-full">
+                  {getIncludedPagesList().length} / {totalPages} halaman
+                </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                     targetPageMode === 'all'
-                      ? BTN_SEG_ACTIVE
-                      : BTN_SEG_INACTIVE
+                      ? 'bg-[--color-brand] text-white shadow-md'
+                      : 'bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-surface-3] border border-[--color-border]'
                   }`}
                 >
-                  Semua Halaman
+                  ✓ Semua Halaman
                 </button>
                 <button
                   type="button"
                   onClick={() => setTargetPageMode('specific')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                     targetPageMode === 'specific'
-                      ? BTN_SEG_ACTIVE
-                      : BTN_SEG_INACTIVE
+                      ? 'bg-[--color-brand] text-white shadow-md'
+                      : 'bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-surface-3] border border-[--color-border]'
                   }`}
                 >
-                  Pilih Tertentu
+                  ⚙️ Pilih Sendiri
                 </button>
               </div>
 
               {targetPageMode === 'specific' && (
-                <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-[--color-text-2] shrink-0">Rentang:</span>
-                    <input
-                      type="text"
-                      value={targetPagesInput}
-                      onChange={(e) => setTargetPagesInput(e.target.value)}
-                      placeholder="Contoh: 2-5, 8, 10-12"
-                      className="flex-1 min-w-[160px] rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
-                    />
+                <div className="rounded-xl bg-[--color-surface-2] p-4 border border-[--color-border] space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[--color-text-2] mb-1.5">
+                      Rentang Halaman (ketik nomor atau range)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={targetPagesInput}
+                        onChange={(e) => setTargetPagesInput(e.target.value)}
+                        placeholder="Contoh: 2-5, 8, 10-12"
+                        className="flex-1 rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('2-' + totalPages)}
-                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
                     >
-                      Lewati Hal 1
+                      Lewati Halaman 1
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('ganjil')}
-                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
                     >
-                      Ganjil Saja
+                      Halaman Ganjil
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('genap')}
-                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
                     >
-                      Genap Saja
+                      Halaman Genap
                     </button>
                   </div>
 
                   {/* Visual Checklist Grid */}
-                  <div className="space-y-1.5 pt-2 border-t border-[--color-border]/60">
-                    <div className="text-[11px] text-[--color-text-3] mb-1">Klik untuk centang/batal:</div>
-                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-[--color-surface] rounded border border-[--color-border]">
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-[--color-text-2]">Klik halaman untuk memilih:</div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-[--color-surface] rounded-xl border border-[--color-border]">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
                         const isChecked = getIncludedPagesList().includes(pNum)
                         return (
@@ -784,14 +801,14 @@ export default function AddPageNumber() {
                             key={pNum}
                             type="button"
                             onClick={() => togglePageCheck(pNum)}
-                            className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-all cursor-pointer ${
+                            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-all cursor-pointer ${
                               isChecked
-                                ? BTN_CHECK_ACTIVE
-                                : BTN_CHECK_INACTIVE
+                                ? 'border-[--color-brand] bg-[--color-brand] text-white shadow-sm'
+                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] hover:border-[--color-border-strong]'
                             }`}
                           >
                             <span>{isChecked ? '✓' : '○'}</span>
-                            <span>Hal {pNum}</span>
+                            <span>{pNum}</span>
                           </button>
                         )
                       })}
