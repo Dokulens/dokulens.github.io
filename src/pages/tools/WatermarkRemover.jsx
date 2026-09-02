@@ -215,10 +215,18 @@ export default function WatermarkRemover() {
   }
 
   const saveModalMask = () => {
-    if (modalCanvasRef.current && maskCanvasRef.current) {
-      const ctx = maskCanvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height)
-      ctx.drawImage(modalCanvasRef.current, 0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height)
+    if (modalCanvasRef.current) {
+      const w = origDims.w || modalCanvasRef.current.width
+      const h = origDims.h || modalCanvasRef.current.height
+
+      if (maskCanvasRef.current) {
+        maskCanvasRef.current.width = w
+        maskCanvasRef.current.height = h
+        const ctx = maskCanvasRef.current.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        ctx.drawImage(modalCanvasRef.current, 0, 0, w, h)
+      }
+      setHasMask(true)
     }
     setIsModalOpen(false)
   }
@@ -353,8 +361,19 @@ export default function WatermarkRemover() {
         }
       } else {
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const maskCtx = maskCanvasRef.current.getContext('2d')
-        const maskImgData = maskCtx.getImageData(0, 0, canvas.width, canvas.height)
+
+        const mCanvas = document.createElement('canvas')
+        mCanvas.width = canvas.width
+        mCanvas.height = canvas.height
+        const mCtx = mCanvas.getContext('2d')
+
+        if (modalCanvasRef.current) {
+          mCtx.drawImage(modalCanvasRef.current, 0, 0, canvas.width, canvas.height)
+        } else if (maskCanvasRef.current) {
+          mCtx.drawImage(maskCanvasRef.current, 0, 0, canvas.width, canvas.height)
+        }
+
+        const maskImgData = mCtx.getImageData(0, 0, canvas.width, canvas.height)
         inpaintWatermark(imgData, maskImgData.data, inpaintRadius)
         ctx.putImageData(imgData, 0, 0)
       }
@@ -651,7 +670,18 @@ export default function WatermarkRemover() {
                     />
                     {removalMode === 'inpaint' && (
                       <canvas
-                        ref={maskCanvasRef}
+                        ref={(el) => {
+                          maskCanvasRef.current = el
+                          if (el && origDims.w > 0) {
+                            el.width = origDims.w
+                            el.height = origDims.h
+                            if (modalCanvasRef.current) {
+                              const ctx = el.getContext('2d')
+                              ctx.clearRect(0, 0, origDims.w, origDims.h)
+                              ctx.drawImage(modalCanvasRef.current, 0, 0, origDims.w, origDims.h)
+                            }
+                          }
+                        }}
                         className="absolute top-0 left-0 block pointer-events-none opacity-80 rounded"
                         style={{ width: '100%', height: '100%' }}
                       />
