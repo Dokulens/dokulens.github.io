@@ -837,7 +837,7 @@ export default function AddPageNumber() {
 
               {/* Per-page format toggle */}
               {fileType === 'pdf' && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer">
                     <input
                       type="checkbox"
@@ -855,6 +855,39 @@ export default function AddPageNumber() {
                     />
                     <span className="font-semibold">Custom Format per Halaman</span>
                   </label>
+                  {/* Show which pages have custom formats */}
+                  {Object.keys(perPageFormatOverrides).length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                      <span className="text-[--color-text-3]">Halaman dengan format berbeda:</span>
+                      {Object.entries(perPageFormatOverrides)
+                        .sort(([a], [b]) => Number(a) - Number(b))
+                        .map(([pageNum, override]) => (
+                          <span 
+                            key={pageNum}
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono ${
+                              Number(pageNum) === currentPage 
+                                ? 'bg-[--color-brand] text-white' 
+                                : 'bg-[--color-brand-light] text-[--color-brand]'
+                            }`}
+                          >
+                            {pageNum}
+                            <button
+                              onClick={() => {
+                                setPerPageFormatOverrides(prev => {
+                                  const next = { ...prev }
+                                  delete next[pageNum]
+                                  return next
+                                })
+                              }}
+                              className="hover:text-red-400 cursor-pointer"
+                              title="Hapus custom format halaman ini"
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </div>
               )}
 
