@@ -1103,7 +1103,7 @@ export default function AddPageNumber() {
                             transform: 'translate(-50%, -50%)',
                             backgroundColor: coverExistingNumber ? paperColor : undefined,
                             color: fontColor,
-                            fontSize: `${Math.max(9, Math.round(fontSize * pageDimensions.height / 500))}px`,
+                            fontSize: `${Math.max(8, Math.round(fontSize * 500 / pageDimensions.height))}px`,
                             fontWeight: isBold ? 'bold' : 'normal',
                             fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
                             lineHeight: 1.1,
