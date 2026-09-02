@@ -133,6 +133,7 @@ export default function AddPageNumber() {
   const [targetPagesInput, setTargetPagesInput] = useState('Semua')
   const [perPageOverrides, setPerPageOverrides] = useState({})
   const [perPageFormatOverrides, setPerPageFormatOverrides] = useState({})
+  const [perPageFormatRange, setPerPageFormatRange] = useState('')
   const [usePerPagePosition, setUsePerPagePosition] = useState(false)
   const [perPagePositionOverrides, setPerPagePositionOverrides] = useState({})
 
@@ -162,6 +163,7 @@ export default function AddPageNumber() {
     setCurrentPage(1)
     setPerPageOverrides({})
     setPerPageFormatOverrides({})
+    setPerPageFormatRange('')
     setPerPagePositionOverrides({})
     setPerPageWoOverrides({})
     setUsePerPagePosition(false)
@@ -845,47 +847,61 @@ export default function AddPageNumber() {
                       onChange={(e) => {
                         if (!e.target.checked) {
                           setPerPageFormatOverrides({})
+                          setPerPageFormatRange('')
                         } else {
-                          // Initialize with current format for current page
                           setPerPageFormatOverrides({
                             [currentPage]: { formatId, customTemplate }
                           })
+                          setPerPageFormatRange(String(currentPage))
                         }
                       }}
                     />
-                    <span className="font-semibold">Custom Format per Halaman</span>
+                    <span className="font-semibold">Custom Format per Range Halaman</span>
                   </label>
-                  {/* Show which pages have custom formats */}
+                  
+                  {/* Range input for format */}
                   {Object.keys(perPageFormatOverrides).length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                      <span className="text-[--color-text-3]">Halaman dengan format berbeda:</span>
-                      {Object.entries(perPageFormatOverrides)
-                        .sort(([a], [b]) => Number(a) - Number(b))
-                        .map(([pageNum, override]) => (
-                          <span 
-                            key={pageNum}
-                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono ${
-                              Number(pageNum) === currentPage 
-                                ? 'bg-[--color-brand] text-white' 
-                                : 'bg-[--color-brand-light] text-[--color-brand]'
-                            }`}
-                          >
-                            {pageNum}
-                            <button
-                              onClick={() => {
-                                setPerPageFormatOverrides(prev => {
-                                  const next = { ...prev }
-                                  delete next[pageNum]
-                                  return next
-                                })
-                              }}
-                              className="hover:text-red-400 cursor-pointer"
-                              title="Hapus custom format halaman ini"
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={perPageFormatRange}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setPerPageFormatRange(val)
+                            // Parse range and update overrides
+                            const pages = parsePageRange(val, totalPages)
+                            const newOverrides = {}
+                            pages.forEach(idx => {
+                              const pageNum = idx + 1
+                              newOverrides[pageNum] = perPageFormatOverrides[pageNum] || { formatId, customTemplate }
+                            })
+                            setPerPageFormatOverrides(newOverrides)
+                          }}
+                          placeholder="Contoh: 1-5, 8, 10-12"
+                          className="flex-1 rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                        />
+                        <span className="text-[10px] text-[--color-text-3] whitespace-nowrap">
+                          {Object.keys(perPageFormatOverrides).length} halaman
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                        <span className="text-[--color-text-3]">Halaman:</span>
+                        {Object.keys(perPageFormatOverrides)
+                          .sort((a, b) => Number(a) - Number(b))
+                          .map(pageNum => (
+                            <span 
+                              key={pageNum}
+                              className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono ${
+                                Number(pageNum) === currentPage 
+                                  ? 'bg-[--color-brand] text-white' 
+                                  : 'bg-[--color-brand-light] text-[--color-brand]'
+                              }`}
                             >
-                              <X size={10} />
-                            </button>
-                          </span>
-                        ))}
+                              {pageNum}
+                            </span>
+                          ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -896,7 +912,7 @@ export default function AddPageNumber() {
                 <div className="col-span-full border-t border-[--color-border] pt-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-[--color-text-2]">
-                      Format Halaman {currentPage}
+                      Format untuk Range Halaman
                     </label>
                     <span className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-0.5 rounded">
                       {perPageFormatOverrides[currentPage] 
@@ -908,15 +924,21 @@ export default function AddPageNumber() {
                     value={perPageFormatOverrides[currentPage]?.formatId || formatId}
                     onChange={(e) => {
                       const newFormatId = e.target.value
-                      setPerPageFormatOverrides(prev => ({
-                        ...prev,
-                        [currentPage]: { 
-                          formatId: newFormatId, 
-                          customTemplate: newFormatId === 'custom' 
-                            ? (prev[currentPage]?.customTemplate || customTemplate || '{n}')
-                            : (FORMAT_TEMPLATES.find(f => f.id === newFormatId)?.template || '{n}')
-                        }
-                      }))
+                      const newCustomTemplate = newFormatId === 'custom' 
+                        ? (perPageFormatOverrides[currentPage]?.customTemplate || customTemplate || '{n}')
+                        : (FORMAT_TEMPLATES.find(f => f.id === newFormatId)?.template || '{n}')
+                      
+                      // Apply to all pages in the range
+                      setPerPageFormatOverrides(prev => {
+                        const next = { ...prev }
+                        Object.keys(next).forEach(pageNum => {
+                          next[pageNum] = { 
+                            formatId: newFormatId, 
+                            customTemplate: newCustomTemplate
+                          }
+                        })
+                        return next
+                      })
                     }}
                     className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
                   >
@@ -931,13 +953,18 @@ export default function AddPageNumber() {
                       type="text"
                       value={perPageFormatOverrides[currentPage]?.customTemplate || customTemplate || '{n}'}
                       onChange={(e) => {
-                        setPerPageFormatOverrides(prev => ({
-                          ...prev,
-                          [currentPage]: { 
-                            ...prev[currentPage],
-                            customTemplate: e.target.value 
-                          }
-                        }))
+                        const newTemplate = e.target.value
+                        // Apply to all pages in the range
+                        setPerPageFormatOverrides(prev => {
+                          const next = { ...prev }
+                          Object.keys(next).forEach(pageNum => {
+                            next[pageNum] = { 
+                              ...next[pageNum],
+                              customTemplate: newTemplate
+                            }
+                          })
+                          return next
+                        })
                       }}
                       placeholder="Contoh: Hal {n} dari {total}"
                       className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
