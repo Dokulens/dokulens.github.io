@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText,
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -120,8 +120,9 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
 }
 
 export default function RotatePDF() {
-  const [files, setFiles] = useState([]) // [{ id, file, type }]
+  const [files, setFiles] = useState([]) // [{ id, file, type, firstPageWidth, firstPageHeight }]
   const [pages, setPages] = useState([]) // [{ id, fileId, type, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc, file }]
+  const [widthOption, setWidthOption] = useState('original') // 'original' | 'file-0' | 'file-1' | etc.
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
@@ -154,6 +155,9 @@ export default function RotatePDF() {
           const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf.slice(0)) }).promise
           const pdfLibDoc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
           const totalPages = pdfjsDoc.numPages
+          const firstPage = pdfLibDoc.getPage(0)
+          const firstPageWidth = firstPage ? firstPage.getWidth() : 595.28
+          const firstPageHeight = firstPage ? firstPage.getHeight() : 841.89
 
           addedFiles.push({
             id: fileId,
@@ -161,6 +165,8 @@ export default function RotatePDF() {
             type: 'pdf',
             pdfjsDoc,
             pdfLibDoc,
+            firstPageWidth,
+            firstPageHeight,
           })
 
           for (let p = 0; p < totalPages; p++) {
@@ -179,10 +185,22 @@ export default function RotatePDF() {
         } else {
           // Image File (JPG, PNG, WebP, etc.)
           const previewUrl = URL.createObjectURL(file)
+          let imgW = 600
+          let imgH = 800
+          try {
+            const bitmap = await createImageBitmap(file)
+            imgW = bitmap.width
+            imgH = bitmap.height
+          } catch {
+            // fallback
+          }
+
           addedFiles.push({
             id: fileId,
             file,
             type: 'image',
+            firstPageWidth: imgW,
+            firstPageHeight: imgH,
           })
           addedPages.push({
             id: crypto.randomUUID(),
@@ -268,9 +286,10 @@ export default function RotatePDF() {
     setPages([])
     setResult(null)
     setError('')
+    setWidthOption('original')
   }
 
-  /* Vector-lossless PDF & Image saving & merging via pdf-lib */
+  /* Save & Merge PDF with page width scaling options */
   const savePDF = async () => {
     if (!pages.length) {
       setError('Tidak ada halaman tersisa untuk disimpan.')
@@ -282,12 +301,32 @@ export default function RotatePDF() {
     try {
       const outDoc = await PDFDocument.create()
 
+      // Calculate target page width if scaled option selected
+      let targetWidth = null
+      if (widthOption === 'a4') {
+        targetWidth = 595.28
+      } else if (widthOption === 'letter') {
+        targetWidth = 612
+      } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
+        const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
+        if (files[fileIdx] && files[fileIdx].firstPageWidth) {
+          targetWidth = files[fileIdx].firstPageWidth
+        }
+      }
+
       for (const pObj of pages) {
         if (pObj.type === 'pdf') {
           const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
           if (pObj.rotation > 0) {
             const origAngle = copiedPage.getRotation().angle
             copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
+          }
+          if (targetWidth && targetWidth > 0) {
+            const curW = copiedPage.getWidth()
+            if (curW && Math.abs(curW - targetWidth) > 1) {
+              const scale = targetWidth / curW
+              copiedPage.scale(scale, scale)
+            }
           }
           outDoc.addPage(copiedPage)
         } else {
@@ -311,10 +350,17 @@ export default function RotatePDF() {
             embeddedImg = await outDoc.embedPng(pngBytes)
           }
 
-          const imgW = embeddedImg.width
-          const imgH = embeddedImg.height
-          const newPage = outDoc.addPage([imgW, imgH])
-          newPage.drawImage(embeddedImg, { x: 0, y: 0, width: imgW, height: imgH })
+          let finalW = embeddedImg.width
+          let finalH = embeddedImg.height
+
+          if (targetWidth && targetWidth > 0 && Math.abs(finalW - targetWidth) > 1) {
+            const scale = targetWidth / finalW
+            finalW = targetWidth
+            finalH = finalH * scale
+          }
+
+          const newPage = outDoc.addPage([finalW, finalH])
+          newPage.drawImage(embeddedImg, { x: 0, y: 0, width: finalW, height: finalH })
           if (pObj.rotation > 0) {
             newPage.setRotation(degrees(pObj.rotation))
           }
@@ -338,7 +384,7 @@ export default function RotatePDF() {
   return (
     <ToolShell
       title="Rotate, Reorder & Merge PDF / Gambar"
-      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), putar orientasi halaman, susun ulang urutan halaman, dan hapus halaman yang tidak terpakai menjadi satu dokumen PDF murni."
+      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), atur orientasi & susunan halaman, samakan lebar halaman, dan hapus halaman yang tidak terpakai menjadi satu dokumen PDF murni."
     >
       <DropZone
         accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
@@ -407,6 +453,65 @@ export default function RotatePDF() {
               </button>
             </div>
           </div>
+
+          {/* Page Width Option Selector (Only visible when multi-files uploaded) */}
+          {files.length > 1 && (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-[--color-text]">
+                <SlidersHorizontal size={14} className="text-[--color-brand]" />
+                <span>Opsi Ukuran / Lebar Halaman Hasil Merge:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-[--color-text-2]">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="widthOption"
+                    value="original"
+                    checked={widthOption === 'original'}
+                    onChange={() => setWidthOption('original')}
+                    className="accent-[--color-brand]"
+                  />
+                  <span className="font-medium">Asli <span className="text-[--color-text-3]">(Proporsi masing-masing file)</span></span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="widthOption"
+                    value="a4"
+                    checked={widthOption === 'a4'}
+                    onChange={() => setWidthOption('a4')}
+                    className="accent-[--color-brand]"
+                  />
+                  <span className="font-medium">Standar A4 <span className="text-[--color-text-3]">(595pt / 210mm)</span></span>
+                </label>
+
+                {files.map((f, idx) => {
+                  const fileW = f.firstPageWidth ? Math.round(f.firstPageWidth) : null
+                  const isImg = f.type === 'image'
+                  return (
+                    <label key={f.id} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="widthOption"
+                        value={`file-${idx}`}
+                        checked={widthOption === `file-${idx}`}
+                        onChange={() => setWidthOption(`file-${idx}`)}
+                        className="accent-[--color-brand]"
+                      />
+                      <span>
+                        Ikuti Lebar File {idx + 1}{' '}
+                        <span className="text-[--color-text-3]">
+                          ({isImg ? 'Gambar' : 'PDF'}: {f.file.name.length > 15 ? f.file.name.substring(0, 12) + '...' : f.file.name}
+                          {fileW ? ` • ${fileW}pt` : ''})
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Sortable Grid View */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
