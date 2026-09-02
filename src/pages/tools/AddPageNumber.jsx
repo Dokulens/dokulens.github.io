@@ -142,6 +142,7 @@ export default function AddPageNumber() {
   const [processing, setProcessing] = useState(false)
   const [resultBlob, setResultBlob] = useState(null)
   const [error, setError] = useState('')
+  const [pageDimensions, setPageDimensions] = useState({ width: 595, height: 842 }) // default A4
 
   const pdfDocRef = useRef(null)
   const previewContainerRef = useRef(null)
@@ -204,6 +205,7 @@ export default function AddPageNumber() {
     try {
       const data = await renderPageToDataUrl(doc, pageNum, 1.2)
       setPagePreview(data)
+      setPageDimensions({ width: data.pageWidth, height: data.pageHeight })
     } catch (e) {
       setError(`Gagal merender halaman: ${e.message}`)
     } finally {
@@ -1063,11 +1065,11 @@ export default function AddPageNumber() {
                   )}
 
                   {pagePreview && (
-                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
+                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white" style={{ height: 'min(500px, 70vh)', aspectRatio: `${pageDimensions.width} / ${pageDimensions.height}` }}>
                     <img
                       src={pagePreview.dataUrl}
                       alt={`Page ${currentPage}`}
-                      className="block max-h-[500px] w-auto pointer-events-none"
+                      className="block w-full h-full pointer-events-none object-contain"
                     />
 
                     {/* Precise Draggable Number Tag (1:1 with output PDF) */}
