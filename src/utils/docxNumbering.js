@@ -40,6 +40,10 @@ export async function addPageNumberToDocx(docxArrayBuffer, options = {}) {
   let runXml = ''
   if (format === 'num') {
     runXml = `<w:fldSimple w:instr="PAGE">${rPr}</w:fldSimple>`
+  } else if (format === 'roman_upper') {
+    runXml = `<w:fldSimple w:instr="PAGE \\* ROMAN">${rPr}</w:fldSimple>`
+  } else if (format === 'roman_lower') {
+    runXml = `<w:fldSimple w:instr="PAGE \\* roman">${rPr}</w:fldSimple>`
   } else if (format === 'dash') {
     runXml = `<w:r>${rPr}<w:t xml:space="preserve">- </w:t></w:r><w:fldSimple w:instr="PAGE">${rPr}</w:fldSimple><w:r>${rPr}<w:t xml:space="preserve"> -</w:t></w:r>`
   } else if (format === 'hal_n') {

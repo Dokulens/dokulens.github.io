@@ -16,6 +16,24 @@ import { addPageNumberToDocx } from '../../utils/docxNumbering'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
+function toRoman(num, isUpper = true) {
+  if (num <= 0) return String(num)
+  const lookup = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ]
+  let roman = ''
+  let n = num
+  for (const [value, char] of lookup) {
+    while (n >= value) {
+      roman += char
+      n -= value
+    }
+  }
+  return isUpper ? roman : roman.toLowerCase()
+}
+
 const FONT_OPTIONS = [
   { id: 'Helvetica', label: 'Helvetica / Arial (Standard Modern)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
   { id: 'TimesRoman', label: 'Times Roman (Formal / Skripsi / Jurnal)', ref: StandardFonts.TimesRoman, boldRef: StandardFonts.TimesRomanBold },
@@ -24,6 +42,8 @@ const FONT_OPTIONS = [
 
 const FORMAT_TEMPLATES = [
   { id: 'num', label: '1, 2, 3...', template: '{n}' },
+  { id: 'roman_upper', label: 'I, II, III... (Romawi Kapital)', template: '{n}' },
+  { id: 'roman_lower', label: 'i, ii, iii... (Romawi Kecil)', template: '{n}' },
   { id: 'dash', label: '- 1 -, - 2 -...', template: '- {n} -' },
   { id: 'hal_n', label: 'Hal 1, Hal 2...', template: 'Hal {n}' },
   { id: 'hal_total', label: 'Hal 1 dari 10...', template: 'Hal {n} dari {total}' },
@@ -242,9 +262,15 @@ export default function AddPageNumber() {
   }
 
   const getPageNumberText = (pageIdx, total) => {
-    const num = pageIdx - (skipFirstPage ? 1 : 0) + startNumber - 1 + 1
+    const numRaw = pageIdx - (skipFirstPage ? 1 : 0) + startNumber - 1 + 1
+    let numStr = String(numRaw)
+    if (formatId === 'roman_upper') {
+      numStr = toRoman(numRaw, true)
+    } else if (formatId === 'roman_lower') {
+      numStr = toRoman(numRaw, false)
+    }
     const tpl = formatId === 'custom' ? customTemplate : (FORMAT_TEMPLATES.find((f) => f.id === formatId)?.template || '{n}')
-    return tpl.replace('{n}', num).replace('{total}', total)
+    return tpl.replace('{n}', numStr).replace('{total}', total)
   }
 
   const isPageIncluded = (page) => {
@@ -464,10 +490,12 @@ export default function AddPageNumber() {
                 <select
                   value={fontFamily}
                   onChange={(e) => setFontFamily(e.target.value)}
-                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs outline-none focus:border-[--color-brand]"
+                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
                 >
                   {FONT_OPTIONS.map((f) => (
-                    <option key={f.id} value={f.id}>{f.label}</option>
+                    <option key={f.id} value={f.id} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
+                      {f.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -479,10 +507,12 @@ export default function AddPageNumber() {
                 <select
                   value={formatId}
                   onChange={(e) => setFormatId(e.target.value)}
-                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs outline-none focus:border-[--color-brand]"
+                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
                 >
                   {FORMAT_TEMPLATES.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>{tpl.label}</option>
+                    <option key={tpl.id} value={tpl.id} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
+                      {tpl.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -497,25 +527,52 @@ export default function AddPageNumber() {
                   max="1000"
                   value={startNumber}
                   onChange={(e) => setStartNumber(Number(e.target.value))}
-                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs outline-none focus:border-[--color-brand]"
+                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
                 />
               </div>
             </div>
 
             {/* Font Styling Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-[--color-border] pt-3">
-              <div>
-                <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
-                  Ukuran: {fontSize}pt
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-[--color-border] pt-3">
+              {/* Word-style Font Size Slider & Stepper Controls */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-[--color-text-2]">
+                  Ukuran Font: <span className="font-mono text-[--color-brand] font-bold">{fontSize}pt</span>
                 </label>
-                <input
-                  type="range"
-                  min="8"
-                  max="24"
-                  value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-full"
-                />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFontSize((prev) => Math.max(6, prev - 1))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer font-bold text-xs shrink-0 select-none"
+                    title="Kecilkan Font (-1pt)"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="6"
+                    max="72"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Math.max(6, Math.min(72, Number(e.target.value) || 6)))}
+                    className="h-7 w-12 text-center rounded border border-[--color-border] bg-[--color-surface] text-xs font-mono font-bold text-[--color-text] outline-none focus:border-[--color-brand]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFontSize((prev) => Math.min(72, prev + 1))}
+                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer font-bold text-xs shrink-0 select-none"
+                    title="Besarkan Font (+1pt)"
+                  >
+                    +
+                  </button>
+                  <input
+                    type="range"
+                    min="6"
+                    max="72"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    className="flex-1 h-1.5 accent-[--color-brand] cursor-pointer"
+                  />
+                </div>
               </div>
 
               {fileType === 'pdf' && (
