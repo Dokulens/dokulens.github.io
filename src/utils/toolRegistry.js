@@ -111,6 +111,13 @@ export const TOOL_REGISTRY = [
     icon: 'Scissors',
     accepts: ['image/png', 'image/jpeg', 'image/webp'],
   },
+  {
+    id: 'image-carver',
+    route: 'image-carver',
+    label: 'Image Carver',
+    icon: 'Wand2',
+    accepts: ['image/png', 'image/jpeg', 'image/webp'],
+  },
 ]
 
 export function getTargetsForOutput(outputMimeType, excludeRoute) {
