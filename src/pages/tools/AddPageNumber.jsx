@@ -793,7 +793,7 @@ export default function AddPageNumber() {
                   {/* Visual Checklist Grid */}
                   <div className="space-y-2">
                     <div className="text-xs font-semibold text-[--color-text-2]">Klik halaman untuk memilih:</div>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-[--color-surface] rounded-xl border border-[--color-border]">
+                    <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-40 overflow-y-auto p-2 bg-[--color-surface] rounded-xl border border-[--color-border]">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
                         const isChecked = getIncludedPagesList().includes(pNum)
                         return (
@@ -801,14 +801,14 @@ export default function AddPageNumber() {
                             key={pNum}
                             type="button"
                             onClick={() => togglePageCheck(pNum)}
-                            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-all cursor-pointer ${
+                            className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                               isChecked
                                 ? 'border-[--color-brand] bg-[--color-brand] text-white shadow-sm'
-                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] hover:border-[--color-border-strong]'
+                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] hover:border-[--color-border-strong] hover:bg-[--color-surface-3]'
                             }`}
                           >
-                            <span>{isChecked ? '✓' : '○'}</span>
-                            <span>{pNum}</span>
+                            <span className="leading-none">{isChecked ? '✓' : '○'}</span>
+                            <span className="leading-none">{pNum}</span>
                           </button>
                         )
                       })}
