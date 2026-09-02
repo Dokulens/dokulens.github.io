@@ -858,23 +858,26 @@ export default function WatermarkRemover() {
                   <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
                     {activeMedia === 'video' ? (
                       <div className="relative inline-flex items-center justify-center">
-                        <video
-                          src={mediaSrc}
-                          controls
-                          muted
-                          onLoadedMetadata={(e) => {
-                            const vw = e.target.videoWidth || 1280
-                            const vh = e.target.videoHeight || 720
-                            setOrigDims({ w: vw, h: vh })
-                            if (videoModalCanvasRef.current) {
-                              videoModalCanvasRef.current.width = vw
-                              videoModalCanvasRef.current.height = vh
-                              const ctx = videoModalCanvasRef.current.getContext('2d')
-                              ctx.clearRect(0, 0, vw, vh)
-                              if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
+                        <canvas
+                          ref={(el) => {
+                            if (el && mediaSrc) {
+                              const vw = videoRef.current?.videoWidth || origDims.w || 1280
+                              const vh = videoRef.current?.videoHeight || origDims.h || 720
+                              el.width = vw
+                              el.height = vh
+                              const ctx = el.getContext('2d')
+                              if (videoRef.current && videoRef.current.readyState >= 2) {
+                                ctx.drawImage(videoRef.current, 0, 0, vw, vh)
+                              } else {
+                                const tempVid = document.createElement('video')
+                                tempVid.muted = true
+                                tempVid.src = mediaSrc
+                                tempVid.currentTime = 0
+                                tempVid.onseeked = () => ctx.drawImage(tempVid, 0, 0, vw, vh)
+                              }
                             }
                           }}
-                          className="block max-h-[60vh] max-w-full rounded"
+                          className="block max-h-[60vh] max-w-full rounded pointer-events-none"
                         />
                         <canvas
                           ref={(el) => {
@@ -882,13 +885,11 @@ export default function WatermarkRemover() {
                             if (el) {
                               const vw = videoRef.current?.videoWidth || origDims.w || 1280
                               const vh = videoRef.current?.videoHeight || origDims.h || 720
-                              if (el.width !== vw || el.height !== vh) {
-                                el.width = vw
-                                el.height = vh
-                                const ctx = el.getContext('2d')
-                                ctx.clearRect(0, 0, vw, vh)
-                                if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
-                              }
+                              el.width = vw
+                              el.height = vh
+                              const ctx = el.getContext('2d')
+                              ctx.clearRect(0, 0, vw, vh)
+                              if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
                             }
                           }}
                           onMouseDown={startVideoModalPaint}

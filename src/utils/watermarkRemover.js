@@ -65,18 +65,21 @@ export async function processVideoFrame(frameCanvas, options = {}) {
 /**
  * Compute bounding box for user drawn mask canvas to restrict inpainting region
  */
-function getMaskBoundingBox(maskCanvas, width, height, padding = 10) {
-  if (!maskCanvas) return null
+function getMaskBoundingBox(maskCanvas, targetW, targetH, padding = 10) {
+  if (!maskCanvas || !maskCanvas.width || !maskCanvas.height) return null
+
+  const mw = maskCanvas.width
+  const mh = maskCanvas.height
   const ctx = maskCanvas.getContext('2d')
-  const maskImgData = ctx.getImageData(0, 0, width, height)
+  const maskImgData = ctx.getImageData(0, 0, mw, mh)
   const data = maskImgData.data
 
-  let minX = width, maxX = 0, minY = height, maxY = 0
+  let minX = mw, maxX = 0, minY = mh, maxY = 0
   let found = false
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      const idx = (y * mw + x) * 4
       if (data[idx] > 30 || data[idx + 3] > 30) {
         found = true
         if (x < minX) minX = x
@@ -91,17 +94,34 @@ function getMaskBoundingBox(maskCanvas, width, height, padding = 10) {
 
   minX = Math.max(0, minX - padding)
   minY = Math.max(0, minY - padding)
-  maxX = Math.min(width, maxX + padding)
-  maxY = Math.min(height, maxY + padding)
+  maxX = Math.min(mw, maxX + padding)
+  maxY = Math.min(mh, maxY + padding)
 
-  const bboxW = Math.max(1, maxX - minX)
-  const bboxH = Math.max(1, maxY - minY)
+  const scaleX = targetW / mw
+  const scaleY = targetH / mh
 
-  const croppedMaskData = ctx.getImageData(minX, minY, bboxW, bboxH)
+  const scaledMinX = Math.max(0, Math.floor(minX * scaleX))
+  const scaledMinY = Math.max(0, Math.floor(minY * scaleY))
+  const scaledMaxX = Math.min(targetW, Math.ceil(maxX * scaleX))
+  const scaledMaxY = Math.min(targetH, Math.ceil(maxY * scaleY))
+
+  const bboxW = Math.max(1, scaledMaxX - scaledMinX)
+  const bboxH = Math.max(1, scaledMaxY - scaledMinY)
+
+  const rescaledMaskCanvas = document.createElement('canvas')
+  rescaledMaskCanvas.width = bboxW
+  rescaledMaskCanvas.height = bboxH
+  const rescaledCtx = rescaledMaskCanvas.getContext('2d')
+  rescaledCtx.drawImage(
+    maskCanvas,
+    minX, minY, maxX - minX, maxY - minY,
+    0, 0, bboxW, bboxH
+  )
+  const croppedMaskData = rescaledCtx.getImageData(0, 0, bboxW, bboxH)
 
   return {
-    x: minX,
-    y: minY,
+    x: scaledMinX,
+    y: scaledMinY,
     width: bboxW,
     height: bboxH,
     maskImgData: croppedMaskData
