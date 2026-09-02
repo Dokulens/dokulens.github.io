@@ -17,14 +17,9 @@ import {
   MAX_HEIGHT_LIMIT,
 } from '../../utils/contentAwareResizer'
 import { fmtBytes, stripExt } from '../../utils/helpers'
-import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 export default function ImageCarver() {
   const [imageSrc, setImageSrc] = useState(null)
-  useIncomingFile((f) => {
-    const url = URL.createObjectURL(f)
-    setImageSrc(url)
-  })
   const [file, setFile] = useState(null)
   const [originalSize, setOriginalSize] = useState(null)
   const [workingSize, setWorkingSize] = useState(null)
@@ -509,7 +504,7 @@ export default function ImageCarver() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
                   <Activity size={16} className="animate-pulse" />
-                  <span>{carvePhase === 'mask-clear' ? 'Membersihkan Masking…' : 'Memproses Seam Carving…'} ({progress}%)</span>
+                  <span>{carvePhase === 'mask-clear' ? 'Membersihkan Masking...' : 'Memproses Seam Carving...'} ({progress}%)</span>
                 </div>
                 <button
                   onClick={cancelCarving}
@@ -518,7 +513,7 @@ export default function ImageCarver() {
                   <StopCircle size={14} /> Batal / Hentikan Proses
                 </button>
               </div>
-              <ProgressBar value={progress} label={carvePhase === 'mask-clear' ? `Membersihkan area masking… ${progress}%` : `Menghitung energi piksel & memotong seams… ${progress}%`} />
+              <ProgressBar value={progress} label={carvePhase === 'mask-clear' ? `Membersihkan area masking... ${progress}%` : `Menghitung energi piksel & memotong seams... ${progress}%`} />
             </div>
           )}
 
