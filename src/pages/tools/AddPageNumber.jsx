@@ -4,7 +4,7 @@ import mammoth from 'mammoth'
 import {
   FileText, ChevronLeft, ChevronRight, Hash,
   Sparkles, Sliders, Loader2, Check, RefreshCw,
-  ShieldCheck, FileType
+  ShieldCheck, FileType, Download, X
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
