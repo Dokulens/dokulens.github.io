@@ -114,6 +114,8 @@ export default function AddPageNumber() {
   const [fontFamily, setFontFamily] = useState('TimesRoman')
   const [fontSize, setFontSize] = useState(11)
   const [fontColor, setFontColor] = useState('#000000')
+  const [paperColor, setPaperColor] = useState('#FFFFFF')
+  const [coverExistingNumber, setCoverExistingNumber] = useState(true)
   const [isBold, setIsBold] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
   const [skipFirstPage, setSkipFirstPage] = useState(true)
@@ -423,6 +425,25 @@ export default function AddPageNumber() {
             targetX -= textWidth / 2
           } else if (pagePos.preset.includes('right')) {
             targetX -= textWidth
+          }
+
+          // Cover up existing page number text with paper color rectangle
+          if (coverExistingNumber) {
+            const padX = 14
+            const padY = 6
+            const rectWidth = textWidth + padX * 2
+            const rectHeight = fontSize + padY * 2
+            const rectX = targetX - padX
+            const rectY = targetY - padY / 3
+
+            const paperRgb = hexToRgb(paperColor)
+            page.drawRectangle({
+              x: rectX,
+              y: rectY,
+              width: rectWidth,
+              height: rectHeight,
+              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+            })
           }
 
           page.drawText(numText, {
@@ -753,6 +774,35 @@ export default function AddPageNumber() {
                 </label>
               </div>
             </div>
+
+            {/* Cover-up / Wite-out Option Row for PDF */}
+            {fileType === 'pdf' && (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[--color-border] pt-3 text-xs">
+                <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={coverExistingNumber}
+                    onChange={(e) => setCoverExistingNumber(e.target.checked)}
+                    className="accent-[--color-brand] cursor-pointer"
+                  />
+                  <span>Timpa / Wite-out Nomor Halaman Lama (Cover-up)</span>
+                </label>
+
+                {coverExistingNumber && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[--color-text-3]">Warna Kertas Menimpa:</span>
+                    <input
+                      type="color"
+                      value={paperColor}
+                      onChange={(e) => setPaperColor(e.target.value)}
+                      className="h-6 w-8 cursor-pointer rounded border border-[--color-border]"
+                      title="Pilih Warna Kertas untuk Menimpa Nomor Lama"
+                    />
+                    <span className="font-mono text-[11px] text-[--color-text-3] uppercase">{paperColor}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Interactive Document Page Preview (PDF) or Summary Preview (DOCX) */}
