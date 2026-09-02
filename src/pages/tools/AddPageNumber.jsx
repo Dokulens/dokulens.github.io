@@ -429,12 +429,14 @@ export default function AddPageNumber() {
 
           // Cover up existing page number text with paper color rectangle
           if (coverExistingNumber) {
-            const padX = 14
-            const padY = 6
-            const rectWidth = textWidth + padX * 2
+            const padX = 20
+            const padY = 10
+            // Use a generous width to cover common page number formats (e.g., "Page 1 of 100")
+            const estimatedMaxTextWidth = Math.max(textWidth, 120)
+            const rectWidth = estimatedMaxTextWidth + padX * 2
             const rectHeight = fontSize + padY * 2
             const rectX = targetX - padX
-            const rectY = targetY - padY / 3
+            const rectY = targetY - padY / 2
 
             const paperRgb = hexToRgb(paperColor)
             page.drawRectangle({
@@ -446,6 +448,8 @@ export default function AddPageNumber() {
             })
           }
 
+          // Draw text with paper-colored background to further mask any remaining original text
+          const paperRgb = hexToRgb(paperColor)
           page.drawText(numText, {
             x: targetX,
             y: targetY,
