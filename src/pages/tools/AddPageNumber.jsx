@@ -1072,31 +1072,7 @@ export default function AddPageNumber() {
                       className="block w-full h-full pointer-events-none object-contain"
                     />
 
-                    {/* Precise Draggable Number Tag (1:1 with output PDF) */}
-                    {currentIncluded && (() => {
-                      const pagePos = getPagePosition(currentPage)
-                      return (
-                        <div
-                          onMouseDown={startTagDrag}
-                          className="absolute rounded border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
-                          style={{
-                            left: `${pagePos.x}%`,
-                            top: `${pagePos.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                            backgroundColor: coverExistingNumber ? paperColor : undefined,
-                            color: fontColor,
-                            fontSize: `${Math.max(9, fontSize)}px`,
-                            fontWeight: isBold ? 'bold' : 'normal',
-                            fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
-                            lineHeight: 1.1,
-                          }}
-                        >
-                          {previewNumText}
-                        </div>
-                      )
-                    })()}
-
-                    {/* White-out Box (solid, draggable + resizable) */}
+                    {/* White-out Box (solid, draggable + resizable) — BOTTOM layer */}
                     {woEnabled && currentIncluded && (() => {
                       const woPos = getWoPosition(currentPage)
                       const previewW = Math.max(40, woWidth / 4)
@@ -1118,11 +1094,34 @@ export default function AddPageNumber() {
                           title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}pt) — drag pojok untuk resize`}
                         >
                           <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO</span>
-                          {/* Corner resize handles */}
                           <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => startWoResize(e, 'nw')} />
                           <div className={`${handleStyle} -top-1.5 -right-1.5 cursor-ne-resize`} onMouseDown={(e) => startWoResize(e, 'ne')} />
                           <div className={`${handleStyle} -bottom-1.5 -left-1.5 cursor-sw-resize`} onMouseDown={(e) => startWoResize(e, 'sw')} />
                           <div className={`${handleStyle} -bottom-1.5 -right-1.5 cursor-se-resize`} onMouseDown={(e) => startWoResize(e, 'se')} />
+                        </div>
+                      )
+                    })()}
+
+                    {/* Number Tag (draggable) — TOP layer, always above WO */}
+                    {currentIncluded && (() => {
+                      const pagePos = getPagePosition(currentPage)
+                      return (
+                        <div
+                          onMouseDown={startTagDrag}
+                          className="absolute rounded border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center z-10"
+                          style={{
+                            left: `${pagePos.x}%`,
+                            top: `${pagePos.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: coverExistingNumber ? paperColor : undefined,
+                            color: fontColor,
+                            fontSize: `${Math.max(9, fontSize)}px`,
+                            fontWeight: isBold ? 'bold' : 'normal',
+                            fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
+                            lineHeight: 1.1,
+                          }}
+                        >
+                          {previewNumText}
                         </div>
                       )
                     })()}
