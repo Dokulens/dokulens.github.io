@@ -1,7 +1,7 @@
 /**
  * Gemini Watermark Remover — powered by official @pilio/gemini-watermark-remover SDK
  * Self-contained detection engine (no external dependencies).
- * Video: Fast Single-Pass Region-Crop Pipeline (4x faster, 100% smooth FPS & audio sync).
+ * Video: Fast Single-Pass Region-Crop Pipeline for Gemini & Inpainting modes (4x faster, 100% smooth FPS & audio sync).
  */
 
 import {
@@ -63,77 +63,144 @@ export async function processVideoFrame(frameCanvas, options = {}) {
 }
 
 /**
- * Fast Single-Pass Video Processing Pipeline (4x faster, 100% audio sync & smooth FPS):
+ * Compute bounding box for user drawn mask canvas to restrict inpainting region
+ */
+function getMaskBoundingBox(maskCanvas, width, height, padding = 10) {
+  if (!maskCanvas) return null
+  const ctx = maskCanvas.getContext('2d')
+  const maskImgData = ctx.getImageData(0, 0, width, height)
+  const data = maskImgData.data
+
+  let minX = width, maxX = 0, minY = height, maxY = 0
+  let found = false
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+      if (data[idx] > 30 || data[idx + 3] > 30) {
+        found = true
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+
+  if (!found) return null
+
+  minX = Math.max(0, minX - padding)
+  minY = Math.max(0, minY - padding)
+  maxX = Math.min(width, maxX + padding)
+  maxY = Math.min(height, maxY + padding)
+
+  const bboxW = Math.max(1, maxX - minX)
+  const bboxH = Math.max(1, maxY - minY)
+
+  const croppedMaskData = ctx.getImageData(minX, minY, bboxW, bboxH)
+
+  return {
+    x: minX,
+    y: minY,
+    width: bboxW,
+    height: bboxH,
+    maskImgData: croppedMaskData
+  }
+}
+
+/**
+ * Fast Single-Pass Video Processing Pipeline (Supports 'gemini' & 'inpaint' modes):
  *
- * 1. Frame 0 Calibration:
- *    - Detect exact watermark position & retrieve calibrated alpha map from SDK engine.
+ * 1. Region Detection:
+ *    - Gemini mode: Frame 0 calibration to find exact watermark position & alpha map.
+ *    - Inpaint mode: Calculates tight Bounding Box of user-drawn mask canvas.
  *
- * 2. Ultra-Fast Region-Crop Real-Time Blend:
+ * 2. Ultra-Fast Region-Crop Real-Time Loop:
  *    - Play video element naturally in real-time with full audio output.
- *    - On each rendered frame (rAF loop), extract ONLY the small watermark region (e.g. 96x96).
- *    - Perform reverse-alpha blend math directly in memory (~0.05ms execution time per frame).
- *    - Canvas captureStream records video + audio synchronously.
+ *    - On each rendered frame (rAF loop), process ONLY the cropped region (~0.05ms to 1.5ms).
+ *    - Canvas captureStream records video + audio synchronously without dropped frames or lag.
  */
 export async function processFullVideo(videoEl, opts = {}) {
-  const { alphaGain = 1.0, onProgress, onCancel } = opts
+  const {
+    removalMode = 'gemini',
+    videoMaskSrc = null,
+    inpaintRadius = 5,
+    alphaGain = 1.0,
+    onProgress,
+    onCancel
+  } = opts
 
   const w = videoEl.videoWidth || 1280
   const h = videoEl.videoHeight || 720
   const duration = videoEl.duration || 1
 
-  console.log(`[WM] Fast Single-Pass Pipeline: ${w}×${h}, ${duration.toFixed(2)}s`)
-  onProgress?.(2, 'Inisialisasi & mendeteksi watermark...')
-
-  // Step 1: Calibration on Frame 0
-  const engine = await getGeminiEngine()
-
-  const calibCanvas = document.createElement('canvas')
-  calibCanvas.width = w
-  calibCanvas.height = h
-  const calibCtx = calibCanvas.getContext('2d', { willReadFrequently: true })
-
-  videoEl.currentTime = 0
-  await new Promise((r) => {
-    videoEl.onseeked = r
-    setTimeout(r, 300)
-  })
-  calibCtx.drawImage(videoEl, 0, 0, w, h)
+  console.log(`[WM] Fast Single-Pass Pipeline (${removalMode}): ${w}×${h}, ${duration.toFixed(2)}s`)
+  onProgress?.(2, 'Inisialisasi & mendeteksi area...')
 
   let wmPos = null
+  let wmAlphaMap = null
+  let inpaintBBox = null
 
-  try {
-    const firstResult = await removeOfficialGeminiWatermark(calibCanvas, { alphaGain })
-    const meta = firstResult?.meta
-    console.log('[WM] Frame 0 calibration meta:', meta)
+  if (removalMode === 'gemini') {
+    // ── GEMINI MODE ──
+    const engine = await getGeminiEngine()
 
-    if (meta?.position) {
-      wmPos = meta.position
-    }
-  } catch (e) {
-    console.warn('[WM] Calibration warning:', e)
-  }
+    const calibCanvas = document.createElement('canvas')
+    calibCanvas.width = w
+    calibCanvas.height = h
+    const calibCtx = calibCanvas.getContext('2d', { willReadFrequently: true })
 
-  // Fallback position if calibration didn't return meta.position
-  if (!wmPos) {
+    videoEl.currentTime = 0
+    await new Promise((r) => {
+      videoEl.onseeked = r
+      setTimeout(r, 300)
+    })
+    calibCtx.drawImage(videoEl, 0, 0, w, h)
+
     try {
-      const config = detectWatermarkConfig(w, h)
-      const predictedPos = calculateWatermarkPosition(w, h)
-      wmPos = predictedPos || {
-        x: w - (config?.logoSize || 48) - (config?.marginRight || 32),
-        y: h - (config?.logoSize || 48) - (config?.marginBottom || 32),
-        width: config?.logoSize || 48,
-        height: config?.logoSize || 48
-      }
-    } catch {
-      const size = w >= 1024 || h >= 1024 ? 96 : 48
-      const margin = size === 96 ? 64 : 32
-      wmPos = { x: w - size - margin, y: h - size - margin, width: size, height: size }
-    }
-  }
+      const firstResult = await removeOfficialGeminiWatermark(calibCanvas, { alphaGain })
+      const meta = firstResult?.meta
+      console.log('[WM] Frame 0 calibration meta:', meta)
 
-  console.log('[WM] Using watermark position:', wmPos)
-  const logoSize = wmPos.width || 48
-  const wmAlphaMap = await engine.getAlphaMap(logoSize)
+      if (meta?.position) {
+        wmPos = meta.position
+      }
+    } catch (e) {
+      console.warn('[WM] Calibration warning:', e)
+    }
+
+    if (!wmPos) {
+      try {
+        const config = detectWatermarkConfig(w, h)
+        const predictedPos = calculateWatermarkPosition(w, h)
+        wmPos = predictedPos || {
+          x: w - (config?.logoSize || 48) - (config?.marginRight || 32),
+          y: h - (config?.logoSize || 48) - (config?.marginBottom || 32),
+          width: config?.logoSize || 48,
+          height: config?.logoSize || 48
+        }
+      } catch {
+        const size = w >= 1024 || h >= 1024 ? 96 : 48
+        const margin = size === 96 ? 64 : 32
+        wmPos = { x: w - size - margin, y: h - size - margin, width: size, height: size }
+      }
+    }
+
+    console.log('[WM] Using watermark position:', wmPos)
+    const logoSize = wmPos.width || 48
+    wmAlphaMap = await engine.getAlphaMap(logoSize)
+
+  } else if (removalMode === 'inpaint') {
+    // ── INPAINT MODE ──
+    if (!videoMaskSrc) {
+      throw new Error('Mask canvas tidak ditemukan. Harap tandai area watermark dengan kuas.')
+    }
+    inpaintBBox = getMaskBoundingBox(videoMaskSrc, w, h, inpaintRadius + 4)
+    if (!inpaintBBox) {
+      throw new Error('Masking kosong. Harap tandai area watermark dengan kuas terlebih dahulu.')
+    }
+    console.log('[WM] Using Inpaint Bounding Box:', inpaintBBox)
+  }
 
   // Step 2: Set up Output Canvas & Stream Recording
   onProgress?.(5, 'Menyiapkan perekam video & audio...')
@@ -180,14 +247,15 @@ export async function processFullVideo(videoEl, opts = {}) {
 
   mediaRecorder.start(100)
 
-  // Step 3: Playback & Ultra-Fast Real-Time Blend Loop
+  // Step 3: Playback & Ultra-Fast Real-Time Loop
   videoEl.currentTime = 0
   videoEl.muted = false // keep audio active for MediaRecorder stream
   await new Promise(r => setTimeout(r, 100))
   await videoEl.play().catch(() => {})
 
-  const wmX = Math.max(0, Math.min(w - logoSize, Math.round(wmPos.x)))
-  const wmY = Math.max(0, Math.min(h - logoSize, Math.round(wmPos.y)))
+  const logoSize = wmPos?.width || 48
+  const wmX = wmPos ? Math.max(0, Math.min(w - logoSize, Math.round(wmPos.x))) : 0
+  const wmY = wmPos ? Math.max(0, Math.min(h - logoSize, Math.round(wmPos.y))) : 0
 
   return new Promise((resolve) => {
     let animId = null
@@ -203,32 +271,44 @@ export async function processFullVideo(videoEl, opts = {}) {
       // Draw current video frame to output canvas
       outCtx.drawImage(videoEl, 0, 0, w, h)
 
-      // Fast Region-Crop Reverse Alpha Blend (~0.05ms)
-      try {
-        const imgData = outCtx.getImageData(wmX, wmY, logoSize, logoSize)
-        const pixels = imgData.data
-        const pixelCount = logoSize * logoSize
+      if (removalMode === 'gemini' && wmAlphaMap) {
+        // Fast Region-Crop Reverse Alpha Blend (~0.05ms)
+        try {
+          const imgData = outCtx.getImageData(wmX, wmY, logoSize, logoSize)
+          const pixels = imgData.data
+          const pixelCount = logoSize * logoSize
 
-        for (let i = 0; i < pixelCount; i++) {
-          const rawAlpha = wmAlphaMap[i]
-          if (!rawAlpha) continue
-          const absAlpha = Math.abs(rawAlpha)
-          if (absAlpha < 0.01) continue
+          for (let i = 0; i < pixelCount; i++) {
+            const rawAlpha = wmAlphaMap[i]
+            if (!rawAlpha) continue
+            const absAlpha = Math.abs(rawAlpha)
+            if (absAlpha < 0.01) continue
 
-          const alpha = Math.min(absAlpha * alphaGain, 0.98)
-          const oneMinusAlpha = 1.0 - alpha
-          const logoValue = rawAlpha < 0 ? 0 : 255
-          const alphaLogo = alpha * logoValue
+            const alpha = Math.min(absAlpha * alphaGain, 0.98)
+            const oneMinusAlpha = 1.0 - alpha
+            const logoValue = rawAlpha < 0 ? 0 : 255
+            const alphaLogo = alpha * logoValue
 
-          const px = i * 4
-          pixels[px]     = Math.max(0, Math.min(255, (pixels[px]     - alphaLogo) / oneMinusAlpha + 0.5)) | 0
-          pixels[px + 1] = Math.max(0, Math.min(255, (pixels[px + 1] - alphaLogo) / oneMinusAlpha + 0.5)) | 0
-          pixels[px + 2] = Math.max(0, Math.min(255, (pixels[px + 2] - alphaLogo) / oneMinusAlpha + 0.5)) | 0
+            const px = i * 4
+            pixels[px]     = Math.max(0, Math.min(255, (pixels[px]     - alphaLogo) / oneMinusAlpha + 0.5)) | 0
+            pixels[px + 1] = Math.max(0, Math.min(255, (pixels[px + 1] - alphaLogo) / oneMinusAlpha + 0.5)) | 0
+            pixels[px + 2] = Math.max(0, Math.min(255, (pixels[px + 2] - alphaLogo) / oneMinusAlpha + 0.5)) | 0
+          }
+
+          outCtx.putImageData(imgData, wmX, wmY)
+        } catch (e) {
+          // fail-safe
         }
-
-        outCtx.putImageData(imgData, wmX, wmY)
-      } catch (e) {
-        // fail-safe
+      } else if (removalMode === 'inpaint' && inpaintBBox) {
+        // Fast Bounding-Box Telea Inpainting (~1.5ms)
+        try {
+          const { x: bx, y: by, width: bw, height: bh, maskImgData } = inpaintBBox
+          const frameImgData = outCtx.getImageData(bx, by, bw, bh)
+          inpaintWatermark(frameImgData, maskImgData.data, inpaintRadius)
+          outCtx.putImageData(frameImgData, bx, by)
+        } catch (e) {
+          // fail-safe
+        }
       }
 
       frameCount++
@@ -253,7 +333,7 @@ export async function processFullVideo(videoEl, opts = {}) {
           outCanvas.parentNode.removeChild(outCanvas)
         }
         const videoBlob = new Blob(recordedChunks, { type: mimeType })
-        console.log(`[WM] Single-pass complete! Final size: ${fmtBytes(videoBlob.size)}, frames: ${frameCount}`)
+        console.log(`[WM] Single-pass complete (${removalMode})! Final size: ${fmtBytes(videoBlob.size)}, frames: ${frameCount}`)
         onProgress?.(100, 'Selesai!')
         resolve({ videoBlob, audioBlob: null, hasWatermark: true, totalFramesProcessed: frameCount })
       }, 300)

@@ -368,6 +368,9 @@ export default function WatermarkRemover() {
 
       // Run full pipeline: detect → extract audio → process all frames → encode → merge
       const result = await processFullVideo(video, {
+        removalMode,
+        videoMaskSrc,
+        inpaintRadius,
         alphaGain,
         onProgress: (pct, msg) => {
           setProgress(pct)
