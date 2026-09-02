@@ -508,59 +508,19 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box — detect old page number position per-page
+          // 1) White-out Box (solid paper color — user-controlled position)
           if (woEnabled) {
             const paperRgb = hexToRgb(paperColor)
-            let woDrawn = false
-
-            // Try to detect existing page number on this page
-            try {
-              const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
-              const pdfDoc = await loadingTask.promise
-              const pdfPage = await pdfDoc.getPage(pageNum)
-              const textContent = await pdfPage.getTextContent()
-              const viewport = pdfPage.getViewport({ scale: 1.0 })
-
-              for (const item of textContent.items) {
-                const str = item.str.trim()
-                if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
-                  // Convert pdfjs coords to pdf-lib coords
-                  const itemX = item.transform[4]
-                  const itemY = item.transform[5]
-                  const itemW = item.width
-                  const itemH = item.height
-                  // pdfjs Y is bottom-up, pdf-lib Y is bottom-up too
-                  const woX = itemX - 10
-                  const woY = itemY - 4
-                  const woW = Math.max(woWidth, itemW + 20)
-                  const woH = Math.max(woHeight, itemH + 8)
-
-                  page.drawRectangle({
-                    x: woX, y: woY,
-                    width: woW, height: woH,
-                    color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-                  })
-                  woDrawn = true
-                  break
-                }
-              }
-            } catch {
-              // Ignore detection errors, fall back to manual position
-            }
-
-            // Fallback: use user-set position
-            if (!woDrawn) {
-              const woPos = getWoPosition(pageNum)
-              let woX = (woPos.x / 100) * pWidth
-              let woY = pHeight - (woPos.y / 100) * pHeight
-              if (woPos.preset.includes('center')) woX -= woWidth / 2
-              else if (woPos.preset.includes('right')) woX -= woWidth
-              page.drawRectangle({
-                x: woX, y: woY - woHeight / 2,
-                width: woWidth, height: woHeight,
-                color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-              })
-            }
+            const woPos = getWoPosition(pageNum)
+            let woX = (woPos.x / 100) * pWidth
+            let woY = pHeight - (woPos.y / 100) * pHeight
+            if (woPos.preset.includes('center')) woX -= woWidth / 2
+            else if (woPos.preset.includes('right')) woX -= woWidth
+            page.drawRectangle({
+              x: woX, y: woY - woHeight / 2,
+              width: woWidth, height: woHeight,
+              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+            })
           }
 
           // 2) Font background (paper color behind new page number text)
@@ -577,7 +537,7 @@ export default function AddPageNumber() {
             })
           }
 
-          // 3) Draw page number text on top
+          // 3) Draw page number text ON TOP of everything
           page.drawText(numText, {
             x: targetX,
             y: targetY,
