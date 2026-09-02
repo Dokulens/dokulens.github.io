@@ -243,7 +243,16 @@ export default function ImageCarver() {
           workingCanvasRef.current.width = size.w
           workingCanvasRef.current.height = size.h
           const ctx = workingCanvasRef.current.getContext('2d')
-          ctx.putImageData(currentImg, 0, 0, 0, 0, size.w, size.h)
+          const croppedImgData = ctx.createImageData(size.w, size.h)
+          for (let y = 0; y < size.h; y++) {
+            const srcRowOffset = y * currentImg.width * 4
+            const dstRowOffset = y * size.w * 4
+            croppedImgData.data.set(
+              currentImg.data.subarray(srcRowOffset, srcRowOffset + size.w * 4),
+              dstRowOffset
+            )
+          }
+          ctx.putImageData(croppedImgData, 0, 0)
         }
 
         if (showSeams && seamsCanvasRef.current) {
@@ -261,7 +270,7 @@ export default function ImageCarver() {
           energyCanvasRef.current.width = size.w
           energyCanvasRef.current.height = size.h
           const eCtx = energyCanvasRef.current.getContext('2d')
-          const eImgData = eCtx.getImageData(0, 0, size.w, size.h)
+          const eImgData = eCtx.createImageData(size.w, size.h)
           const normalized = normalizeEnergyMap(energyMap, size.w, size.h)
 
           for (let ey = 0; ey < size.h; ey += 1) {
@@ -294,7 +303,16 @@ export default function ImageCarver() {
         outCanvas.width = res.size.w
         outCanvas.height = res.size.h
         const outCtx = outCanvas.getContext('2d')
-        outCtx.putImageData(res.img, 0, 0, 0, 0, res.size.w, res.size.h)
+        const finalImgData = outCtx.createImageData(res.size.w, res.size.h)
+        for (let y = 0; y < res.size.h; y++) {
+          const srcRowOffset = y * res.img.width * 4
+          const dstRowOffset = y * res.size.w * 4
+          finalImgData.data.set(
+            res.img.data.subarray(srcRowOffset, srcRowOffset + res.size.w * 4),
+            dstRowOffset
+          )
+        }
+        outCtx.putImageData(finalImgData, 0, 0)
 
         outCanvas.toBlob((blob) => {
           if (blob) {
