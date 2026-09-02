@@ -1,7 +1,7 @@
 /**
  * Gemini Watermark Remover — powered by official @pilio/gemini-watermark-remover SDK
  * Self-contained detection engine (no external dependencies).
- * Video: playback + requestVideoFrameCallback → SDK per-frame → captureStream encode.
+ * Video: 2-step pipeline (1. Frame-by-frame offline clean → 2. Real-time 30fps stream encode).
  */
 
 import {
@@ -63,17 +63,17 @@ export async function processVideoFrame(frameCanvas, options = {}) {
 }
 
 /**
- * Full video pipeline using playback + requestVideoFrameCallback:
+ * Robust 2-Step Video Processing Pipeline:
  *
- * 1. Detect watermark on first frame (seek to t=0)
- * 2. Extract audio from source video
- * 3. Setup output canvas + captureStream(30) + MediaRecorder
- * 4. Play video from start
- * 5. For EACH rendered frame (via rVFC):
- *    - Draw current video frame to temp canvas
- *    - Process through SDK (removeWatermarkFromImage)
- *    - Draw cleaned frame to output canvas (captureStream records it)
- * 6. When video ends → stop recorder → done
+ * Step 1 (Offline Cleaning):
+ * - Pause video, seek to frame 0..N-1 sequentially without dropping any frames.
+ * - Clean each frame with SDK `removeWatermarkFromImage`.
+ * - Convert cleaned canvas to ImageBitmap and store in array.
+ *
+ * Step 2 (Real-Time Recording):
+ * - Playback the cleaned ImageBitmaps onto an offscreen DOM canvas at exact 30fps.
+ * - MediaRecorder records captureStream(30) with exact timing & proper file size.
+ * - Close each ImageBitmap after drawing to release GPU memory.
  */
 export async function processFullVideo(videoEl, opts = {}) {
   const { alphaGain = 1.0, onProgress, onCancel } = opts
@@ -81,52 +81,92 @@ export async function processFullVideo(videoEl, opts = {}) {
   const w = videoEl.videoWidth || 1280
   const h = videoEl.videoHeight || 720
   const duration = videoEl.duration || 1
+  const fps = 30
+  const totalFrames = Math.max(1, Math.ceil(duration * fps))
 
-  console.log(`[WM] Video: ${w}×${h}, ${duration.toFixed(2)}s`)
+  console.log(`[WM] 2-Step Video Pipeline: ${w}×${h}, ${duration.toFixed(2)}s, ${totalFrames} frames`)
 
-  // ── Step 1: Detect watermark on first frame ──
-  console.log('[WM] Step 1/4: Detecting watermark...')
-  onProgress?.(3, 'Mendeteksi watermark...')
+  videoEl.pause()
 
-  const detectCanvas = document.createElement('canvas')
-  detectCanvas.width = w
-  detectCanvas.height = h
-  const detectCtx = detectCanvas.getContext('2d', { willReadFrequently: true })
+  // Temp processing canvas
+  const procCanvas = document.createElement('canvas')
+  procCanvas.width = w
+  procCanvas.height = h
+  const procCtx = procCanvas.getContext('2d', { willReadFrequently: true })
 
-  videoEl.currentTime = 0
-  await new Promise((res) => { videoEl.onseeked = res })
-  await new Promise((r) => setTimeout(r, 100))
-  detectCtx.drawImage(videoEl, 0, 0, w, h)
+  const seekTo = (targetTime) => {
+    return new Promise((resolve) => {
+      if (Math.abs(videoEl.currentTime - targetTime) < 0.005) {
+        resolve()
+        return
+      }
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        videoEl.removeEventListener('seeked', finish)
+        resolve()
+      }
+      videoEl.addEventListener('seeked', finish, { once: true })
+      videoEl.currentTime = targetTime
+      setTimeout(finish, 300)
+    })
+  }
 
-  const firstResult = await processVideoFrame(detectCanvas, { alphaGain })
+  // ── Step 1: Pre-process & clean every frame ──
+  console.log('[WM] Step 1/2: Cleaning all video frames...')
+  onProgress?.(2, 'Memeriksa watermark...')
+
+  await seekTo(0)
+  procCtx.drawImage(videoEl, 0, 0, w, h)
+  const firstResult = await processVideoFrame(procCanvas, { alphaGain })
   const hasWatermark = !!firstResult?.meta?.applied
-  console.log('[WM] Watermark detected:', hasWatermark, firstResult?.meta)
 
-  // ── Step 2: Extract audio ──
-  console.log('[WM] Step 2/4: Setting up audio...')
-  onProgress?.(6, 'Mengekstrak audio...')
+  console.log('[WM] Watermark check frame 0:', hasWatermark, firstResult?.meta)
 
-  // ── Step 3: Setup recording pipeline ──
-  console.log('[WM] Step 3/4: Setting up pipeline...')
+  const bitmaps = []
 
-  // Output canvas — this is what gets recorded
+  for (let i = 0; i < totalFrames; i++) {
+    if (onCancel?.()) {
+      bitmaps.forEach((b) => b.close?.())
+      throw new Error('Proses dibatalkan oleh pengguna')
+    }
+
+    const t = Math.min(i / fps, Math.max(0, duration - 0.03))
+    await seekTo(t)
+    procCtx.drawImage(videoEl, 0, 0, w, h)
+
+    if (hasWatermark) {
+      await processVideoFrame(procCanvas, { alphaGain })
+    }
+
+    const bmp = await createImageBitmap(procCanvas)
+    bitmaps.push(bmp)
+
+    const pct = Math.min(80, Math.round(((i + 1) / totalFrames) * 80))
+    onProgress?.(pct, `Membersihkan frame ${i + 1}/${totalFrames}...`)
+  }
+
+  console.log(`[WM] Step 1 finished (${bitmaps.length} frames cleaned). Starting Step 2 (recording)...`)
+
+  // ── Step 2: Real-time playback to output canvas & MediaRecorder ──
+  onProgress?.(81, 'Merekam video bersih...')
+
   const outCanvas = document.createElement('canvas')
   outCanvas.width = w
   outCanvas.height = h
   const outCtx = outCanvas.getContext('2d')
 
-  // Temp canvas for SDK processing
-  const procCanvas = document.createElement('canvas')
-  procCanvas.width = w
-  procCanvas.height = h
-  const procCtx = procCanvas.getContext('2d', { willReadFrequently: true })
+  // Temporarily mount to DOM so compositor triggers captureStream frame updates
+  outCanvas.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;z-index:-999;'
+  document.body.appendChild(outCanvas)
 
   let mimeType = 'video/webm;codecs=vp9'
   if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8'
   if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
   if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4'
 
-  const stream = outCanvas.captureStream(30)
+  const stream = outCanvas.captureStream(fps)
   const mediaRecorder = new MediaRecorder(stream, {
     mimeType,
     videoBitsPerSecond: 12000000,
@@ -137,126 +177,38 @@ export async function processFullVideo(videoEl, opts = {}) {
     if (e.data.size > 0) recordedChunks.push(e.data)
   }
 
-  // ── Step 4: Playback + per-frame processing ──
-  console.log('[WM] Step 4/4: Processing frames...')
-  onProgress?.(10, 'Memproses video...')
+  mediaRecorder.start(100)
 
-  return new Promise((resolve) => {
-    let frameCount = 0
-    let lastReportedPct = 0
-    let isProcessing = false
+  const frameIntervalMs = 1000 / fps
 
-    // Start recorder
-    mediaRecorder.start(100)
+  for (let i = 0; i < bitmaps.length; i++) {
+    if (onCancel?.()) break
+    const bmp = bitmaps[i]
 
-    // Seek to start and play
-    videoEl.muted = true
-    videoEl.currentTime = 0
+    outCtx.clearRect(0, 0, w, h)
+    outCtx.drawImage(bmp, 0, 0)
+    bmp.close?.()
 
-    videoEl.onseeked = async () => {
-      await new Promise((r) => setTimeout(r, 50))
+    const pct = Math.min(98, 80 + Math.round(((i + 1) / bitmaps.length) * 18))
+    onProgress?.(pct, `Merekam video... (${i + 1}/${bitmaps.length})`)
 
-      // Register recursive rVFC
-      if (typeof videoEl.requestVideoFrameCallback === 'function') {
-        const handleFrame = async (_now, metadata) => {
-          if (onCancel?.() || videoEl.ended) {
-            cleanup()
-            return
-          }
+    await new Promise((r) => setTimeout(r, frameIntervalMs))
+  }
 
-          // Process this frame
-          if (!isProcessing) {
-            isProcessing = true
-            try {
-              procCtx.drawImage(videoEl, 0, 0, w, h)
-              if (hasWatermark) {
-                await processVideoFrame(procCanvas, { alphaGain })
-              }
-              outCtx.drawImage(procCanvas, 0, 0, w, h)
-            } catch (e) {
-              outCtx.drawImage(videoEl, 0, 0, w, h)
-            }
-            frameCount++
-            isProcessing = false
-
-            // Report progress
-            if (duration > 0) {
-              const pct = Math.min(95, 10 + Math.round((metadata.mediaTime / duration) * 85))
-              if (pct > lastReportedPct + 1) {
-                lastReportedPct = pct
-                onProgress?.(pct, `Frame ${frameCount} (${metadata.mediaTime.toFixed(1)}s / ${duration.toFixed(1)}s)`)
-              }
-            }
-          }
-
-          // Re-register for NEXT frame (critical fix)
-          if (!videoEl.ended) {
-            videoEl.requestVideoFrameCallback(handleFrame)
-          }
-        }
-
-        videoEl.requestVideoFrameCallback(handleFrame)
-      } else {
-        // Fallback: draw loop via rAF
-        const handleAF = async () => {
-          if (onCancel?.() || videoEl.ended) {
-            cleanup()
-            return
-          }
-          if (!isProcessing) {
-            isProcessing = true
-            try {
-              procCtx.drawImage(videoEl, 0, 0, w, h)
-              if (hasWatermark) {
-                await processVideoFrame(procCanvas, { alphaGain })
-              }
-              outCtx.drawImage(procCanvas, 0, 0, w, h)
-            } catch (e) {
-              outCtx.drawImage(videoEl, 0, 0, w, h)
-            }
-            frameCount++
-            isProcessing = false
-          }
-          if (!videoEl.ended) {
-            requestAnimationFrame(handleAF)
-          }
-        }
-        requestAnimationFrame(handleAF)
-      }
-
-      // Play video
-      videoEl.play().catch(() => {})
-    }
-
-    // Handle video end
-    videoEl.onended = () => {
-      console.log(`[WM] Video ended. Total frames: ${frameCount}`)
-      cleanup()
-    }
-
-    let cleanedUp = false
-    const cleanup = () => {
-      if (cleanedUp) return
-      cleanedUp = true
-
-      try { mediaRecorder.stop() } catch {}
-
-      setTimeout(() => {
-        const videoBlob = new Blob(recordedChunks, { type: mimeType })
-        console.log(`[WM] Done. Video: ${fmtBytes(videoBlob.size)}, Frames: ${frameCount}`)
-        onProgress?.(98, 'Selesai!')
-        resolve({ videoBlob, audioBlob: null, hasWatermark, totalFramesProcessed: frameCount })
-      }, 300)
-    }
-
-    // Safety timeout
-    setTimeout(() => {
-      if (!cleanedUp) {
-        console.warn('[WM] Safety timeout reached')
-        cleanup()
-      }
-    }, Math.ceil(duration * 2000) + 30000)
+  await new Promise((resolve) => {
+    mediaRecorder.onstop = resolve
+    mediaRecorder.stop()
   })
+
+  if (outCanvas.parentNode) {
+    outCanvas.parentNode.removeChild(outCanvas)
+  }
+
+  const videoBlob = new Blob(recordedChunks, { type: mimeType })
+  console.log(`[WM] Video pipeline complete! Result size: ${fmtBytes(videoBlob.size)}`)
+
+  onProgress?.(100, 'Selesai!')
+  return { videoBlob, audioBlob: null, hasWatermark, totalFramesProcessed: bitmaps.length }
 }
 
 /** Simple byte formatter */
