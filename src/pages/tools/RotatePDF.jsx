@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal, Download,
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal, ArrowDown, ArrowRight, FolderArchive,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -122,10 +122,11 @@ export default function RotatePDF() {
   const [pages, setPages] = useState([]) // [{ id, fileId, type, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc, file }]
   const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | etc.
   const [exportFormat, setExportFormat] = useState('pdf') // 'pdf' | 'png' | 'jpg'
+  const [imageLayout, setImageLayout] = useState('vertical') // 'vertical' | 'horizontal' | 'zip'
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
-  const [result, setResult] = useState(null) // { blob, mime, ext }
+  const [result, setResult] = useState(null) // { blob, mime, ext, fileName }
   const [error, setError] = useState('')
 
   const fileInputRef = useRef(null)
@@ -283,9 +284,10 @@ export default function RotatePDF() {
     setError('')
     setWidthOption('original')
     setExportFormat('pdf')
+    setImageLayout('vertical')
   }
 
-  /* Save Output in PDF or Image (PNG/JPG/ZIP) format */
+  /* Save Output in PDF or Image format (Single Stitched Image or ZIP) */
   const savePDF = async () => {
     if (!pages.length) {
       setError('Tidak ada halaman tersisa untuk disimpan.')
@@ -364,87 +366,149 @@ export default function RotatePDF() {
         }
 
         const bytes = await outDoc.save()
-        setResult({ blob: new Blob([bytes], { type: 'application/pdf' }), mime: 'application/pdf', ext: 'pdf' })
+        setResult({
+          blob: new Blob([bytes], { type: 'application/pdf' }),
+          mime: 'application/pdf',
+          ext: 'pdf',
+          fileName: files.length > 1 ? 'merged_document.pdf' : `${stripExt(files[0]?.file?.name || 'output')}_organize.pdf`,
+        })
       } else {
         // Export to Image (PNG or JPG)
         const isJpg = exportFormat === 'jpg'
         const mimeType = isJpg ? 'image/jpeg' : 'image/png'
         const ext = isJpg ? 'jpg' : 'png'
-        const pageImages = []
+        const pageCanvasList = []
 
         for (let i = 0; i < pages.length; i++) {
           const pObj = pages[i]
+          let pCanvas
           if (pObj.type === 'pdf') {
             const parentFile = files.find((f) => f.id === pObj.fileId)
             const pdfDocToUse = parentFile?.pdfjsDoc || pObj.pdfjsDoc
             if (pdfDocToUse) {
-              const { dataUrl } = await renderPageToDataUrl(pdfDocToUse, pObj.pageIndex + 1, 2.0, pObj.rotation)
-              if (isJpg) {
-                const canvas = document.createElement('canvas')
-                const img = new Image()
-                await new Promise((res) => { img.onload = res; img.src = dataUrl })
-                canvas.width = img.width
-                canvas.height = img.height
-                const ctx = canvas.getContext('2d')
-                ctx.fillStyle = '#ffffff'
-                ctx.fillRect(0, 0, canvas.width, canvas.height)
-                ctx.drawImage(img, 0, 0)
-                pageImages.push(canvas.toDataURL('image/jpeg', 0.92))
-              } else {
-                pageImages.push(dataUrl)
-              }
+              const { canvas: renderedCanvas } = await renderPageToDataUrl(pdfDocToUse, pObj.pageIndex + 1, 2.0, pObj.rotation)
+              pCanvas = renderedCanvas
             }
           } else {
-            // Image file
+            // Image file: draw to canvas with rotation
             const imgUrl = URL.createObjectURL(pObj.file)
             const img = new Image()
             await new Promise((res) => { img.onload = res; img.src = imgUrl })
-            const canvas = document.createElement('canvas')
+            pCanvas = document.createElement('canvas')
             const rot = pObj.rotation || 0
             if (rot === 90 || rot === 270) {
-              canvas.width = img.naturalHeight || img.height
-              canvas.height = img.naturalWidth || img.width
+              pCanvas.width = img.naturalHeight || img.height
+              pCanvas.height = img.naturalWidth || img.width
             } else {
-              canvas.width = img.naturalWidth || img.width
-              canvas.height = img.naturalHeight || img.height
+              pCanvas.width = img.naturalWidth || img.width
+              pCanvas.height = img.naturalHeight || img.height
             }
-            const ctx = canvas.getContext('2d')
-            if (isJpg) {
-              ctx.fillStyle = '#ffffff'
-              ctx.fillRect(0, 0, canvas.width, canvas.height)
-            }
+            const ctx = pCanvas.getContext('2d')
             if (rot === 90) {
-              ctx.translate(canvas.width, 0)
+              ctx.translate(pCanvas.width, 0)
               ctx.rotate(Math.PI / 2)
             } else if (rot === 180) {
-              ctx.translate(canvas.width, canvas.height)
+              ctx.translate(pCanvas.width, pCanvas.height)
               ctx.rotate(Math.PI)
             } else if (rot === 270) {
-              ctx.translate(0, canvas.height)
+              ctx.translate(0, pCanvas.height)
               ctx.rotate(-Math.PI / 2)
             }
             ctx.drawImage(img, 0, 0)
-            pageImages.push(canvas.toDataURL(mimeType, isJpg ? 0.92 : undefined))
             URL.revokeObjectURL(imgUrl)
+          }
+
+          if (pCanvas) {
+            pageCanvasList.push({
+              canvas: pCanvas,
+              width: pCanvas.width,
+              height: pCanvas.height,
+            })
           }
         }
 
-        if (pages.length === 1) {
-          const dataUrl = pageImages[0]
+        if (pageCanvasList.length === 0) {
+          throw new Error('Tidak ada halaman yang berhasil diproses.')
+        }
+
+        if (pages.length === 1 || imageLayout !== 'zip') {
+          // Single stitched image (Vertical or Horizontal) or 1 page
+          let masterW, masterH
+          if (imageLayout === 'horizontal' && pageCanvasList.length > 1) {
+            masterW = pageCanvasList.reduce((sum, item) => sum + item.width, 0)
+            masterH = Math.max(...pageCanvasList.map((item) => item.height))
+          } else {
+            // Vertical (default) or single page
+            masterW = Math.max(...pageCanvasList.map((item) => item.width))
+            masterH = pageCanvasList.reduce((sum, item) => sum + item.height, 0)
+          }
+
+          const masterCanvas = document.createElement('canvas')
+          masterCanvas.width = masterW
+          masterCanvas.height = masterH
+          const masterCtx = masterCanvas.getContext('2d')
+
+          if (isJpg) {
+            masterCtx.fillStyle = '#ffffff'
+            masterCtx.fillRect(0, 0, masterW, masterH)
+          }
+
+          if (imageLayout === 'horizontal' && pageCanvasList.length > 1) {
+            let currentX = 0
+            for (const item of pageCanvasList) {
+              const y = Math.floor((masterH - item.height) / 2)
+              masterCtx.drawImage(item.canvas, currentX, y)
+              currentX += item.width
+            }
+          } else {
+            let currentY = 0
+            for (const item of pageCanvasList) {
+              const x = Math.floor((masterW - item.width) / 2)
+              masterCtx.drawImage(item.canvas, x, currentY)
+              currentY += item.height
+            }
+          }
+
+          const dataUrl = masterCanvas.toDataURL(mimeType, isJpg ? 0.92 : undefined)
           const base64 = dataUrl.split(',')[1]
           const binary = atob(base64)
           const bytes = new Uint8Array(binary.length)
           for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-          setResult({ blob: new Blob([bytes], { type: mimeType }), mime: mimeType, ext })
+
+          setResult({
+            blob: new Blob([bytes], { type: mimeType }),
+            mime: mimeType,
+            ext,
+            fileName: pages.length > 1 ? `merged_images_${imageLayout}.${ext}` : `halaman_1.${ext}`,
+          })
         } else {
           // Multiple pages -> zip
           const zip = new JSZip()
-          for (let i = 0; i < pageImages.length; i++) {
-            const base64 = pageImages[i].split(',')[1]
+          for (let i = 0; i < pageCanvasList.length; i++) {
+            const item = pageCanvasList[i]
+            let dataUrl
+            if (isJpg) {
+              const tempCanvas = document.createElement('canvas')
+              tempCanvas.width = item.width
+              tempCanvas.height = item.height
+              const tCtx = tempCanvas.getContext('2d')
+              tCtx.fillStyle = '#ffffff'
+              tCtx.fillRect(0, 0, item.width, item.height)
+              tCtx.drawImage(item.canvas, 0, 0)
+              dataUrl = tempCanvas.toDataURL('image/jpeg', 0.92)
+            } else {
+              dataUrl = item.canvas.toDataURL('image/png')
+            }
+            const base64 = dataUrl.split(',')[1]
             zip.file(`halaman_${i + 1}.${ext}`, base64, { base64: true })
           }
           const zipBlob = await zip.generateAsync({ type: 'blob' })
-          setResult({ blob: zipBlob, mime: 'application/zip', ext: 'zip' })
+          setResult({
+            blob: zipBlob,
+            mime: 'application/zip',
+            ext: 'zip',
+            fileName: 'merged_images.zip',
+          })
         }
       }
     } catch (e) {
@@ -455,9 +519,6 @@ export default function RotatePDF() {
   }
 
   const isMultiFile = files.length > 1
-  const outputFileName = result
-    ? (result.ext === 'zip' ? 'merged_images.zip' : (result.ext === 'pdf' ? (isMultiFile ? 'merged_document.pdf' : `${stripExt(files[0]?.file?.name || 'output')}_organize.pdf`) : `halaman_1.${result.ext}`))
-    : 'output.pdf'
 
   return (
     <ToolShell
@@ -559,7 +620,7 @@ export default function RotatePDF() {
                   onChange={() => setExportFormat('png')}
                   className="accent-[--color-brand]"
                 />
-                <span className="font-medium">Gambar PNG <span className="text-[--color-text-3]">{pages.length > 1 ? '(.zip)' : '(.png)'}</span></span>
+                <span className="font-medium">Gambar PNG <span className="text-[--color-text-3]">(.png)</span></span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -570,12 +631,65 @@ export default function RotatePDF() {
                   onChange={() => setExportFormat('jpg')}
                   className="accent-[--color-brand]"
                 />
-                <span className="font-medium">Gambar JPG <span className="text-[--color-text-3]">{pages.length > 1 ? '(.zip)' : '(.jpg)'}</span></span>
+                <span className="font-medium">Gambar JPG <span className="text-[--color-text-3]">(.jpg)</span></span>
               </label>
             </div>
           </div>
 
-          {/* Page Width Option Selector (Visible when >1 files uploaded & output format is PDF) */}
+          {/* Image Layout Option (Visible when Export Format is PNG or JPG) */}
+          {(exportFormat === 'png' || exportFormat === 'jpg') && pages.length > 1 && (
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-[--color-text]">
+                <ImageIcon size={14} className="text-emerald-500" />
+                <span>Susunan & Penggabungan Gambar:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageLayout"
+                    value="vertical"
+                    checked={imageLayout === 'vertical'}
+                    onChange={() => setImageLayout('vertical')}
+                    className="accent-emerald-600"
+                  />
+                  <span className="font-medium flex items-center gap-1">
+                    <ArrowDown size={13} className="text-emerald-500" /> Memanjang ke Bawah <span className="text-[--color-text-3]">(1 Gambar Vertikal)</span>
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageLayout"
+                    value="horizontal"
+                    checked={imageLayout === 'horizontal'}
+                    onChange={() => setImageLayout('horizontal')}
+                    className="accent-emerald-600"
+                  />
+                  <span className="font-medium flex items-center gap-1">
+                    <ArrowRight size={13} className="text-emerald-500" /> Memanjang Menyamping <span className="text-[--color-text-3]">(1 Gambar Horisontal)</span>
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageLayout"
+                    value="zip"
+                    checked={imageLayout === 'zip'}
+                    onChange={() => setImageLayout('zip')}
+                    className="accent-emerald-600"
+                  />
+                  <span className="font-medium flex items-center gap-1">
+                    <FolderArchive size={13} className="text-emerald-500" /> File Terpisah per Halaman <span className="text-[--color-text-3] font-mono">(.ZIP)</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Page Width Option Selector (Visible when >1 files uploaded & export format is PDF) */}
           {files.length > 1 && exportFormat === 'pdf' && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
               <div className="flex items-center gap-2 font-semibold text-[--color-text]">
@@ -672,14 +786,16 @@ export default function RotatePDF() {
             ? 'Memproses Hasil...'
             : exportFormat === 'pdf'
             ? (isMultiFile ? `Gabungkan & Simpan ${pages.length} Halaman PDF` : `Simpan ${pages.length} Halaman PDF Baru`)
-            : `Ekspor ${pages.length} Halaman ke Format ${exportFormat.toUpperCase()} ${pages.length > 1 ? '(.ZIP)' : ''}`}
+            : (imageLayout === 'zip'
+                ? `Ekspor ${pages.length} Halaman ke ZIP (${exportFormat.toUpperCase()})`
+                : `Gabungkan ${pages.length} Halaman ke 1 Gambar ${exportFormat.toUpperCase()} (${imageLayout === 'vertical' ? 'Kebawah' : 'Menyamping'})`)}
         </button>
       )}
 
       {/* Result Card */}
       {result && (
         <ResultCard
-          fileName={outputFileName}
+          fileName={result.fileName || 'output'}
           blob={result.blob}
           extraInfo={`${pages.length} halaman → ${fmtBytes(result.blob.size)}`}
           outputMimeType={result.mime}
