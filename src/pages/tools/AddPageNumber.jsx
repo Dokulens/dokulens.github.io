@@ -34,6 +34,41 @@ function toRoman(num, isUpper = true) {
   return isUpper ? roman : roman.toLowerCase()
 }
 
+function parsePageRange(rangeStr, maxPages) {
+  if (!rangeStr || rangeStr.trim() === '' || rangeStr.trim().toLowerCase() === 'semua' || rangeStr.trim().toLowerCase() === 'all') {
+    return Array.from({ length: maxPages }, (_, i) => i)
+  }
+  const str = rangeStr.trim().toLowerCase()
+  if (str === 'ganjil' || str === 'odd') {
+    return Array.from({ length: maxPages }, (_, i) => i).filter((i) => (i + 1) % 2 !== 0)
+  }
+  if (str === 'genap' || str === 'even') {
+    return Array.from({ length: maxPages }, (_, i) => i).filter((i) => (i + 1) % 2 === 0)
+  }
+
+  const indices = new Set()
+  const parts = str.split(',')
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (trimmed.includes('-')) {
+      const [start, end] = trimmed.split('-').map((n) => parseInt(n.trim(), 10))
+      if (!isNaN(start) && !isNaN(end)) {
+        const min = Math.max(1, Math.min(start, end))
+        const max = Math.min(maxPages, Math.max(start, end))
+        for (let p = min; p <= max; p++) {
+          indices.add(p - 1)
+        }
+      }
+    } else {
+      const p = parseInt(trimmed, 10)
+      if (!isNaN(p) && p >= 1 && p <= maxPages) {
+        indices.add(p - 1)
+      }
+    }
+  }
+  return Array.from(indices).sort((a, b) => a - b)
+}
+
 const FONT_OPTIONS = [
   { id: 'Calibri', label: 'Calibri (Standard Word / Laporan)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
   { id: 'Helvetica', label: 'Helvetica / Arial (Standard Modern)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
