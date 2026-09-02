@@ -280,6 +280,32 @@ export default function AddPageNumber() {
     window.addEventListener('mouseup', onMouseUp)
   }
 
+  // Resize handler for WO box (corner drag)
+  const startWoResize = (e, corner) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = woWidth
+    const startH = woHeight
+    const onMouseMove = (moveEvent) => {
+      if (!previewContainerRef.current) return
+      const rect = previewContainerRef.current.getBoundingClientRect()
+      const scale = 4 // preview shows woWidth/4
+      const dxPt = ((moveEvent.clientX - startX) / rect.width) * 100 * scale
+      let newW = startW
+      let newH = startH
+      if (corner.includes('e')) newW = Math.max(40, Math.min(500, Math.round(startW + dxPt)))
+      if (corner.includes('w')) newW = Math.max(40, Math.min(500, Math.round(startW - dxPt)))
+      if (corner.includes('s')) newH = Math.max(8, Math.min(200, Math.round(startH + dxPt * 0.5)))
+      if (corner.includes('n')) newH = Math.max(8, Math.min(200, Math.round(startH - dxPt * 0.5)))
+      setWoWidth(newW)
+      setWoHeight(newH)
+    }
+    const onMouseUp = () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp) }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
+
   const autoDetectExistingPageNumber = async (doc) => {
     try {
       const checkPages = Math.min(3, doc.numPages)
@@ -1005,25 +1031,33 @@ export default function AddPageNumber() {
                       )
                     })()}
 
-                    {/* White-out Box (solid, draggable) */}
+                    {/* White-out Box (solid, draggable + resizable) */}
                     {woEnabled && currentIncluded && (() => {
                       const woPos = getWoPosition(currentPage)
+                      const previewW = Math.max(40, woWidth / 4)
+                      const previewH = Math.max(12, woHeight / 4)
+                      const handleStyle = 'absolute w-2.5 h-2.5 bg-orange-500 border border-white rounded-sm z-10'
                       return (
                         <div
                           onMouseDown={startWoDrag}
-                          className="absolute cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
+                          className="absolute cursor-grab active:cursor-grabbing select-none"
                           style={{
                             left: `${woPos.x}%`, top: `${woPos.y}%`,
                             transform: 'translate(-50%, -50%)',
-                            width: `${Math.max(40, woWidth / 4)}px`, height: `${Math.max(12, woHeight / 4)}px`,
+                            width: `${previewW}px`, height: `${previewH}px`,
                             backgroundColor: paperColor,
                             border: '2px solid #f97316',
                             borderRadius: '3px',
                             boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                           }}
-                          title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}pt)`}
+                          title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}pt) — drag pojok untuk resize`}
                         >
-                          <span className="text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO</span>
+                          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO</span>
+                          {/* Corner resize handles */}
+                          <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => startWoResize(e, 'nw')} />
+                          <div className={`${handleStyle} -top-1.5 -right-1.5 cursor-ne-resize`} onMouseDown={(e) => startWoResize(e, 'ne')} />
+                          <div className={`${handleStyle} -bottom-1.5 -left-1.5 cursor-sw-resize`} onMouseDown={(e) => startWoResize(e, 'sw')} />
+                          <div className={`${handleStyle} -bottom-1.5 -right-1.5 cursor-se-resize`} onMouseDown={(e) => startWoResize(e, 'se')} />
                         </div>
                       )
                     })()}
