@@ -116,24 +116,15 @@ export default function AddPageNumber() {
   const [fontColor, setFontColor] = useState('#000000')
   const [paperColor, setPaperColor] = useState('#FFFFFF')
   const [coverExistingNumber, setCoverExistingNumber] = useState(true)
-  // White-out Box 1
-  const [wo1Enabled, setWo1Enabled] = useState(true)
-  const [wo1Preset, setWo1Preset] = useState('bottom-center')
-  const [wo1CustomX, setWo1CustomX] = useState(50)
-  const [wo1CustomY, setWo1CustomY] = useState(95)
-  const [wo1Width, setWo1Width] = useState(120)
-  const [wo1Height, setWo1Height] = useState(24)
-  const [usePerPageWo1, setUsePerPageWo1] = useState(false)
-  const [perPageWo1Overrides, setPerPageWo1Overrides] = useState({})
-  // White-out Box 2
-  const [wo2Enabled, setWo2Enabled] = useState(false)
-  const [wo2Preset, setWo2Preset] = useState('bottom-left')
-  const [wo2CustomX, setWo2CustomX] = useState(8)
-  const [wo2CustomY, setWo2CustomY] = useState(95)
-  const [wo2Width, setWo2Width] = useState(120)
-  const [wo2Height, setWo2Height] = useState(24)
-  const [usePerPageWo2, setUsePerPageWo2] = useState(false)
-  const [perPageWo2Overrides, setPerPageWo2Overrides] = useState({})
+  // White-out Box (independent)
+  const [woEnabled, setWoEnabled] = useState(true)
+  const [woPreset, setWoPreset] = useState('bottom-center')
+  const [woCustomX, setWoCustomX] = useState(50)
+  const [woCustomY, setWoCustomY] = useState(95)
+  const [woWidth, setWoWidth] = useState(120)
+  const [woHeight, setWoHeight] = useState(24)
+  const [usePerPageWo, setUsePerPageWo] = useState(false)
+  const [perPageWoOverrides, setPerPageWoOverrides] = useState({})
   const [isBold, setIsBold] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
   const [skipFirstPage, setSkipFirstPage] = useState(true)
@@ -155,10 +146,8 @@ export default function AddPageNumber() {
   const previewContainerRef = useRef(null)
   const isDraggingTagRef = useRef(false)
   const dragStartPosRef = useRef({ startX: 0, startY: 0, origX: 50, origY: 95 })
-  const isDraggingWo1Ref = useRef(false)
-  const dragWo1StartRef = useRef({ startX: 0, startY: 0, origX: 50, origY: 95 })
-  const isDraggingWo2Ref = useRef(false)
-  const dragWo2StartRef = useRef({ startX: 0, startY: 0, origX: 8, origY: 95 })
+  const isDraggingWoRef = useRef(false)
+  const dragWoStartRef = useRef({ startX: 0, startY: 0, origX: 50, origY: 95 })
 
   const handleFile = async ([f]) => {
     setFile(f)
@@ -167,13 +156,10 @@ export default function AddPageNumber() {
     setCurrentPage(1)
     setPerPageOverrides({})
     setPerPagePositionOverrides({})
-    setPerPageWo1Overrides({})
-    setPerPageWo2Overrides({})
+    setPerPageWoOverrides({})
     setUsePerPagePosition(false)
-    setUsePerPageWo1(false)
-    setUsePerPageWo2(false)
-    setWo1Enabled(true)
-    setWo2Enabled(false)
+    setUsePerPageWo(false)
+    setWoEnabled(true)
     setDetectedPosition(null)
     setDocxTextSummary('')
 
@@ -272,46 +258,24 @@ export default function AddPageNumber() {
     window.addEventListener('mouseup', onMouseUp)
   }
 
-  // Draggable White-out Box 1
-  const startWo1Drag = (e) => {
+  // Draggable White-out Box
+  const startWoDrag = (e) => {
     e.stopPropagation()
     e.preventDefault()
-    const wo1Pos = getWo1Position(currentPage)
-    isDraggingWo1Ref.current = true
-    dragWo1StartRef.current = { startX: e.clientX, startY: e.clientY, origX: wo1Pos.x, origY: wo1Pos.y }
+    const woPos = getWoPosition(currentPage)
+    isDraggingWoRef.current = true
+    dragWoStartRef.current = { startX: e.clientX, startY: e.clientY, origX: woPos.x, origY: woPos.y }
     const onMouseMove = (moveEvent) => {
-      if (!isDraggingWo1Ref.current || !previewContainerRef.current) return
+      if (!isDraggingWoRef.current || !previewContainerRef.current) return
       const rect = previewContainerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - dragWo1StartRef.current.startX) / rect.width) * 100
-      const dyPct = ((moveEvent.clientY - dragWo1StartRef.current.startY) / rect.height) * 100
-      const newX = Math.max(3, Math.min(97, Math.round(dragWo1StartRef.current.origX + dxPct)))
-      const newY = Math.max(3, Math.min(97, Math.round(dragWo1StartRef.current.origY + dyPct)))
-      if (usePerPageWo1) { setCurrentPageWo1('custom', newX, newY) }
-      else { setWo1CustomX(newX); setWo1CustomY(newY); setWo1Preset('custom') }
+      const dxPct = ((moveEvent.clientX - dragWoStartRef.current.startX) / rect.width) * 100
+      const dyPct = ((moveEvent.clientY - dragWoStartRef.current.startY) / rect.height) * 100
+      const newX = Math.max(3, Math.min(97, Math.round(dragWoStartRef.current.origX + dxPct)))
+      const newY = Math.max(3, Math.min(97, Math.round(dragWoStartRef.current.origY + dyPct)))
+      if (usePerPageWo) { setCurrentPageWo('custom', newX, newY) }
+      else { setWoCustomX(newX); setWoCustomY(newY); setWoPreset('custom') }
     }
-    const onMouseUp = () => { isDraggingWo1Ref.current = false; window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp) }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
-
-  // Draggable White-out Box 2
-  const startWo2Drag = (e) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const wo2Pos = getWo2Position(currentPage)
-    isDraggingWo2Ref.current = true
-    dragWo2StartRef.current = { startX: e.clientX, startY: e.clientY, origX: wo2Pos.x, origY: wo2Pos.y }
-    const onMouseMove = (moveEvent) => {
-      if (!isDraggingWo2Ref.current || !previewContainerRef.current) return
-      const rect = previewContainerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - dragWo2StartRef.current.startX) / rect.width) * 100
-      const dyPct = ((moveEvent.clientY - dragWo2StartRef.current.startY) / rect.height) * 100
-      const newX = Math.max(3, Math.min(97, Math.round(dragWo2StartRef.current.origX + dxPct)))
-      const newY = Math.max(3, Math.min(97, Math.round(dragWo2StartRef.current.origY + dyPct)))
-      if (usePerPageWo2) { setCurrentPageWo2('custom', newX, newY) }
-      else { setWo2CustomX(newX); setWo2CustomY(newY); setWo2Preset('custom') }
-    }
-    const onMouseUp = () => { isDraggingWo2Ref.current = false; window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp) }
+    const onMouseUp = () => { isDraggingWoRef.current = false; window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp) }
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
   }
@@ -444,39 +408,21 @@ export default function AddPageNumber() {
     }))
   }
 
-  // White-out Box 1 helpers
-  const getWo1Position = (page) => {
-    if (usePerPageWo1 && perPageWo1Overrides[page]) return perPageWo1Overrides[page]
-    return { preset: wo1Preset, x: wo1CustomX, y: wo1CustomY }
+  // White-out Box helpers
+  const getWoPosition = (page) => {
+    if (usePerPageWo && perPageWoOverrides[page]) return perPageWoOverrides[page]
+    return { preset: woPreset, x: woCustomX, y: woCustomY }
   }
-  const setCurrentPageWo1 = (preset, x, y) => {
-    setPerPageWo1Overrides((prev) => ({ ...prev, [currentPage]: { preset, x, y } }))
+  const setCurrentPageWo = (preset, x, y) => {
+    setPerPageWoOverrides((prev) => ({ ...prev, [currentPage]: { preset, x, y } }))
   }
-  const selectWo1Preset = (presetId) => {
+  const selectWoPreset = (presetId) => {
     const p = POSITION_PRESETS.find((pr) => pr.id === presetId)
-    if (usePerPageWo1) {
-      setCurrentPageWo1(presetId, p?.xPct ?? 50, p?.yPct ?? 95)
+    if (usePerPageWo) {
+      setCurrentPageWo(presetId, p?.xPct ?? 50, p?.yPct ?? 95)
     } else {
-      setWo1Preset(presetId)
-      if (p) { setWo1CustomX(p.xPct); setWo1CustomY(p.yPct) }
-    }
-  }
-
-  // White-out Box 2 helpers
-  const getWo2Position = (page) => {
-    if (usePerPageWo2 && perPageWo2Overrides[page]) return perPageWo2Overrides[page]
-    return { preset: wo2Preset, x: wo2CustomX, y: wo2CustomY }
-  }
-  const setCurrentPageWo2 = (preset, x, y) => {
-    setPerPageWo2Overrides((prev) => ({ ...prev, [currentPage]: { preset, x, y } }))
-  }
-  const selectWo2Preset = (presetId) => {
-    const p = POSITION_PRESETS.find((pr) => pr.id === presetId)
-    if (usePerPageWo2) {
-      setCurrentPageWo2(presetId, p?.xPct ?? 50, p?.yPct ?? 95)
-    } else {
-      setWo2Preset(presetId)
-      if (p) { setWo2CustomX(p.xPct); setWo2CustomY(p.yPct) }
+      setWoPreset(presetId)
+      if (p) { setWoCustomX(p.xPct); setWoCustomY(p.yPct) }
     }
   }
 
@@ -535,37 +481,22 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box 1 (solid paper color)
-          if (wo1Enabled) {
-            const wo1Pos = getWo1Position(pageNum)
-            let wo1X = (wo1Pos.x / 100) * pWidth
-            let wo1Y = pHeight - (wo1Pos.y / 100) * pHeight
-            if (wo1Pos.preset.includes('center')) wo1X -= wo1Width / 2
-            else if (wo1Pos.preset.includes('right')) wo1X -= wo1Width
+          // 1) White-out Box (solid paper color)
+          if (woEnabled) {
+            const woPos = getWoPosition(pageNum)
+            let woX = (woPos.x / 100) * pWidth
+            let woY = pHeight - (woPos.y / 100) * pHeight
+            if (woPos.preset.includes('center')) woX -= woWidth / 2
+            else if (woPos.preset.includes('right')) woX -= woWidth
             const paperRgb = hexToRgb(paperColor)
             page.drawRectangle({
-              x: wo1X, y: wo1Y - wo1Height / 2,
-              width: wo1Width, height: wo1Height,
+              x: woX, y: woY - woHeight / 2,
+              width: woWidth, height: woHeight,
               color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
             })
           }
 
-          // 2) White-out Box 2 (solid paper color)
-          if (wo2Enabled) {
-            const wo2Pos = getWo2Position(pageNum)
-            let wo2X = (wo2Pos.x / 100) * pWidth
-            let wo2Y = pHeight - (wo2Pos.y / 100) * pHeight
-            if (wo2Pos.preset.includes('center')) wo2X -= wo2Width / 2
-            else if (wo2Pos.preset.includes('right')) wo2X -= wo2Width
-            const paperRgb = hexToRgb(paperColor)
-            page.drawRectangle({
-              x: wo2X, y: wo2Y - wo2Height / 2,
-              width: wo2Width, height: wo2Height,
-              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-            })
-          }
-
-          // 3) Font background (paper color behind new page number text)
+          // 2) Font background (paper color behind new page number text)
           if (coverExistingNumber) {
             const paperRgb = hexToRgb(paperColor)
             const textPadX = 6
@@ -579,7 +510,7 @@ export default function AddPageNumber() {
             })
           }
 
-          // 4) Draw page number text on top
+          // 3) Draw page number text on top
           page.drawText(numText, {
             x: targetX,
             y: targetY,
@@ -932,35 +863,35 @@ export default function AddPageNumber() {
                   )}
                 </div>
 
-                {/* White-out Box 1 */}
+                {/* White-out Box (independent) */}
                 <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
-                      <input type="checkbox" checked={wo1Enabled} onChange={(e) => setWo1Enabled(e.target.checked)}
+                      <input type="checkbox" checked={woEnabled} onChange={(e) => setWoEnabled(e.target.checked)}
                         className="accent-orange-500 cursor-pointer" />
-                      <span className="text-orange-600 dark:text-orange-400">Wite-out 1</span>
-                      <span className="text-[--color-text-3] font-normal">(Kotak Penimpa Independen)</span>
+                      <span className="text-orange-600 dark:text-orange-400">Wite-out Independen</span>
+                      <span className="text-[--color-text-3] font-normal">(Kotak Penimpa — posisi bebas, tidak terikat nomor)</span>
                     </label>
-                    {wo1Enabled && (
+                    {woEnabled && (
                       <label className="flex items-center gap-1.5 text-[--color-text-2] cursor-pointer">
-                        <input type="checkbox" checked={usePerPageWo1} onChange={(e) => setUsePerPageWo1(e.target.checked)} />
+                        <input type="checkbox" checked={usePerPageWo} onChange={(e) => setUsePerPageWo(e.target.checked)} />
                         <span className="font-semibold">Custom per Halaman</span>
                       </label>
                     )}
                   </div>
-                  {wo1Enabled && (
+                  {woEnabled && (
                     <>
                       <div className="flex items-center gap-2 text-[10px] text-orange-600 dark:text-orange-400 font-mono bg-orange-500/10 px-2 py-0.5 rounded w-fit">
-                        {usePerPageWo1
-                          ? `Hal ${currentPage}: ${getWo1Position(currentPage).preset === 'custom' ? `${getWo1Position(currentPage).x}%, ${getWo1Position(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getWo1Position(currentPage).preset)?.label || 'Custom'}`
-                          : `Semua: ${POSITION_PRESETS.find(p => p.id === wo1Preset)?.label || 'Custom'}`}
-                        <span className="ml-2 text-[--color-text-3]">{wo1Width}×{wo1Height}pt</span>
+                        {usePerPageWo
+                          ? `Hal ${currentPage}: ${getWoPosition(currentPage).preset === 'custom' ? `${getWoPosition(currentPage).x}%, ${getWoPosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getWoPosition(currentPage).preset)?.label || 'Custom'}`
+                          : `Semua: ${POSITION_PRESETS.find(p => p.id === woPreset)?.label || 'Custom'}`}
+                        <span className="ml-2 text-[--color-text-3]">{woWidth}×{woHeight}pt</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
                         {POSITION_PRESETS.map((pos) => {
-                          const active = usePerPageWo1 ? getWo1Position(currentPage).preset : wo1Preset
+                          const active = usePerPageWo ? getWoPosition(currentPage).preset : woPreset
                           return (
-                            <button key={pos.id} type="button" onClick={() => selectWo1Preset(pos.id)}
+                            <button key={pos.id} type="button" onClick={() => selectWoPreset(pos.id)}
                               className={['flex flex-col items-center justify-center rounded border p-1.5 text-[11px] text-center transition-all',
                                 active === pos.id
                                   ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold shadow-xs'
@@ -973,68 +904,13 @@ export default function AddPageNumber() {
                       </div>
                       <div className="flex items-center gap-4 pt-1">
                         <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Lebar: <input type="number" min="40" max="500" value={wo1Width}
-                            onChange={(e) => setWo1Width(Math.max(40, Math.min(500, Number(e.target.value) || 40)))}
+                          Lebar: <input type="number" min="40" max="500" value={woWidth}
+                            onChange={(e) => setWoWidth(Math.max(40, Math.min(500, Number(e.target.value) || 40)))}
                             className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
                         </label>
                         <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Tinggi: <input type="number" min="8" max="200" value={wo1Height}
-                            onChange={(e) => setWo1Height(Math.max(8, Math.min(200, Number(e.target.value) || 8)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
-                        </label>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* White-out Box 2 */}
-                <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
-                      <input type="checkbox" checked={wo2Enabled} onChange={(e) => setWo2Enabled(e.target.checked)}
-                        className="accent-orange-500 cursor-pointer" />
-                      <span className="text-orange-600 dark:text-orange-400">Wite-out 2</span>
-                      <span className="text-[--color-text-3] font-normal">(Kotak Penimpa Kedua)</span>
-                    </label>
-                    {wo2Enabled && (
-                      <label className="flex items-center gap-1.5 text-[--color-text-2] cursor-pointer">
-                        <input type="checkbox" checked={usePerPageWo2} onChange={(e) => setUsePerPageWo2(e.target.checked)} />
-                        <span className="font-semibold">Custom per Halaman</span>
-                      </label>
-                    )}
-                  </div>
-                  {wo2Enabled && (
-                    <>
-                      <div className="flex items-center gap-2 text-[10px] text-orange-600 dark:text-orange-400 font-mono bg-orange-500/10 px-2 py-0.5 rounded w-fit">
-                        {usePerPageWo2
-                          ? `Hal ${currentPage}: ${getWo2Position(currentPage).preset === 'custom' ? `${getWo2Position(currentPage).x}%, ${getWo2Position(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getWo2Position(currentPage).preset)?.label || 'Custom'}`
-                          : `Semua: ${POSITION_PRESETS.find(p => p.id === wo2Preset)?.label || 'Custom'}`}
-                        <span className="ml-2 text-[--color-text-3]">{wo2Width}×{wo2Height}pt</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
-                        {POSITION_PRESETS.map((pos) => {
-                          const active = usePerPageWo2 ? getWo2Position(currentPage).preset : wo2Preset
-                          return (
-                            <button key={pos.id} type="button" onClick={() => selectWo2Preset(pos.id)}
-                              className={['flex flex-col items-center justify-center rounded border p-1.5 text-[11px] text-center transition-all',
-                                active === pos.id
-                                  ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold shadow-xs'
-                                  : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]'
-                              ].join(' ')}>
-                              <span>{pos.label}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <div className="flex items-center gap-4 pt-1">
-                        <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Lebar: <input type="number" min="40" max="500" value={wo2Width}
-                            onChange={(e) => setWo2Width(Math.max(40, Math.min(500, Number(e.target.value) || 40)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
-                        </label>
-                        <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Tinggi: <input type="number" min="8" max="200" value={wo2Height}
-                            onChange={(e) => setWo2Height(Math.max(8, Math.min(200, Number(e.target.value) || 8)))}
+                          Tinggi: <input type="number" min="8" max="200" value={woHeight}
+                            onChange={(e) => setWoHeight(Math.max(8, Math.min(200, Number(e.target.value) || 8)))}
                             className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
                         </label>
                       </div>
@@ -1128,48 +1004,25 @@ export default function AddPageNumber() {
                       )
                     })()}
 
-                    {/* White-out Box 1 (solid, draggable) */}
-                    {wo1Enabled && currentIncluded && (() => {
-                      const wo1Pos = getWo1Position(currentPage)
+                    {/* White-out Box (solid, draggable) */}
+                    {woEnabled && currentIncluded && (() => {
+                      const woPos = getWoPosition(currentPage)
                       return (
                         <div
-                          onMouseDown={startWo1Drag}
+                          onMouseDown={startWoDrag}
                           className="absolute cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
                           style={{
-                            left: `${wo1Pos.x}%`, top: `${wo1Pos.y}%`,
+                            left: `${woPos.x}%`, top: `${woPos.y}%`,
                             transform: 'translate(-50%, -50%)',
-                            width: `${Math.max(40, wo1Width / 4)}px`, height: `${Math.max(12, wo1Height / 4)}px`,
+                            width: `${Math.max(40, woWidth / 4)}px`, height: `${Math.max(12, woHeight / 4)}px`,
                             backgroundColor: paperColor,
                             border: '2px solid #f97316',
                             borderRadius: '3px',
                             boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                           }}
-                          title={`Wite-out 1: ${wo1Pos.preset === 'custom' ? `${wo1Pos.x}%, ${wo1Pos.y}%` : POSITION_PRESETS.find(p => p.id === wo1Pos.preset)?.label || wo1Pos.preset} (${wo1Width}×${wo1Height}pt)`}
+                          title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}pt)`}
                         >
-                          <span className="text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO1</span>
-                        </div>
-                      )
-                    })()}
-
-                    {/* White-out Box 2 (solid, draggable) */}
-                    {wo2Enabled && currentIncluded && (() => {
-                      const wo2Pos = getWo2Position(currentPage)
-                      return (
-                        <div
-                          onMouseDown={startWo2Drag}
-                          className="absolute cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
-                          style={{
-                            left: `${wo2Pos.x}%`, top: `${wo2Pos.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                            width: `${Math.max(40, wo2Width / 4)}px`, height: `${Math.max(12, wo2Height / 4)}px`,
-                            backgroundColor: paperColor,
-                            border: '2px solid #ea580c',
-                            borderRadius: '3px',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-                          }}
-                          title={`Wite-out 2: ${wo2Pos.preset === 'custom' ? `${wo2Pos.x}%, ${wo2Pos.y}%` : POSITION_PRESETS.find(p => p.id === wo2Pos.preset)?.label || wo2Pos.preset} (${wo2Width}×${wo2Height}pt)`}
-                        >
-                          <span className="text-[9px] font-bold text-orange-700 opacity-70 pointer-events-none">WO2</span>
+                          <span className="text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO</span>
                         </div>
                       )
                     })()}
