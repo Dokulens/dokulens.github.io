@@ -23,6 +23,14 @@ const defaultHeightScale = 70
 const minScale = 1
 const maxScale = 100
 
+const loadImage = (src) => new Promise((resolve, reject) => {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onload = () => resolve(img)
+  img.onerror = reject
+  img.src = src
+})
+
 export default function ImageCarver() {
   const [useNaturalSize, setUseNaturalSize] = useState(false)
   const [imageSrc, setImageSrc] = useState(null)
@@ -153,9 +161,8 @@ export default function ImageCarver() {
     setProgress(step / steps)
   }, [])
 
-  const onResize = () => {
-    const srcImg = imgRef.current
-    if (!srcImg) return
+  const onResize = async () => {
+    if (!imageSrc) return
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -163,49 +170,53 @@ export default function ImageCarver() {
     setIsResizing(true)
     isCancelledRef.current = false
 
-    let w = useNaturalSize ? (srcImg.naturalWidth || srcImg.width) : (srcImg.width || srcImg.naturalWidth)
-    let h = useNaturalSize ? (srcImg.naturalHeight || srcImg.height) : (srcImg.height || srcImg.naturalHeight)
-    const ratio = w / h
+    try {
+      const srcImg = await loadImage(imageSrc)
 
-    setOriginalImgViewSize({
-      w: srcImg.width || w,
-      h: srcImg.height || h,
-    })
+      let w = useNaturalSize ? srcImg.naturalWidth : Math.min(800, srcImg.naturalWidth)
+      let h = Math.floor(w * (srcImg.naturalHeight / srcImg.naturalWidth))
+      const ratio = w / h
 
-    if (w > MAX_WIDTH_LIMIT) {
-      w = MAX_WIDTH_LIMIT
-      h = Math.floor(w / ratio)
-    }
-    if (h > MAX_HEIGHT_LIMIT) {
-      h = MAX_HEIGHT_LIMIT
-      w = Math.floor(h * ratio)
-    }
+      setOriginalImgViewSize({
+        w: srcImg.naturalWidth,
+        h: srcImg.naturalHeight,
+      })
 
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+      if (w > MAX_WIDTH_LIMIT) {
+        w = MAX_WIDTH_LIMIT
+        h = Math.floor(w / ratio)
+      }
+      if (h > MAX_HEIGHT_LIMIT) {
+        h = MAX_HEIGHT_LIMIT
+        w = Math.floor(h * ratio)
+      }
 
-    ctx.drawImage(srcImg, 0, 0, w, h)
-    const img = ctx.getImageData(0, 0, w, h)
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
 
-    applyMask(img)
+      ctx.drawImage(srcImg, 0, 0, w, h)
+      const img = ctx.getImageData(0, 0, w, h)
 
-    const toWidth = Math.floor((toWidthScale * w) / 100)
-    const toHeight = Math.floor((toHeightScale * h) / 100)
+      applyMask(img)
 
-    resizeImage({
-      img,
-      toWidth,
-      toHeight,
-      onIteration,
-      isCancelled: () => isCancelledRef.current,
-    }).then(() => {
+      const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
+      const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
+
+      await resizeImage({
+        img,
+        toWidth,
+        toHeight,
+        onIteration,
+        isCancelled: () => isCancelledRef.current,
+      })
+
       onFinish()
-    }).catch((e) => {
+    } catch (e) {
       setError(`Error: ${e.message}`)
       setIsResizing(false)
-    })
+    }
   }
 
   const cancelCarving = () => {
@@ -526,7 +537,14 @@ function MaskCanvas({ width, height, brushSize, revision, onDrawEnd, disabled })
     const c = canvasRef.current
     if (!c) return null
     const rect = c.getBoundingClientRect()
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    const scaleX = c.width / rect.width
+    const scaleY = c.height / rect.height
+    const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    }
   }, [])
 
   const startPaint = useCallback((e) => {
