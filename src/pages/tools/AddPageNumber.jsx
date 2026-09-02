@@ -141,6 +141,8 @@ export default function AddPageNumber() {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [resultBlob, setResultBlob] = useState(null)
+  const [resultPages, setResultPages] = useState([])
+  const [resultCurrentPage, setResultCurrentPage] = useState(1)
   const [error, setError] = useState('')
   const [pageDimensions, setPageDimensions] = useState({ width: 595, height: 842 }) // default A4
 
@@ -487,15 +489,6 @@ export default function AddPageNumber() {
         const font = await doc.embedFont(isBold ? fontObj.boldRef : fontObj.ref)
         const color = hexToRgb(fontColor)
 
-        // Load pdfjs doc once for text detection
-        let pdfjsDoc = null
-        if (woEnabled) {
-          try {
-            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
-            pdfjsDoc = await loadingTask.promise
-          } catch { /* ignore */ }
-        }
-
         const pages = doc.getPages()
         const total = pages.length
 
@@ -519,49 +512,19 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box — detect old page number per-page, fallback to manual position
+          // 1) White-out Box — always use manual/user position
           if (woEnabled) {
             const paperRgb = hexToRgb(paperColor)
-            let woDrawn = false
-
-            // Try auto-detect via pdfjs
-            if (pdfjsDoc) {
-              try {
-                const pdfPage = await pdfjsDoc.getPage(pageNum)
-                const textContent = await pdfPage.getTextContent()
-                for (const item of textContent.items) {
-                  const str = item.str.trim()
-                  if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
-                    const itemX = item.transform[4]
-                    const itemY = item.transform[5]
-                    const itemW = item.width
-                    const itemH = item.height
-                    page.drawRectangle({
-                      x: itemX - 10, y: itemY - 4,
-                      width: Math.max(woWidth, itemW + 20),
-                      height: Math.max(woHeight, itemH + 8),
-                      color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-                    })
-                    woDrawn = true
-                    break
-                  }
-                }
-              } catch { /* ignore per-page errors */ }
-            }
-
-            // Fallback: manual position
-            if (!woDrawn) {
-              const woPos = getWoPosition(pageNum)
-              let woX = (woPos.x / 100) * pWidth
-              let woY = pHeight - (woPos.y / 100) * pHeight
-              if (woPos.preset.includes('center')) woX -= woWidth / 2
-              else if (woPos.preset.includes('right')) woX -= woWidth
-              page.drawRectangle({
-                x: woX, y: woY - woHeight / 2,
-                width: woWidth, height: woHeight,
-                color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
-              })
-            }
+            const woPos = getWoPosition(pageNum)
+            let woX = (woPos.x / 100) * pWidth
+            let woY = pHeight - (woPos.y / 100) * pHeight
+            if (woPos.preset.includes('center')) woX -= woWidth / 2
+            else if (woPos.preset.includes('right')) woX -= woWidth
+            page.drawRectangle({
+              x: woX, y: woY - woHeight / 2,
+              width: woWidth, height: woHeight,
+              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+            })
           }
 
           // 2) Font background (paper color behind new page number text)
@@ -589,7 +552,20 @@ export default function AddPageNumber() {
         }
 
         const bytes = await doc.save()
-        setResultBlob(new Blob([bytes], { type: 'application/pdf' }))
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        setResultBlob(blob)
+        setResultCurrentPage(1)
+
+        // Render result pages for preview
+        try {
+          const resultDoc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
+          const pages = []
+          for (let p = 1; p <= resultDoc.numPages; p++) {
+            const data = await renderPageToDataUrl(resultDoc, p, 0.8)
+            pages.push({ pageNum: p, dataUrl: data.dataUrl })
+          }
+          setResultPages(pages)
+        } catch { setResultPages([]) }
       }
     } catch (e) {
       setError(`Gagal memproses penomoran: ${e.message}`)
@@ -1173,16 +1149,56 @@ export default function AddPageNumber() {
           )}
 
           {resultBlob && (
-            <ResultCard
-              fileName={`${base}_numbered.${outExt}`}
-              blob={resultBlob}
-              extraInfo={`Nomor halaman berhasil disematkan ke ${fileType.toUpperCase()} — ${fmtBytes(resultBlob.size)}`}
-              outputMimeType={fileType === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
-              sourceRoute="add-page-number"
-              onReset={() => {
-                setResultBlob(null)
-              }}
-            />
+            <div className="rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[--color-success]">✓ Selesai diproses</p>
+                  <p className="text-xs text-[--color-text-3]">{base}_numbered.{outExt} — {fmtBytes(resultBlob.size)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={URL.createObjectURL(resultBlob)}
+                    download={`${base}_numbered.${outExt}`}
+                    className="flex items-center gap-1.5 rounded bg-[--color-success] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity no-underline"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                  <button
+                    onClick={() => { setResultBlob(null); setResultPages([]) }}
+                    className="rounded p-1.5 text-[--color-text-3] hover:bg-[--color-surface-3]"
+                    title="Tutup"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Result Preview */}
+              {resultPages.length > 0 && (
+                <div className="rounded border border-[--color-border] bg-[--color-surface] p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[--color-text-2]">Preview Hasil</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setResultCurrentPage(Math.max(1, resultCurrentPage - 1))} disabled={resultCurrentPage <= 1}
+                        className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="font-bold text-[--color-text]">{resultCurrentPage} / {resultPages.length}</span>
+                      <button onClick={() => setResultCurrentPage(Math.min(resultPages.length, resultCurrentPage + 1))} disabled={resultCurrentPage >= resultPages.length}
+                        className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-3 overflow-auto max-h-[600px]">
+                    {resultPages[resultCurrentPage - 1] && (
+                      <img src={resultPages[resultCurrentPage - 1].dataUrl} alt={`Page ${resultCurrentPage}`}
+                        className="block max-h-[550px] w-auto shadow-sm" />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
