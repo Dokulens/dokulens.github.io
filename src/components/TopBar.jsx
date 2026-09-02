@@ -64,9 +64,9 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
                 href="https://github.com/naufal-backup"
                 target="_blank"
                 rel="noreferrer"
-                className="rounded bg-[--color-surface-3] px-2 py-0.5 text-xs font-semibold text-[--color-brand-text] hover:underline no-underline"
+                className="font-bold text-[--color-text] hover:underline no-underline"
               >
-                naufal-backup
+                Naufal Alamsyah
               </a>
             </div>
           )}
