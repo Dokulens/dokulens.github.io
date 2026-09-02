@@ -295,14 +295,13 @@ export default function AddPageNumber() {
     const onMouseMove = (moveEvent) => {
       if (!previewContainerRef.current) return
       const rect = previewContainerRef.current.getBoundingClientRect()
-      const scale = 4 // preview shows woWidth/4
-      const dxPt = ((moveEvent.clientX - startX) / rect.width) * 100 * scale
+      const dxPx = moveEvent.clientX - startX
       let newW = startW
       let newH = startH
-      if (corner.includes('e')) newW = Math.max(40, Math.min(500, Math.round(startW + dxPt)))
-      if (corner.includes('w')) newW = Math.max(40, Math.min(500, Math.round(startW - dxPt)))
-      if (corner.includes('s')) newH = Math.max(8, Math.min(200, Math.round(startH + dxPt * 0.5)))
-      if (corner.includes('n')) newH = Math.max(8, Math.min(200, Math.round(startH - dxPt * 0.5)))
+      if (corner.includes('e')) newW = Math.max(20, Math.min(300, Math.round(startW + dxPx)))
+      if (corner.includes('w')) newW = Math.max(20, Math.min(300, Math.round(startW - dxPx)))
+      if (corner.includes('s')) newH = Math.max(8, Math.min(100, Math.round(startH + dxPx * 0.5)))
+      if (corner.includes('n')) newH = Math.max(8, Math.min(100, Math.round(startH - dxPx * 0.5)))
       setWoWidth(newW)
       setWoHeight(newH)
     }
@@ -512,17 +511,19 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box — always use manual/user position
+          // 1) White-out Box — always use manual/user position (×4 converts preview px → PDF pt)
           if (woEnabled) {
             const paperRgb = hexToRgb(paperColor)
             const woPos = getWoPosition(pageNum)
+            const woPtW = woWidth * 4
+            const woPtH = woHeight * 4
             let woX = (woPos.x / 100) * pWidth
             let woY = pHeight - (woPos.y / 100) * pHeight
-            if (woPos.preset.includes('center')) woX -= woWidth / 2
-            else if (woPos.preset.includes('right')) woX -= woWidth
+            if (woPos.preset.includes('center')) woX -= woPtW / 2
+            else if (woPos.preset.includes('right')) woX -= woPtW
             page.drawRectangle({
-              x: woX, y: woY - woHeight / 2,
-              width: woWidth, height: woHeight,
+              x: woX, y: woY - woPtH / 2,
+              width: woPtW, height: woPtH,
               color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
             })
           }
@@ -947,14 +948,14 @@ export default function AddPageNumber() {
                       </div>
                       <div className="flex items-center gap-4 pt-1">
                         <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Lebar: <input type="number" min="40" max="500" value={woWidth}
-                            onChange={(e) => setWoWidth(Math.max(40, Math.min(500, Number(e.target.value) || 40)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
+                          Lebar: <input type="number" min="20" max="300" value={woWidth}
+                            onChange={(e) => setWoWidth(Math.max(20, Math.min(300, Number(e.target.value) || 20)))}
+                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> px
                         </label>
                         <label className="flex items-center gap-1.5 text-[--color-text-3]">
-                          Tinggi: <input type="number" min="8" max="200" value={woHeight}
-                            onChange={(e) => setWoHeight(Math.max(8, Math.min(200, Number(e.target.value) || 8)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> pt
+                          Tinggi: <input type="number" min="8" max="100" value={woHeight}
+                            onChange={(e) => setWoHeight(Math.max(8, Math.min(100, Number(e.target.value) || 8)))}
+                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> px
                         </label>
                       </div>
                     </>
@@ -1060,8 +1061,6 @@ export default function AddPageNumber() {
                     {/* White-out Box (solid, draggable + resizable) — BOTTOM layer */}
                     {woEnabled && currentIncluded && (() => {
                       const woPos = getWoPosition(currentPage)
-                      const previewW = Math.max(40, woWidth / 4)
-                      const previewH = Math.max(12, woHeight / 4)
                       const handleStyle = 'absolute w-2.5 h-2.5 bg-orange-500 border border-white rounded-sm z-10'
                       return (
                         <div
@@ -1070,13 +1069,13 @@ export default function AddPageNumber() {
                           style={{
                             left: `${woPos.x}%`, top: `${woPos.y}%`,
                             transform: 'translate(-50%, -50%)',
-                            width: `${previewW}px`, height: `${previewH}px`,
+                            width: `${woWidth}px`, height: `${woHeight}px`,
                             backgroundColor: paperColor,
                             border: '2px solid #f97316',
                             borderRadius: '3px',
                             boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                           }}
-                          title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}pt) — drag pojok untuk resize`}
+                          title={`Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset} (${woWidth}×${woHeight}px)`}
                         >
                           <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-orange-600 opacity-70 pointer-events-none">WO</span>
                           <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => startWoResize(e, 'nw')} />
