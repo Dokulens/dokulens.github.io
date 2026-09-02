@@ -82,6 +82,8 @@ export default function AddPageNumber() {
   const [isBold, setIsBold] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
   const [skipFirstPage, setSkipFirstPage] = useState(true)
+  const [targetPageMode, setTargetPageMode] = useState('all') // 'all' | 'specific'
+  const [targetPagesInput, setTargetPagesInput] = useState('Semua')
   const [perPageOverrides, setPerPageOverrides] = useState({})
   const [usePerPagePosition, setUsePerPagePosition] = useState(false)
   const [perPagePositionOverrides, setPerPagePositionOverrides] = useState({})
@@ -274,11 +276,39 @@ export default function AddPageNumber() {
     return tpl.replace('{n}', numStr).replace('{total}', total)
   }
 
+  const getIncludedPagesList = () => {
+    if (targetPageMode === 'specific') {
+      const validIndices = parsePageRange(targetPagesInput, totalPages)
+      return validIndices.map((i) => i + 1)
+    }
+    const included = []
+    for (let p = 1; p <= totalPages; p++) {
+      if (isPageIncluded(p)) included.push(p)
+    }
+    return included
+  }
+
   const isPageIncluded = (page) => {
+    if (targetPageMode === 'specific') {
+      const validIndices = parsePageRange(targetPagesInput, totalPages)
+      return validIndices.includes(page - 1)
+    }
     if (perPageOverrides[page]?.enabled === false) return false
     if (perPageOverrides[page]?.enabled === true) return true
     if (skipFirstPage) return page > 1
     return true
+  }
+
+  const togglePageCheck = (pNum) => {
+    setTargetPageMode('specific')
+    const currentList = getIncludedPagesList()
+    let newList
+    if (currentList.includes(pNum)) {
+      newList = currentList.filter((p) => p !== pNum)
+    } else {
+      newList = [...currentList, pNum].sort((a, b) => a - b)
+    }
+    setTargetPagesInput(newList.length === 0 ? '' : newList.join(', '))
   }
 
   const toggleCurrentPageOverride = () => {
@@ -480,6 +510,106 @@ export default function AddPageNumber() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* Target Pages Selection / Checklist Box */}
+            <div className="border-t border-[--color-border] pt-3 space-y-2 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="font-semibold text-[--color-text-2] flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-[--color-brand]" />
+                  <span>Target Halaman yang Ingin Diberi Nomor (Tanpa Merusak Halaman Lain):</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium border transition-colors cursor-pointer ${
+                      targetPageMode === 'all'
+                        ? 'bg-[--color-brand] text-white border-[--color-brand]'
+                        : 'bg-[--color-surface-2] text-[--color-text-2] border-[--color-border] hover:bg-[--color-surface-3]'
+                    }`}
+                  >
+                    Semua Halaman
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetPageMode('specific')}
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium border transition-colors cursor-pointer ${
+                      targetPageMode === 'specific'
+                        ? 'bg-[--color-brand] text-white border-[--color-brand]'
+                        : 'bg-[--color-surface-2] text-[--color-text-2] border-[--color-border] hover:bg-[--color-surface-3]'
+                    }`}
+                  >
+                    Pilih Halaman Tertentu
+                  </button>
+                </div>
+              </div>
+
+              {targetPageMode === 'specific' && (
+                <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-semibold text-[--color-text-2] shrink-0">Rentang Halaman:</span>
+                    <input
+                      type="text"
+                      value={targetPagesInput}
+                      onChange={(e) => setTargetPagesInput(e.target.value)}
+                      placeholder="misal: 2-5, 8 atau ganjil"
+                      className="flex-1 min-w-[180px] rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                    />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setTargetPagesInput('2-' + totalPages)}
+                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
+                      >
+                        Hal 2-{totalPages}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTargetPagesInput('ganjil')}
+                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
+                      >
+                        Ganjil
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTargetPagesInput('genap')}
+                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
+                      >
+                        Genap
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Visual Checklist Grid for all pages */}
+                  <div className="space-y-1.5 pt-2 border-t border-[--color-border]/60">
+                    <div className="flex items-center justify-between text-[11px] text-[--color-text-3]">
+                      <span>Checklist Visual (Centang halaman yang ingin diberi nomor):</span>
+                      <span className="font-semibold text-[--color-brand]">{getIncludedPagesList().length} dari {totalPages} halaman terpilih</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-[--color-surface] rounded border border-[--color-border]">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
+                        const isChecked = getIncludedPagesList().includes(pNum)
+                        return (
+                          <button
+                            key={pNum}
+                            type="button"
+                            onClick={() => togglePageCheck(pNum)}
+                            className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-all cursor-pointer ${
+                              isChecked
+                                ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
+                                : 'border-[--color-border] bg-[--color-surface-2] text-[--color-text-3] hover:text-[--color-text-2]'
+                            }`}
+                          >
+                            <span>{isChecked ? '✓' : '✗'}</span>
+                            <span>Hal {pNum}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Font & Template Configuration */}
