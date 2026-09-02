@@ -1,9 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import {
-  Sparkles, Wand2, Paintbrush, Trash2, Download,
-  Loader2, Check, Eye, Sliders, RefreshCw, ZoomIn, ZoomOut,
-  Maximize2, X, Play, Pause, Video, Image as ImageIcon,
-  StopCircle, CheckCircle2, SlidersHorizontal, ArrowLeftRight, AlertTriangle
+  Sparkles, Download, Loader2, X, Video, Image as ImageIcon,
+  StopCircle, CheckCircle2, SlidersHorizontal, AlertTriangle
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -11,9 +9,7 @@ import ProgressBar from '../../components/ProgressBar'
 import FilePreview from '../../components/FilePreview'
 import {
   removeOfficialGeminiWatermark,
-  processVideoFrame,
   processFullVideo,
-  inpaintWatermark,
   detectGeminiWatermark
 } from '../../utils/watermarkRemover'
 import { fmtBytes, stripExt } from '../../utils/helpers'
@@ -26,12 +22,6 @@ export default function WatermarkRemover() {
   const [mediaSrc, setMediaSrc] = useState(null)
   const [origDims, setOrigDims] = useState({ w: 0, h: 0 })
 
-  // Removal Mode: 'gemini' (Official Gemini Lossless) | 'inpaint' (Fast-Marching Custom)
-  const [removalMode, setRemovalMode] = useState('gemini')
-  const [brushSize, setBrushSize] = useState(24)
-  const [inpaintRadius, setInpaintRadius] = useState(5)
-  const [hasMask, setHasMask] = useState(false)
-
   // Gemini detection
   const [detectedBox, setDetectedBox] = useState(null)
 
@@ -41,13 +31,8 @@ export default function WatermarkRemover() {
   const alphaGain = activeMedia === 'video' ? alphaGainVideo : alphaGainImage
   const setAlphaGain = activeMedia === 'video' ? setAlphaGainVideo : setAlphaGainImage
 
-  // Fullscreen Modal & Zoom
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1)
-
   // Video processing state
   const [videoDuration, setVideoDuration] = useState(0)
-  const [videoBox, setVideoBox] = useState({ xPct: 82, yPct: 82, wPct: 15, hPct: 15 })
 
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -55,33 +40,16 @@ export default function WatermarkRemover() {
   const [resultUrl, setResultUrl] = useState(null)
   const [error, setError] = useState('')
 
-  // Video masking
-  const [videoMaskSrc, setVideoMaskSrc] = useState(null)
-  const [videoPosterUrl, setVideoPosterUrl] = useState(null)
-  const videoMaskCanvasRef = useRef(null)
-  const videoModalCanvasRef = useRef(null)
-  const videoModalImgRef = useRef(null)
-
   const imgRef = useRef(null)
   const videoRef = useRef(null)
-  const maskCanvasRef = useRef(null)
-  const modalCanvasRef = useRef(null)
-  const modalImgRef = useRef(null)
-  const videoContainerRef = useRef(null)
 
-  const isPaintingRef = useRef(false)
   const isCancelledRef = useRef(false)
-  const isDraggingVideoRef = useRef(null)
-  const videoDragStartRef = useRef({ startX: 0, startY: 0, box: { ...videoBox } })
 
   const handleFile = ([f]) => {
     setFile(f)
     setResultBlob(null)
     setResultUrl(null)
     setError('')
-    setHasMask(false)
-    setZoomLevel(1)
-    setVideoPosterUrl(null)
 
     const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name)
     setActiveMedia(isVid ? 'video' : 'image')
@@ -90,7 +58,6 @@ export default function WatermarkRemover() {
     setMediaSrc(url)
 
     if (isVid) {
-      // Pre-fetch SDK on video upload for browser CDN caching
       import('../../utils/watermarkRemover').then(({ getGeminiEngine }) => {
         getGeminiEngine().catch(() => {})
       }).catch(() => {})
@@ -102,232 +69,10 @@ export default function WatermarkRemover() {
         setOrigDims({ w: img.naturalWidth, h: img.naturalHeight })
         const det = detectGeminiWatermark(img.naturalWidth, img.naturalHeight)
         setDetectedBox(det)
-        initMaskCanvas(img.naturalWidth, img.naturalHeight)
       }
       img.src = url
     }
   }
-
-  const initMaskCanvas = (w, h) => {
-    if (!maskCanvasRef.current) return
-    const canvas = maskCanvasRef.current
-    canvas.width = w || origDims.w
-    canvas.height = h || origDims.h
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }
-
-  const autoSelectGeminiWatermark = () => {
-    if (!detectedBox || !maskCanvasRef.current) return
-    const canvas = maskCanvasRef.current
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
-    ctx.fillRect(detectedBox.x, detectedBox.y, detectedBox.width, detectedBox.height)
-    setHasMask(true)
-    setRemovalMode('gemini')
-  }
-
-  const startVideoBoxDrag = (e, handleType) => {
-    e.stopPropagation()
-    e.preventDefault()
-    isDraggingVideoRef.current = handleType
-    videoDragStartRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      box: { ...videoBox },
-    }
-
-    const onMouseMove = (moveEvent) => {
-      if (!isDraggingVideoRef.current || !videoContainerRef.current) return
-      const rect = videoContainerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - videoDragStartRef.current.startX) / rect.width) * 100
-      const dyPct = ((moveEvent.clientY - videoDragStartRef.current.startY) / rect.height) * 100
-      const startB = videoDragStartRef.current.box
-
-      let { xPct, yPct, wPct, hPct } = startB
-      const h = isDraggingVideoRef.current
-
-      if (h === 'move') {
-        xPct = Math.max(0, Math.min(100 - wPct, startB.xPct + dxPct))
-        yPct = Math.max(0, Math.min(100 - hPct, startB.yPct + dyPct))
-      } else {
-        if (h.includes('e')) wPct = Math.max(4, Math.min(100 - startB.xPct, startB.wPct + dxPct))
-        if (h.includes('s')) hPct = Math.max(4, Math.min(100 - startB.yPct, startB.hPct + dyPct))
-        if (h.includes('w')) {
-          const maxW = startB.xPct + startB.wPct
-          wPct = Math.max(4, Math.min(maxW, startB.wPct - dxPct))
-          xPct = maxW - wPct
-        }
-        if (h.includes('n')) {
-          const maxH = startB.yPct + startB.hPct
-          hPct = Math.max(4, Math.min(maxH, startB.hPct - dyPct))
-          yPct = maxH - hPct
-        }
-      }
-
-      setVideoBox({ xPct, yPct, wPct, hPct })
-    }
-
-    const onMouseUp = () => {
-      isDraggingVideoRef.current = null
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
-
-  const startModalPaint = (e) => {
-    isPaintingRef.current = true
-    paintModal(e)
-  }
-
-  const paintModal = (e) => {
-    if (!isPaintingRef.current || !modalCanvasRef.current) return
-    const canvas = modalCanvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX - rect.left) * scaleX
-    const y = (e.clientY - rect.top) * scaleY
-
-    const ctx = canvas.getContext('2d')
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
-    ctx.beginPath()
-    ctx.arc(x, y, (brushSize * scaleX) / 2, 0, Math.PI * 2)
-    ctx.fill()
-    setHasMask(true)
-  }
-
-  const stopModalPaint = () => {
-    isPaintingRef.current = false
-  }
-
-  const clearMask = () => {
-    initMaskCanvas(origDims.w, origDims.h)
-    if (modalCanvasRef.current) {
-      const ctx = modalCanvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, modalCanvasRef.current.width, modalCanvasRef.current.height)
-    }
-    setHasMask(false)
-  }
-
-  const saveModalMask = () => {
-    if (modalCanvasRef.current) {
-      const w = origDims.w || modalCanvasRef.current.width
-      const h = origDims.h || modalCanvasRef.current.height
-
-      if (maskCanvasRef.current) {
-        maskCanvasRef.current.width = w
-        maskCanvasRef.current.height = h
-        const ctx = maskCanvasRef.current.getContext('2d')
-        ctx.clearRect(0, 0, w, h)
-        ctx.drawImage(modalCanvasRef.current, 0, 0, w, h)
-      }
-      setHasMask(true)
-    }
-    setIsModalOpen(false)
-  }
-
-  // Video mask functions
-  const startVideoModalPaint = (e) => {
-    isPaintingRef.current = true
-    paintVideoModal(e)
-  }
-
-  const paintVideoModal = (e) => {
-    if (!isPaintingRef.current || !videoModalCanvasRef.current) return
-    const canvas = videoModalCanvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX - rect.left) * scaleX
-    const y = (e.clientY - rect.top) * scaleY
-
-    const ctx = canvas.getContext('2d')
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)'
-    ctx.beginPath()
-    ctx.arc(x, y, (brushSize * scaleX) / 2, 0, Math.PI * 2)
-    ctx.fill()
-    setHasMask(true)
-  }
-
-  const stopVideoModalPaint = () => {
-    isPaintingRef.current = false
-  }
-
-  const clearVideoMask = () => {
-    if (videoModalCanvasRef.current) {
-      const ctx = videoModalCanvasRef.current.getContext('2d')
-      ctx.clearRect(0, 0, videoModalCanvasRef.current.width, videoModalCanvasRef.current.height)
-    }
-    setHasMask(false)
-  }
-
-  const saveVideoModalMask = () => {
-    if (videoModalCanvasRef.current) {
-      const clone = document.createElement('canvas')
-      clone.width = videoModalCanvasRef.current.width
-      clone.height = videoModalCanvasRef.current.height
-      clone.getContext('2d').drawImage(videoModalCanvasRef.current, 0, 0)
-      setVideoMaskSrc(clone)
-    }
-    setIsModalOpen(false)
-  }
-
-  useEffect(() => {
-    if (!isModalOpen) return
-    if (activeMedia === 'image' && modalCanvasRef.current && modalImgRef.current) {
-      const canvas = modalCanvasRef.current
-      const img = modalImgRef.current
-      const initCanvas = () => {
-        canvas.width = img.naturalWidth
-        canvas.height = img.naturalHeight
-        const ctx = canvas.getContext('2d')
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        if (maskCanvasRef.current) ctx.drawImage(maskCanvasRef.current, 0, 0)
-      }
-      if (img.complete && img.naturalWidth > 0) initCanvas()
-      else img.onload = initCanvas
-    }
-    if (activeMedia === 'video' && videoRef.current) {
-      const v = videoRef.current
-      const captureFrame = () => {
-        if (!v.videoWidth || !v.videoHeight) return
-        const vw = v.videoWidth
-        const vh = v.videoHeight
-        setOrigDims({ w: vw, h: vh })
-
-        try {
-          const c = document.createElement('canvas')
-          c.width = vw
-          c.height = vh
-          const ctx = c.getContext('2d')
-          ctx.drawImage(v, 0, 0, vw, vh)
-          setVideoPosterUrl(c.toDataURL('image/png'))
-        } catch (e) {
-          console.warn('Failed to capture frame:', e)
-        }
-
-        if (videoModalCanvasRef.current) {
-          const vc = videoModalCanvasRef.current
-          vc.width = vw
-          vc.height = vh
-          const vctx = vc.getContext('2d')
-          vctx.clearRect(0, 0, vw, vh)
-          if (videoMaskSrc) vctx.drawImage(videoMaskSrc, 0, 0)
-        }
-      }
-
-      if (v.readyState >= 2) {
-        captureFrame()
-      } else {
-        v.onloadeddata = captureFrame
-      }
-    }
-  }, [isModalOpen, activeMedia])
 
   // Precision Watermark Removal Process for Image
   const processImageWatermark = async () => {
@@ -353,29 +98,10 @@ export default function WatermarkRemover() {
 
       setProgress(50)
 
-      if (removalMode === 'gemini') {
-        const { canvas: resultCanvas, meta } = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto', alphaGain })
-        if (resultCanvas) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
-          ctx.drawImage(resultCanvas, 0, 0)
-        }
-      } else {
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-        const mCanvas = document.createElement('canvas')
-        mCanvas.width = canvas.width
-        mCanvas.height = canvas.height
-        const mCtx = mCanvas.getContext('2d')
-
-        if (modalCanvasRef.current) {
-          mCtx.drawImage(modalCanvasRef.current, 0, 0, canvas.width, canvas.height)
-        } else if (maskCanvasRef.current) {
-          mCtx.drawImage(maskCanvasRef.current, 0, 0, canvas.width, canvas.height)
-        }
-
-        const maskImgData = mCtx.getImageData(0, 0, canvas.width, canvas.height)
-        inpaintWatermark(imgData, maskImgData.data, inpaintRadius)
-        ctx.putImageData(imgData, 0, 0)
+      const { canvas: resultCanvas } = await removeOfficialGeminiWatermark(img, { adaptiveMode: 'auto', alphaGain })
+      if (resultCanvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(resultCanvas, 0, 0)
       }
 
       setProgress(85)
@@ -410,7 +136,6 @@ export default function WatermarkRemover() {
       window.addEventListener('beforeunload', handleBeforeUnload)
       setProgress(1)
 
-      // Ensure video is loaded
       if (video.readyState < 2) {
         await new Promise((res, rej) => {
           video.oncanplay = res
@@ -419,11 +144,7 @@ export default function WatermarkRemover() {
         })
       }
 
-      // Run full pipeline: detect → extract audio → process all frames → encode → merge
       const result = await processFullVideo(video, {
-        removalMode,
-        videoMaskSrc,
-        inpaintRadius,
         alphaGain,
         onProgress: (pct, msg) => {
           setProgress(pct)
@@ -437,22 +158,13 @@ export default function WatermarkRemover() {
         return
       }
 
-      console.log('[WM] Pipeline complete:', result)
-
-      // Set results
       if (result.videoBlob) {
         setResultBlob(result.videoBlob)
         setResultUrl(URL.createObjectURL(result.videoBlob))
         setProgress(100)
-
-        // Store audio for potential merge info
-        if (result.audioBlob) {
-          console.log('[WM] Audio available:', fmtBytes(result.audioBlob.size))
-        }
       } else {
         setError('Gagal menghasilkan video output')
       }
-
     } catch (e) {
       setError(`Gagal memproses video: ${e.message}`)
       console.error('[WM] Video error:', e)
@@ -467,225 +179,86 @@ export default function WatermarkRemover() {
 
   return (
     <ToolShell
-      title="Hapus Watermark (Foto & Video)"
-      description="Penghapus watermark AI (Google Gemini / Imagen) lossless berbasis engine mandiri GargantuaX, plus Inpainting untuk logo & teks foto/video."
+      title="Hapus Watermark AI (Foto & Video)"
+      description="Penghapus watermark AI (Google Gemini / Imagen) 100% otomatis dan lossless berbasis engine matematis Reverse Alpha Blending."
     >
       <DropZone
         accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.mkv"
         onFiles={handleFile}
         label="Pilih foto atau video untuk dihapus watermark-nya"
-        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — 100% Client-Side"
+        hint="Foto (JPG, PNG, WebP) & Video (MP4, WebM, MOV) — 100% Otomatis & Client-Side"
       />
       {file && <FilePreview file={file} />}
 
       {mediaSrc && (
         <div className="space-y-4 animate-fade-in">
-          {/* Mode Selection */}
-          {activeMedia === 'image' && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
-              <div>
-                <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  Pilih Mesin Penghapus Watermark
-                </label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setRemovalMode('gemini')}
-                    className={[
-                      'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
-                      removalMode === 'gemini'
-                        ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                        : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                      <Sparkles size={15} className="text-[--color-brand]" />
-                      <span>Gemini AI Lossless Remover (Resmi) ⭐</span>
-                    </div>
-                    <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
-                      Mesin resmi dari <code>geminiwatermarkremover.io</code>. Menghapus watermark AI di pojok kanan bawah secara matematis tanpa merusak kualitas foto.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRemovalMode('inpaint')}
-                    className={[
-                      'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
-                      removalMode === 'inpaint'
-                        ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                        : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                      <Paintbrush size={15} className="text-amber-500" />
-                      <span>Kuas Inpainting (Logo / Teks Bebas)</span>
-                    </div>
-                    <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
-                      Tandai area watermark di manapun dengan kuas seleksi pop-up. Algoritma akan merekonstruksi tekstur di sekitarnya.
-                    </span>
-                  </button>
-                </div>
+          {/* Controls Bar for Video / Image */}
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-[--color-border] pb-3 text-xs">
+              <div className="flex items-center gap-2 font-bold text-[--color-text]">
+                {activeMedia === 'video' ? <Video size={16} className="text-[--color-brand]" /> : <ImageIcon size={16} className="text-[--color-brand]" />}
+                <span>{activeMedia === 'video' ? 'Penghapusan Watermark Video Otomatis' : 'Penghapusan Watermark Foto Otomatis'}</span>
               </div>
-
-              {removalMode === 'gemini' && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={autoSelectGeminiWatermark}
-                      className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
-                    >
-                      <Sparkles size={13} />
-                      Auto Select Gemini Watermark
-                    </button>
-                    {hasMask && (
-                      <span className="rounded bg-green-500/10 px-2 py-1 text-xs font-bold text-green-600 dark:text-green-400">
-                        ✓ Area Terdeteksi
-                      </span>
-                    )}
-                  </div>
-                  {hasMask && (
-                    <button
-                      onClick={clearMask}
-                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                    >
-                      <Trash2 size={13} /> Hapus Tanda
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {removalMode === 'inpaint' && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(true)}
-                      className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
-                    >
-                      <Maximize2 size={13} />
-                      Buka Kanvas Seleksi (Pop-up Fullscreen)
-                    </button>
-                    {hasMask && (
-                      <span className="rounded bg-red-500/10 px-2 py-1 text-xs font-bold text-red-600 dark:text-red-400">
-                        ✓ Area Ditandai
-                      </span>
-                    )}
-                  </div>
-
-                  {hasMask && (
-                    <button
-                      onClick={clearMask}
-                      className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
-                    >
-                      <Trash2 size={13} /> Hapus Tanda Merah
-                    </button>
-                  )}
-                </div>
-              )}
+              <span className="text-[11px] text-[--color-text-3]">
+                {activeMedia === 'video'
+                  ? `Durasi: ${videoDuration ? `${videoDuration.toFixed(1)} detik` : 'Memuat…'}`
+                  : origDims.w ? `${origDims.w} × ${origDims.h} px` : ''}
+              </span>
             </div>
-          )}
 
-          {/* Controls Bar for Video */}
-          {activeMedia === 'video' && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
-              <div className="flex items-center justify-between border-b border-[--color-border] pb-3 text-xs">
-                <div className="flex items-center gap-2 font-bold text-[--color-text]">
-                  <Video size={16} className="text-[--color-brand]" />
-                  <span>Penghapusan Watermark Video</span>
-                </div>
-                <span className="text-[11px] text-[--color-text-3]">
-                  Durasi: {videoDuration ? `${videoDuration.toFixed(1)} detik` : 'Memuat…'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-[--color-text-2]">
-                <Sparkles size={14} className="text-[--color-brand]" />
-                <span>Mesin Gemini AI Lossless Resmi akan mendeteksi & menghapus watermark secara otomatis dari seluruh frame video.</span>
-              </div>
-
+            <div className="flex items-center gap-2 text-xs text-[--color-text-2]">
+              <Sparkles size={14} className="text-[--color-brand] shrink-0" />
+              <span>
+                Engine Gemini AI Lossless Resmi akan mendeteksi & menghapus watermark secara otomatis menggunakan algoritma Reverse Alpha Blending.
+              </span>
             </div>
-          )}
+          </div>
 
-          {/* Alpha Gain Slider — shows for both image and video in gemini mode */}
-          {removalMode === 'gemini' && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[--color-text-2] flex items-center gap-1.5">
-                  <SlidersHorizontal size={13} />
-                  Alpha Gain (Kekuatan Penghapusan)
-                </label>
-                <span className="text-xs font-mono text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
-                  {alphaGain.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.1"
-                max="2.0"
-                step="0.05"
-                value={alphaGain}
-                onChange={(e) => setAlphaGain(parseFloat(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-[--color-surface-3] accent-[--color-brand]"
-              />
-              <div className="flex justify-between text-[10px] text-[--color-text-3]">
-                <span>0.10 (Lemah)</span>
-                <span>{activeMedia === 'video' ? '0.60 (Default Video)' : '1.00 (Default Gambar)'}</span>
-                <span>2.00 (Kuat)</span>
-              </div>
+          {/* Alpha Gain Slider */}
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[--color-text-2] flex items-center gap-1.5">
+                <SlidersHorizontal size={13} />
+                Alpha Gain (Kekuatan Penghapusan)
+              </label>
+              <span className="text-xs font-mono text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
+                {alphaGain.toFixed(2)}
+              </span>
             </div>
-          )}
+            <input
+              type="range"
+              min="0.1"
+              max="2.0"
+              step="0.05"
+              value={alphaGain}
+              onChange={(e) => setAlphaGain(parseFloat(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-[--color-surface-3] accent-[--color-brand]"
+            />
+            <div className="flex justify-between text-[10px] text-[--color-text-3]">
+              <span>0.10 (Lemah)</span>
+              <span>{activeMedia === 'video' ? '0.60 (Default Video)' : '1.00 (Default Gambar)'}</span>
+              <span>2.00 (Kuat)</span>
+            </div>
+          </div>
 
-          {/* Interactive Preview Container (Before Processing) */}
+          {/* Preview Container (Before Processing) */}
           {!resultUrl && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold uppercase tracking-wider text-[--color-text-3]">
-                  {activeMedia === 'video' ? 'Pratinjau Video & Selector Draggable/Resizable' : 'Pratinjau Gambar'}
+                  {activeMedia === 'video' ? 'Pratinjau Video' : 'Pratinjau Foto'}
                 </span>
-                {activeMedia === 'image' && removalMode === 'inpaint' && (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1 text-[--color-brand] hover:underline font-semibold"
-                  >
-                    <Paintbrush size={12} /> {hasMask ? 'Ubah Seleksi' : 'Tandai Watermark'}
-                  </button>
-                )}
               </div>
 
               <div className="relative flex justify-center rounded border border-[--color-border] bg-neutral-900 p-2 overflow-hidden min-h-[300px]">
                 {activeMedia === 'image' ? (
                   <div className="relative inline-block select-none">
                     <img
-                      ref={(el) => {
-                        imgRef.current = el
-                        if (el && el.complete && el.naturalWidth > 0) {
-                          initMaskCanvas(el.naturalWidth, el.naturalHeight)
-                        }
-                      }}
+                      ref={imgRef}
                       src={mediaSrc}
                       alt="Original"
                       className="block max-h-[420px] w-auto pointer-events-none rounded"
                     />
-                    {removalMode === 'inpaint' && (
-                      <canvas
-                        ref={(el) => {
-                          maskCanvasRef.current = el
-                          if (el && origDims.w > 0) {
-                            el.width = origDims.w
-                            el.height = origDims.h
-                            if (modalCanvasRef.current) {
-                              const ctx = el.getContext('2d')
-                              ctx.clearRect(0, 0, origDims.w, origDims.h)
-                              ctx.drawImage(modalCanvasRef.current, 0, 0, origDims.w, origDims.h)
-                            }
-                          }
-                        }}
-                        className="absolute top-0 left-0 block pointer-events-none opacity-80 rounded"
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    )}
                   </div>
                 ) : (
                   <div className="relative inline-block select-none">
@@ -699,7 +272,6 @@ export default function WatermarkRemover() {
                       }}
                       className="block max-h-[420px] w-auto rounded"
                     />
-                    {/* Video Player */}
                   </div>
                 )}
               </div>
@@ -748,7 +320,7 @@ export default function WatermarkRemover() {
           {!resultBlob && (
             <button
               onClick={activeMedia === 'video' ? processVideoWatermark : processImageWatermark}
-              disabled={processing || (activeMedia === 'image' && removalMode === 'inpaint' && !hasMask)}
+              disabled={processing}
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               {processing && <Loader2 size={16} className="animate-spin" />}
@@ -756,15 +328,11 @@ export default function WatermarkRemover() {
                 ? 'Menghapus Watermark…'
                 : activeMedia === 'video'
                 ? 'Hapus Watermark Gemini dari Video'
-                : removalMode === 'gemini'
-                ? 'Hapus Watermark Gemini AI (Lossless)'
-                : hasMask
-                ? 'Hapus Watermark Terpilih'
-                : 'Tandai Area Watermark untuk Memulai'}
+                : 'Hapus Watermark Gemini AI (Lossless)'}
             </button>
           )}
 
-          {/* Real-time Before & After Compare Preview & Result Card */}
+          {/* Result Card */}
           {resultUrl && (
             <div className="rounded-lg border border-[--color-success-light] bg-[--color-surface] p-4 animate-fade-in space-y-4 shadow-sm">
               <div className="flex items-start justify-between border-b border-[--color-border] pb-3">
@@ -831,96 +399,6 @@ export default function WatermarkRemover() {
                 >
                   <Download size={16} /> Download {activeMedia === 'video' ? 'Video' : 'Gambar'} Bersih
                 </a>
-              </div>
-            </div>
-          )}
-
-          {/* Simple Modal: Masking Selector */}
-          {isModalOpen && (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-              <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                      <Paintbrush size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-tight">Masking Watermark</p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{origDims.w} × {origDims.h} px</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setIsModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200">
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Body */}
-                <div className="px-5 py-4 space-y-3">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area watermark dengan kuas. Area merah akan dihapus.</p>
-
-                  {/* Brush Size */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
-                    <input type="range" min="6" max="80" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
-                    <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-8">{brushSize}px</span>
-                  </div>
-
-                  {/* Preview Canvas */}
-                  <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
-                    {activeMedia === 'video' ? (
-                      <div className="relative inline-flex items-center justify-center">
-                        {videoPosterUrl ? (
-                          <img
-                            ref={videoModalImgRef}
-                            src={videoPosterUrl}
-                            alt="Video Frame Preview"
-                            className="block max-h-[60vh] max-w-full rounded pointer-events-none"
-                          />
-                        ) : (
-                          <div className="flex h-[300px] w-[500px] items-center justify-center rounded bg-slate-900 text-xs text-slate-400">
-                            Memuat frame video...
-                          </div>
-                        )}
-                        <canvas
-                          ref={videoModalCanvasRef}
-                          onMouseDown={startVideoModalPaint}
-                          onMouseMove={paintVideoModal}
-                          onMouseUp={stopVideoModalPaint}
-                          onMouseLeave={stopVideoModalPaint}
-                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-                          style={{ width: '100%', height: '100%' }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="relative inline-flex items-center justify-center">
-                        <img ref={modalImgRef} src={mediaSrc} alt="Mask" className="block max-h-[60vh] max-w-full rounded pointer-events-none" />
-                        <canvas
-                          ref={modalCanvasRef}
-                          onMouseDown={startModalPaint}
-                          onMouseMove={paintModal}
-                          onMouseUp={stopModalPaint}
-                          onMouseLeave={stopModalPaint}
-                          className="absolute top-0 left-0 pointer-events-auto opacity-80 rounded"
-                          style={{ width: '100%', height: '100%' }}
-                        />
-                      </div>
-                    )}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <button onClick={activeMedia === 'video' ? clearVideoMask : clearMask} className="text-xs text-red-500 hover:underline font-semibold">
-                    <Trash2 size={12} className="inline mr-1" />Hapus Tanda
-                  </button>
-                  <button
-                    onClick={activeMedia === 'video' ? saveVideoModalMask : saveModalMask}
-                    className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
-                  >
-                    <Check size={14} className="inline mr-1" />Selesai & Terapkan
-                  </button>
-                </div>
               </div>
             </div>
           )}
