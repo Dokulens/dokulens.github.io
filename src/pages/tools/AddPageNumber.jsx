@@ -1064,12 +1064,15 @@ export default function AddPageNumber() {
                     </div>
                   )}
 
-                  {pagePreview && (
-                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white" style={{ height: 'min(500px, 70vh)', aspectRatio: `${pageDimensions.width} / ${pageDimensions.height}` }}>
+                  {pagePreview && (() => {
+                    const previewMaxH = 500
+                    const containerW = Math.round(previewMaxH * (pageDimensions.width / pageDimensions.height))
+                    return (
+                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white overflow-hidden" style={{ height: `${previewMaxH}px`, width: `${containerW}px` }}>
                     <img
                       src={pagePreview.dataUrl}
                       alt={`Page ${currentPage}`}
-                      className="block w-full h-full pointer-events-none object-contain"
+                      className="block w-full h-full pointer-events-none"
                     />
 
                     {/* White-out Box (solid, draggable + resizable) — BOTTOM layer */}
@@ -1126,7 +1129,8 @@ export default function AddPageNumber() {
                       )
                     })()}
                   </div>
-                )}
+                    )
+                  })()}
                 </div>
               </div>
             </div>
