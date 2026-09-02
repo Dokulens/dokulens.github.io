@@ -1074,7 +1074,7 @@ export default function MergePDF() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { setResult(null); setResultPages([]); setFiles([]); setPages([]) }}
+                onClick={() => { setResult(null); setResultPages([]); setResultCurrentPage(1) }}
                 className="flex h-7 items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 text-xs text-[--color-text-2] hover:bg-[--color-surface-3] transition-colors"
               >
                 <X size={12} /> Tutup
