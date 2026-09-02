@@ -13,10 +13,10 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, X, RotateCw, Trash2, Loader2,
   Grid, List, SlidersHorizontal, FileText, Image as ImageIcon, Sparkles, Plus, ArrowDown, ArrowRight, FolderArchive,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
-import ResultCard from '../../components/ResultCard'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
@@ -242,6 +242,9 @@ export default function MergePDF() {
   const [loadProgress, setLoadProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null) // { blob, mime, ext, fileName }
+  const [resultPages, setResultPages] = useState([])
+  const [resultCurrentPage, setResultCurrentPage] = useState(1)
+  const [renderingResult, setRenderingResult] = useState(false)
   const [error, setError] = useState('')
 
   const fileInputRef = useRef(null)
@@ -547,7 +550,22 @@ export default function MergePDF() {
         }
 
         const bytes = await mergedPdf.save()
-        setResult({ blob: new Blob([bytes], { type: 'application/pdf' }), mime: 'application/pdf', ext: 'pdf', fileName: 'merged_output.pdf' })
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        setResult({ blob, mime: 'application/pdf', ext: 'pdf', fileName: 'merged_output.pdf' })
+        setResultCurrentPage(1)
+
+        // Render result pages for preview
+        try {
+          setRenderingResult(true)
+          const resultDoc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
+          const pages = []
+          for (let p = 1; p <= resultDoc.numPages; p++) {
+            const data = await renderPageToDataUrl(resultDoc, p, 0.8)
+            pages.push({ pageNum: p, dataUrl: data.dataUrl })
+          }
+          setResultPages(pages)
+        } catch { setResultPages([]) }
+        finally { setRenderingResult(false) }
       } else {
         // Export to Image (PNG or JPG)
         const isJpg = exportFormat === 'jpg'
@@ -662,6 +680,8 @@ export default function MergePDF() {
             ext,
             fileName: activePages.length > 1 ? `merged_image_${imageLayout}.${ext}` : `halaman_1.${ext}`,
           })
+          setResultPages([{ pageNum: 1, dataUrl }])
+          setResultCurrentPage(1)
         } else {
           // Multiple pages -> zip
           const zip = new JSZip()
@@ -1044,16 +1064,65 @@ export default function MergePDF() {
         </button>
       )}
 
-      {/* Result Card */}
+      {/* Result Section */}
       {result && (
-        <ResultCard
-          fileName={result.fileName || 'output'}
-          blob={result.blob}
-          extraInfo={`${activePages.length} halaman → ${fmtBytes(result.blob.size)}`}
-          outputMimeType={result.mime}
-          sourceRoute="merge-pdf"
-          onReset={() => { setResult(null); setFiles([]); setPages([]) }}
-        />
+        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-[--color-text]">Hasil</span>
+              <p className="text-xs text-[--color-text-3]">{result.fileName || 'output'} — {fmtBytes(result.blob.size)}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setResult(null); setResultPages([]); setFiles([]); setPages([]) }}
+                className="flex h-7 items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 text-xs text-[--color-text-2] hover:bg-[--color-surface-3] transition-colors"
+              >
+                <X size={12} /> Tutup
+              </button>
+              <a
+                href={URL.createObjectURL(result.blob)}
+                download={result.fileName || 'output'}
+                className="flex h-7 items-center gap-1 rounded bg-[--color-brand] px-3 text-xs font-bold text-white hover:bg-[--color-brand-hover] transition-colors no-underline"
+              >
+                <ArrowDown size={12} /> Unduh
+              </a>
+            </div>
+          </div>
+
+          {/* Result Preview */}
+          {renderingResult && (
+            <div className="rounded border border-[--color-border] bg-[--color-surface] p-6 space-y-3">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="animate-spin text-[--color-brand]" />
+                <span className="text-xs font-medium text-[--color-text-3]">Merender preview hasil…</span>
+              </div>
+            </div>
+          )}
+          {!renderingResult && resultPages.length > 0 && (
+            <div className="rounded border border-[--color-border] bg-[--color-surface] p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-[--color-text-2]">Preview Hasil</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setResultCurrentPage(Math.max(1, resultCurrentPage - 1))} disabled={resultCurrentPage <= 1}
+                    className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="font-bold text-[--color-text]">{resultCurrentPage} / {resultPages.length}</span>
+                  <button onClick={() => setResultCurrentPage(Math.min(resultPages.length, resultCurrentPage + 1))} disabled={resultCurrentPage >= resultPages.length}
+                    className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-3 overflow-auto max-h-[600px]">
+                {resultPages[resultCurrentPage - 1] && (
+                  <img src={resultPages[resultCurrentPage - 1].dataUrl} alt={`Page ${resultCurrentPage}`}
+                    className="block max-h-[550px] w-auto shadow-sm" />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </ToolShell>
   )
