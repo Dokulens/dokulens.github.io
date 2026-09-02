@@ -103,12 +103,6 @@ export default function ImageCarver() {
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
     renderOriginalOverlayMask()
-    if (workingCanvasRef.current) {
-      workingCanvasRef.current.width = w
-      workingCanvasRef.current.height = h
-      const ctx = workingCanvasRef.current.getContext('2d')
-      ctx.drawImage(imgRef.current, 0, 0, w, h)
-    }
   }
 
   const renderOriginalOverlayMask = () => {
@@ -123,6 +117,19 @@ export default function ImageCarver() {
       ctx.drawImage(maskCanvasElement, 0, 0, canvas.width, canvas.height)
     }
   }
+
+  useEffect(() => {
+    if (imageSrc && workingCanvasRef.current && imgRef.current) {
+      const w = imgRef.current.naturalWidth
+      const h = imgRef.current.naturalHeight
+      if (w && h) {
+        workingCanvasRef.current.width = w
+        workingCanvasRef.current.height = h
+        const ctx = workingCanvasRef.current.getContext('2d')
+        ctx.drawImage(imgRef.current, 0, 0, w, h)
+      }
+    }
+  }, [imageSrc])
 
   useEffect(() => {
     renderOriginalOverlayMask()
