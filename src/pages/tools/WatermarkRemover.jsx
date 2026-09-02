@@ -663,7 +663,10 @@ export default function WatermarkRemover() {
                       ref={videoRef}
                       src={mediaSrc}
                       controls
-                      onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
+                      onLoadedMetadata={(e) => {
+                        setVideoDuration(e.target.duration)
+                        setOrigDims({ w: e.target.videoWidth, h: e.target.videoHeight })
+                      }}
                       className="block max-h-[420px] w-auto rounded"
                     />
                     {removalMode === 'inpaint' && hasMask && videoMaskSrc && (
@@ -855,28 +858,39 @@ export default function WatermarkRemover() {
                   <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
                     {activeMedia === 'video' ? (
                       <div className="relative inline-flex items-center justify-center">
+                        <video
+                          src={mediaSrc}
+                          controls
+                          muted
+                          onLoadedMetadata={(e) => {
+                            const vw = e.target.videoWidth || 1280
+                            const vh = e.target.videoHeight || 720
+                            setOrigDims({ w: vw, h: vh })
+                            if (videoModalCanvasRef.current) {
+                              videoModalCanvasRef.current.width = vw
+                              videoModalCanvasRef.current.height = vh
+                              const ctx = videoModalCanvasRef.current.getContext('2d')
+                              ctx.clearRect(0, 0, vw, vh)
+                              if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
+                            }
+                          }}
+                          className="block max-h-[60vh] max-w-full rounded"
+                        />
                         <canvas
                           ref={(el) => {
-                            videoModalImgRef.current = el
-                            if (el && videoRef.current) {
-                              const vw = videoRef.current.videoWidth || 1280
-                              const vh = videoRef.current.videoHeight || 720
-                              el.width = vw
-                              el.height = vh
-                              const c = el.getContext('2d')
-                              const tempVid = document.createElement('video')
-                              tempVid.src = mediaSrc
-                              tempVid.muted = true
-                              tempVid.onloadeddata = () => {
-                                tempVid.currentTime = 0.5
-                                tempVid.onseeked = () => c.drawImage(tempVid, 0, 0, vw, vh)
+                            videoModalCanvasRef.current = el
+                            if (el) {
+                              const vw = videoRef.current?.videoWidth || origDims.w || 1280
+                              const vh = videoRef.current?.videoHeight || origDims.h || 720
+                              if (el.width !== vw || el.height !== vh) {
+                                el.width = vw
+                                el.height = vh
+                                const ctx = el.getContext('2d')
+                                ctx.clearRect(0, 0, vw, vh)
+                                if (videoMaskSrc) ctx.drawImage(videoMaskSrc, 0, 0)
                               }
                             }
                           }}
-                          className="block max-h-[60vh] max-w-full rounded pointer-events-none"
-                        />
-                        <canvas
-                          ref={videoModalCanvasRef}
                           onMouseDown={startVideoModalPaint}
                           onMouseMove={paintVideoModal}
                           onMouseUp={stopVideoModalPaint}
