@@ -4,6 +4,8 @@ export const ALPHA_DELETE_THRESHOLD = 244
 export const MAX_WIDTH_LIMIT = 1500
 export const MAX_HEIGHT_LIMIT = 1500
 
+const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
+
 export const getPixel = (img, { x, y }) => {
   const i = y * img.width + x
   return img.data.subarray(i * 4, i * 4 + 4)
@@ -247,9 +249,9 @@ const deleteSeamV = (img, seam, { h }) => {
   })
 }
 
-const wait = (time = 0) => new Promise((resolve) => setTimeout(resolve, time))
+const resizeImageWidth = async (args) => {
+  const { img, toSize, onIteration, size, isCancelled } = args
 
-const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled }) => {
   const pxToRemove = img.width - toSize
   if (pxToRemove < 0) {
     throw new Error('Upsizing is not supported')
@@ -275,6 +277,8 @@ const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled })
         seam,
         img,
         size,
+        step: i,
+        steps: pxToRemove,
       })
     }
 
@@ -284,7 +288,9 @@ const resizeImageWidth = async ({ img, toSize, size, onIteration, isCancelled })
   }
 }
 
-const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }) => {
+const resizeImageHeight = async (args) => {
+  const { img, toSize, onIteration, size, isCancelled } = args
+
   const pxToRemove = img.height - toSize
   if (pxToRemove < 0) {
     throw new Error('Upsizing is not supported')
@@ -310,6 +316,8 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
         seam,
         img,
         size,
+        step: i,
+        steps: pxToRemove,
       })
     }
 
@@ -319,93 +327,49 @@ const resizeImageHeight = async ({ img, toSize, size, onIteration, isCancelled }
   }
 }
 
-export const countMaskedPixels = (img) => {
-  let count = 0
-  for (let i = 0; i < img.data.length; i += 4) {
-    if (img.data[i + 3] === ALPHA_DELETE_THRESHOLD) count += 1
-  }
-  return count
-}
+export const resizeImage = async (args) => {
+  const {
+    img,
+    toWidth,
+    toHeight,
+    onIteration,
+    isCancelled,
+  } = args
 
-const clearMaskArea = async ({ img, size, targetRatio, onIteration, isCancelled, maxExtraSteps = 500 }) => {
-  let energyMapH = null
-  let seamH = null
-  let energyMapV = null
-  let seamV = null
-
-  for (let i = 0; i < maxExtraSteps; i += 1) {
-    if (isCancelled && isCancelled()) break
-    if (countMaskedPixels(img) === 0) break
-    if (size.w <= 10 || size.h <= 10) break
-
-    const currentRatio = size.w / size.h
-    const useH = currentRatio >= targetRatio
-
-    if (useH) {
-      energyMapH = energyMapH && seamH
-        ? reCalculateEnergyMapH(img, size, energyMapH, seamH)
-        : calculateEnergyMapH(img, size)
-      seamH = findLowEnergySeamH(energyMapH, size)
-      deleteSeamH(img, seamH, size)
-      size.w -= 1
-      energyMapV = null
-      seamV = null
-    } else {
-      energyMapV = energyMapV && seamV
-        ? reCalculateEnergyMapV(img, size, energyMapV, seamV)
-        : calculateEnergyMapV(img, size)
-      seamV = findLowEnergySeamV(energyMapV, size)
-      deleteSeamV(img, seamV, size)
-      size.h -= 1
-      energyMapH = null
-      seamH = null
-    }
-
-    if (onIteration) {
-      await onIteration({ energyMap: useH ? energyMapH : energyMapV, seam: useH ? seamH : seamV, img, size, phase: 'mask-clear' })
-    }
-
-    await wait(0)
-  }
-}
-
-export const resizeImage = async ({ img, toWidth, toHeight, onIteration, isCancelled, hasMask = false }) => {
-  const pxToRemoveH = Math.max(0, img.width - toWidth)
-  const pxToRemoveV = Math.max(0, img.height - toHeight)
-  const resizeSteps = pxToRemoveH + pxToRemoveV
-  const maskSteps = hasMask ? 500 : 0
-  const totalSteps = resizeSteps + maskSteps
-  let step = 0
+  const pxToRemoveH = img.width - toWidth
+  const pxToRemoveV = img.height - toHeight
 
   const size = { w: img.width, h: img.height }
 
+  const globalSteps = pxToRemoveH + pxToRemoveV
+  let globalStep = 0
+
   const onResizeIteration = async (onIterationArgs) => {
-    step += 1
-    if (onIteration) {
-      await onIteration({
-        ...onIterationArgs,
-        step,
-        steps: totalSteps,
-      })
+    const {
+      seam,
+      img: onIterationImg,
+      size: onIterationSize,
+      energyMap,
+    } = onIterationArgs
+
+    globalStep += 1
+
+    if (!onIteration) {
+      return
     }
+
+    await onIteration({
+      seam,
+      img: onIterationImg,
+      size: onIterationSize,
+      energyMap,
+      step: globalStep,
+      steps: globalSteps,
+    })
   }
 
-  // Phase 1: Normal resize
-  if (toWidth < img.width) {
-    await resizeImageWidth({ img, toSize: toWidth, size, onIteration: onResizeIteration, isCancelled })
-  }
-
-  if (toHeight < img.height) {
-    await resizeImageHeight({ img, toSize: toHeight, size, onIteration: onResizeIteration, isCancelled })
-  }
-
-  // Phase 2: Clear remaining masked pixels while maintaining target ratio
-  if (hasMask && countMaskedPixels(img) > 0) {
-    const targetRatio = toWidth / toHeight
-    await clearMaskArea({ img, size, targetRatio, onIteration: onResizeIteration, isCancelled, maxExtraSteps: maskSteps })
-  }
-
-  return { img, size }
+  await resizeImageWidth({ img, toSize: toWidth, onIteration: onResizeIteration, size, isCancelled })
+  await resizeImageHeight({ img, toSize: toHeight, onIteration: onResizeIteration, size, isCancelled })
 }
 
 const getMaxEnergy = (energyMap, width, height) => {

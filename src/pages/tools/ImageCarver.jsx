@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Shrink, Download, Sparkles, Activity, Sliders, Maximize2, X,
-  Paintbrush, Check, AlertTriangle, StopCircle, Trash2,
+  Shrink, Download, Sparkles, Activity, Maximize2, X,
+  Paintbrush, Check, StopCircle, Trash2,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -18,8 +18,10 @@ import {
 import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
-const defaultWidthScale = 80
-const defaultHeightScale = 90
+const defaultWidthScale = 50
+const defaultHeightScale = 70
+const minScale = 1
+const maxScale = 100
 
 export default function ImageCarver() {
   const [useNaturalSize, setUseNaturalSize] = useState(false)
@@ -28,6 +30,7 @@ export default function ImageCarver() {
   const [resizedImgSrc, setResizedImgSrc] = useState(null)
   const [energyMap, setEnergyMap] = useState(null)
   const [originalImgSize, setOriginalImgSize] = useState(null)
+  const [originalImgViewSize, setOriginalImgViewSize] = useState(null)
   const [workingImgSize, setWorkingImgSize] = useState(null)
   const [seam, setSeam] = useState(null)
   const [isResizing, setIsResizing] = useState(false)
@@ -51,6 +54,7 @@ export default function ImageCarver() {
     const url = URL.createObjectURL(f)
     setImageSrc(url)
     setFile(f)
+    onReset()
   })
 
   const onReset = () => {
@@ -60,6 +64,7 @@ export default function ImageCarver() {
     setEnergyMap(null)
     setProgress(0)
     setError('')
+    setOriginalImgViewSize(null)
   }
 
   const onFileSelect = (files) => {
@@ -140,6 +145,11 @@ export default function ImageCarver() {
     let h = useNaturalSize ? srcImg.naturalHeight : srcImg.height
     const ratio = w / h
 
+    setOriginalImgViewSize({
+      w: srcImg.width,
+      h: srcImg.height,
+    })
+
     if (w > MAX_WIDTH_LIMIT) {
       w = MAX_WIDTH_LIMIT
       h = Math.floor(w / ratio)
@@ -168,11 +178,10 @@ export default function ImageCarver() {
       toHeight,
       onIteration,
       isCancelled: () => isCancelledRef.current,
-      hasMask: !!maskImgData,
     }).then(() => {
       onFinish()
     }).catch((e) => {
-      setError(`Gagal: ${e.message}`)
+      setError(`Error: ${e.message}`)
       setIsResizing(false)
     })
   }
@@ -189,6 +198,10 @@ export default function ImageCarver() {
       w: imgRef.current.naturalWidth,
       h: imgRef.current.naturalHeight,
     })
+    setOriginalImgViewSize({
+      w: imgRef.current.width,
+      h: imgRef.current.height,
+    })
   }
 
   const onMaskDrawEnd = useCallback((imgData) => {
@@ -196,13 +209,13 @@ export default function ImageCarver() {
   }, [])
 
   const onClearMask = () => {
-    setMaskRevision(maskRevision + 1)
+    setMaskRevision((prev) => prev + 1)
     setMaskImgData(null)
   }
 
   const base = file ? stripExt(file.name) : 'image'
 
-  // ─── Reference: resizerControls ───
+  // ─── Controls (File selector + Resize controls) ───
   const resizerControls = (
     <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -210,13 +223,13 @@ export default function ImageCarver() {
           accept="image/*,.jpg,.jpeg,.png,.webp"
           onFiles={onFileSelect}
           disabled={isResizing}
-          label="Pilih foto"
+          label="Choose image"
           hint="JPG, PNG, WebP"
         />
         <button
           onClick={onResize}
-          disabled={isResizing}
-          className="flex items-center gap-2 rounded bg-[--color-brand] px-4 py-2 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-all"
+          disabled={isResizing || !imageSrc}
+          className="flex items-center gap-2 rounded bg-[--color-brand] px-4 py-2 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-all cursor-pointer"
         >
           <Shrink size={14} /> Resize
         </button>
@@ -226,10 +239,12 @@ export default function ImageCarver() {
         <div className="flex items-center gap-1">
           <span className="text-[--color-text-2]">Width</span>
           <input
-            type="number" min="1" max="100"
+            type="number"
+            min={minScale}
+            max={maxScale}
             value={toWidthScale}
             disabled={isResizing}
-            onChange={(e) => setToWidthScale(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+            onChange={(e) => setToWidthScale(Math.max(minScale, Math.min(maxScale, Number(e.target.value) || minScale)))}
             className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-[--color-text]"
           />
           <span className="text-[--color-text-3]">%</span>
@@ -237,10 +252,12 @@ export default function ImageCarver() {
         <div className="flex items-center gap-1">
           <span className="text-[--color-text-2]">Height</span>
           <input
-            type="number" min="1" max="100"
+            type="number"
+            min={minScale}
+            max={maxScale}
             value={toHeightScale}
             disabled={isResizing}
-            onChange={(e) => setToHeightScale(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+            onChange={(e) => setToHeightScale(Math.max(minScale, Math.min(maxScale, Number(e.target.value) || minScale)))}
             className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-[--color-text]"
           />
           <span className="text-[--color-text-3]">%</span>
@@ -251,26 +268,19 @@ export default function ImageCarver() {
         </label>
       </div>
 
-      {useNaturalSize && (
-        <div className="flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <span>Mode kualitas tinggi memproses seluruh piksel asli. Proses lebih berat.</span>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[--color-border] pt-3 text-xs">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMaskModalOpen(true)}
-            disabled={isResizing}
-            className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors disabled:opacity-50"
+            disabled={isResizing || !imageSrc}
+            className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Maximize2 size={13} /> Masking
           </button>
           {maskImgData && (
             <div className="flex items-center gap-1.5">
-              <span className="rounded bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-600 dark:text-red-400">Mask Aktif</span>
-              <button onClick={onClearMask} className="text-[--color-text-3] hover:text-[--color-danger]">(Hapus)</button>
+              <span className="rounded bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-600 dark:text-red-400">Mask Active</span>
+              <button onClick={onClearMask} className="text-[--color-text-3] hover:text-[--color-danger] text-[11px] cursor-pointer">(Clear)</button>
             </div>
           )}
         </div>
@@ -288,26 +298,26 @@ export default function ImageCarver() {
     </div>
   )
 
-  // ─── Reference: progressBar ───
+  // ─── Progress Bar ───
   const progressBar = isResizing ? (
     <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 font-semibold text-[--color-brand]">
           <Activity size={16} className="animate-pulse" />
-          <span>Memproses Seam Carving... ({Math.round(progress * 100)}%)</span>
+          <span>Resizing image... ({Math.round(progress * 100)}%)</span>
         </div>
         <button
           onClick={cancelCarving}
-          className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+          className="flex items-center gap-1 rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
         >
-          <StopCircle size={14} /> Batal
+          <StopCircle size={14} /> Cancel
         </button>
       </div>
-      <ProgressBar value={Math.round(progress * 100)} label={`Menghitung energi & memotong seams... ${Math.round(progress * 100)}%`} />
+      <ProgressBar value={Math.round(progress * 100)} label={`Processing seam carving... ${Math.round(progress * 100)}%`} />
     </div>
   ) : null
 
-  // ─── Reference: workingImage ─── (hidden when resizedImgSrc OR !energyMap)
+  // ─── Working Image (Canvas) ───
   const workingImage = (
     <div className={`rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 ${(resizedImgSrc || !energyMap) ? 'hidden' : ''}`}>
       <div className="flex items-center justify-between">
@@ -331,7 +341,7 @@ export default function ImageCarver() {
     </div>
   )
 
-  // ─── Reference: resultImage ─── (shown when workingImgSize && resizedImgSrc)
+  // ─── Result Image ───
   const resultImage = workingImgSize && resizedImgSrc ? (
     <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -339,15 +349,15 @@ export default function ImageCarver() {
           Resized image ({workingImgSize.w} × {workingImgSize.h} px)
         </span>
       </div>
-      <img src={resizedImgSrc} width={workingImgSize.w} height={workingImgSize.h} alt="Resized" className="block max-w-full" />
+      <img src={resizedImgSrc} width={workingImgSize.w} height={workingImgSize.h} alt="Resized" className="block max-w-full rounded border border-[--color-border]" />
       <div className="flex items-center justify-between rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-3">
         <p className="text-sm font-semibold text-[--color-success] flex items-center gap-1.5">
-          <Sparkles size={16} /> Resize Berhasil!
+          <Sparkles size={16} /> Resize Complete!
         </p>
         <div className="flex items-center gap-2">
-          <button onClick={onReset} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3]">✕</button>
+          <button onClick={onReset} className="rounded p-1 text-[--color-text-3] hover:bg-[--color-surface-3] cursor-pointer">✕</button>
           <a href={resizedImgSrc} download={`${base}_carved.png`}
-            className="flex items-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 no-underline">
+            className="flex items-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 no-underline cursor-pointer">
             <Download size={16} /> Download
           </a>
         </div>
@@ -355,7 +365,7 @@ export default function ImageCarver() {
     </div>
   ) : null
 
-  // ─── Reference: debugEnergyMap ───
+  // ─── Energy Map Canvas ───
   const debugEnergyMap = showEnergyMap && workingImgSize ? (
     <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
       <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
@@ -367,8 +377,8 @@ export default function ImageCarver() {
     </div>
   ) : null
 
-  // ─── Reference: originalImage ───
-  const originalImage = (
+  // ─── Original Image ───
+  const originalImage = imageSrc ? (
     <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
@@ -377,8 +387,8 @@ export default function ImageCarver() {
         <div className="flex items-center gap-2 text-[10px] text-[--color-text-3]">
           <span>👆 Mask to remove</span>
           <button onClick={() => setIsMaskModalOpen(true)} disabled={isResizing}
-            className="text-[--color-brand] hover:underline font-medium disabled:opacity-50">
-            <Paintbrush size={11} className="inline" /> {maskImgData ? 'Ubah' : 'Mask'}
+            className="text-[--color-brand] hover:underline font-medium disabled:opacity-50 cursor-pointer">
+            <Paintbrush size={11} className="inline" /> {maskImgData ? 'Edit Mask' : 'Mask'}
           </button>
         </div>
       </div>
@@ -387,7 +397,7 @@ export default function ImageCarver() {
           className="block max-h-[360px] w-auto select-none" />
       </div>
     </div>
-  )
+  ) : null
 
   // ─── Error ───
   const errorBar = error ? (
@@ -397,7 +407,7 @@ export default function ImageCarver() {
   return (
     <ToolShell
       title="Image Carver (Content-Aware Seam Carving)"
-      description="Implementasi algoritma Seam Carving (trekhleb/js-image-carver). Kecilkan resolusi gambar tanpa merusak proporsi objek utama."
+      description="Content-aware image resizer based on trekhleb/js-image-carver reference implementation. Shrink image dimensions while retaining key object proportions."
     >
       {resizerControls}
       {progressBar}
@@ -408,7 +418,7 @@ export default function ImageCarver() {
       {originalImage}
 
       {/* Mask Modal */}
-      {isMaskModalOpen && (
+      {isMaskModalOpen && imageSrc && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={(e) => e.target === e.currentTarget && setIsMaskModalOpen(false)}>
           <div className="relative w-[92%] max-w-[700px] rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
@@ -417,19 +427,19 @@ export default function ImageCarver() {
                   <Paintbrush size={16} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold leading-tight">Masking Objek</p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Gambar area yang ingin dihapus</p>
+                  <p className="text-sm font-bold leading-tight">Mask Object to Remove</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Draw over areas you want deleted first during resize</p>
                 </div>
               </div>
-              <button onClick={() => setIsMaskModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+              <button onClick={() => setIsMaskModalOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
             <div className="px-5 py-4 space-y-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400">Warnai area objek yang ingin dihapus. Area merah akan direkonstruksi.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Paint red over target objects. Marked areas will have lowest energy and be carved first.</p>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Kuas:</span>
-                <input type="range" min="4" max="60" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600" />
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Brush:</span>
+                <input type="range" min="4" max="60" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="flex-1 h-1.5 accent-blue-600 cursor-pointer" />
                 <span className="text-[11px] font-mono text-gray-500 w-8">{brushSize}px</span>
               </div>
               <div className="relative flex justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2 overflow-hidden min-h-[300px] max-h-[65vh]">
@@ -448,12 +458,12 @@ export default function ImageCarver() {
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-              <button onClick={onClearMask} className="text-xs text-red-500 hover:underline font-semibold">
-                <Trash2 size={12} className="inline mr-1" />Hapus
+              <button onClick={onClearMask} className="text-xs text-red-500 hover:underline font-semibold cursor-pointer">
+                <Trash2 size={12} className="inline mr-1" />Clear Mask
               </button>
               <button onClick={() => setIsMaskModalOpen(false)}
-                className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors">
-                <Check size={14} className="inline mr-1" />Selesai
+                className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer">
+                <Check size={14} className="inline mr-1" />Done
               </button>
             </div>
           </div>
@@ -484,7 +494,7 @@ function EnergyMapCanvas({ energyMap, width, height }) {
   return <canvas ref={ref} className="block max-h-[300px] w-auto" />
 }
 
-/* ─── Mask Canvas (trekhleb/Mask.tsx replica) ─── */
+/* ─── Mask Canvas ─── */
 function MaskCanvas({ width, height, brushSize, revision, onDrawEnd, disabled }) {
   const canvasRef = useRef(null)
   const [isPainting, setIsPainting] = useState(false)
