@@ -654,31 +654,32 @@ export default function AddPageNumber() {
           )}
 
           {/* Settings Grid */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
-            {/* Per-page position toggle */}
-            {fileType === 'pdf' && (
-              <div className="flex items-center justify-between border-b border-[--color-border] pb-3">
-                <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={usePerPagePosition}
-                    onChange={(e) => setUsePerPagePosition(e.target.checked)}
-                  />
-                  <span className="font-semibold">Custom Posisi per Halaman</span>
-                </label>
-                {usePerPagePosition && (
-                  <span className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-0.5 rounded">
-                    Hal {currentPage}: {getPagePosition(currentPage).preset === 'custom' ? `${getPagePosition(currentPage).x}%, ${getPagePosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getPagePosition(currentPage).preset)?.label || 'Custom'}
-                  </span>
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-5">
+            
+            {/* STEP 1: Position */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-[--color-border]">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[--color-brand] text-[10px] font-bold text-white">1</div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text]">Posisi Nomor Halaman</h3>
+                {fileType === 'pdf' && (
+                  <label className="flex items-center gap-1.5 text-[10px] text-[--color-text-3] cursor-pointer ml-auto">
+                    <input
+                      type="checkbox"
+                      checked={usePerPagePosition}
+                      onChange={(e) => setUsePerPagePosition(e.target.checked)}
+                      className="accent-[--color-brand]"
+                    />
+                    <span>Beda per Halaman</span>
+                  </label>
                 )}
               </div>
-            )}
-
-            {/* Presets Button Row */}
-            <div>
-              <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                {usePerPagePosition ? `Posisi Halaman ${currentPage}` : 'Posisi Nomor Halaman (Semua Halaman)'}
-              </label>
+              
+              {usePerPagePosition && (
+                <div className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-1 rounded w-fit">
+                  Hal {currentPage}: {getPagePosition(currentPage).preset === 'custom' ? `${getPagePosition(currentPage).x}%, ${getPagePosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getPagePosition(currentPage).preset)?.label || 'Custom'}
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                 {POSITION_PRESETS.map((pos) => {
                   const activePreset = usePerPagePosition ? getPagePosition(currentPage).preset : positionPreset
@@ -687,96 +688,95 @@ export default function AddPageNumber() {
                       key={pos.id}
                       type="button"
                       onClick={() => selectPreset(pos.id)}
-                      className={`flex flex-col items-center justify-center rounded border p-2.5 text-xs text-center transition-all ${
+                      className={`flex flex-col items-center justify-center rounded-lg border p-2.5 text-xs text-center transition-all ${
                         activePreset === pos.id
                           ? BTN_CARD_ACTIVE
                           : BTN_CARD_INACTIVE
                       }`}
                     >
-                      <span>{pos.label}</span>
-                      <span className="text-[10px] opacity-75 font-normal">{pos.desc}</span>
+                      <span className="font-medium">{pos.label}</span>
+                      <span className="text-[10px] opacity-70 mt-0.5">{pos.desc}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* Target Pages Selection / Checklist Box */}
-            <div className="border-t border-[--color-border] pt-3 space-y-2 text-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="font-semibold text-[--color-text-2] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-[--color-brand]" />
-                  <span>Target Halaman yang Ingin Diberi Nomor (Tanpa Merusak Halaman Lain):</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
-                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                      targetPageMode === 'all'
-                        ? BTN_SEG_ACTIVE
-                        : BTN_SEG_INACTIVE
-                    }`}
-                  >
-                    Semua Halaman
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetPageMode('specific')}
-                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                      targetPageMode === 'specific'
-                        ? BTN_SEG_ACTIVE
-                        : BTN_SEG_INACTIVE
-                    }`}
-                  >
-                    Pilih Halaman Tertentu
-                  </button>
-                </div>
+            {/* STEP 2: Which Pages */}
+            <div className="space-y-3 pt-2 border-t border-[--color-border]">
+              <div className="flex items-center gap-2 pb-2 border-b border-[--color-border]">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[--color-brand] text-[10px] font-bold text-white">2</div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[--color-text]">Halaman yang Diberi Nomor</h3>
+                <span className="ml-auto text-[10px] font-semibold text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded">
+                  {getIncludedPagesList().length} dari {totalPages} halaman
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                    targetPageMode === 'all'
+                      ? BTN_SEG_ACTIVE
+                      : BTN_SEG_INACTIVE
+                  }`}
+                >
+                  Semua Halaman
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetPageMode('specific')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                    targetPageMode === 'specific'
+                      ? BTN_SEG_ACTIVE
+                      : BTN_SEG_INACTIVE
+                  }`}
+                >
+                  Pilih Tertentu
+                </button>
               </div>
 
               {targetPageMode === 'specific' && (
                 <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-semibold text-[--color-text-2] shrink-0">Rentang Halaman:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-[--color-text-2] shrink-0">Rentang:</span>
                     <input
                       type="text"
                       value={targetPagesInput}
                       onChange={(e) => setTargetPagesInput(e.target.value)}
-                      placeholder="misal: 2-5, 8 atau ganjil"
-                      className="flex-1 min-w-[180px] rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                      placeholder="Contoh: 2-5, 8, 10-12"
+                      className="flex-1 min-w-[160px] rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
                     />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setTargetPagesInput('2-' + totalPages)}
-                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
-                      >
-                        Hal 2-{totalPages}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTargetPagesInput('ganjil')}
-                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
-                      >
-                        Ganjil
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTargetPagesInput('genap')}
-                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
-                      >
-                        Genap
-                      </button>
-                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setTargetPagesInput('2-' + totalPages)}
+                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                    >
+                      Lewati Hal 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTargetPagesInput('ganjil')}
+                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                    >
+                      Ganjil Saja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTargetPagesInput('genap')}
+                      className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-colors cursor-pointer"
+                    >
+                      Genap Saja
+                    </button>
                   </div>
 
-                  {/* Visual Checklist Grid for all pages */}
+                  {/* Visual Checklist Grid */}
                   <div className="space-y-1.5 pt-2 border-t border-[--color-border]/60">
-                    <div className="flex items-center justify-between text-[11px] text-[--color-text-3]">
-                      <span>Checklist Visual (Centang halaman yang ingin diberi nomor):</span>
-                      <span className="font-semibold text-[--color-brand]">{getIncludedPagesList().length} dari {totalPages} halaman terpilih</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-[--color-surface] rounded border border-[--color-border]">
+                    <div className="text-[11px] text-[--color-text-3] mb-1">Klik untuk centang/batal:</div>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-[--color-surface] rounded border border-[--color-border]">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
                         const isChecked = getIncludedPagesList().includes(pNum)
                         return (
@@ -790,7 +790,7 @@ export default function AddPageNumber() {
                                 : BTN_CHECK_INACTIVE
                             }`}
                           >
-                            <span>{isChecked ? '✓' : '✗'}</span>
+                            <span>{isChecked ? '✓' : '○'}</span>
                             <span>Hal {pNum}</span>
                           </button>
                         )
