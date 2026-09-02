@@ -187,19 +187,6 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
         ))}
       </nav>
 
-      {/* Desktop expand button if collapsed */}
-      {isCollapsed && (
-        <div className="hidden lg:flex justify-center p-2 border-t border-[--color-border]">
-          <button
-            onClick={onToggleCollapse}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-brand] transition-colors"
-            title="Expand Sidebar"
-          >
-            <PanelLeftOpen size={16} />
-          </button>
-        </div>
-      )}
-
       {/* Footer Info & PWA status */}
       {!isCollapsed && (
         <div className="border-t border-[--color-border] p-3 space-y-2">
