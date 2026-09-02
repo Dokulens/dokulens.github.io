@@ -987,11 +987,12 @@ export default function AddPageNumber() {
                       return (
                         <div
                           onMouseDown={startTagDrag}
-                          className="absolute rounded bg-blue-500/10 border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
+                          className="absolute rounded border border-blue-600 px-1 py-0.5 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 select-none text-center"
                           style={{
                             left: `${pagePos.x}%`,
                             top: `${pagePos.y}%`,
                             transform: 'translate(-50%, -50%)',
+                            backgroundColor: coverExistingNumber ? paperColor : undefined,
                             color: fontColor,
                             fontSize: `${Math.max(9, fontSize)}px`,
                             fontWeight: isBold ? 'bold' : 'normal',
