@@ -25,7 +25,6 @@ const maxScale = 100
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const img = new Image()
-  img.crossOrigin = 'anonymous'
   img.onload = () => resolve(img)
   img.onerror = reject
   img.src = src
@@ -137,20 +136,13 @@ export default function ImageCarver() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Build a tight ImageData frame matching current (w, h) to guarantee 100% accurate rendering without row stride mismatch
+    // Build a tight ImageData frame matching current (w, h)
     const frame = ctx.createImageData(w, h)
     for (let y = 0; y < h; y += 1) {
       const srcStart = y * img.width * 4
       const srcEnd = srcStart + w * 4
       const dstStart = y * w * 4
       frame.data.set(img.data.subarray(srcStart, srcEnd), dstStart)
-    }
-
-    // Ensure display frame pixels stay opaque so masked areas don't render black patches during carving
-    for (let i = 3; i < frame.data.length; i += 4) {
-      if (frame.data[i] === ALPHA_DELETE_THRESHOLD) {
-        frame.data[i] = 255
-      }
     }
 
     ctx.putImageData(frame, 0, 0)
@@ -162,7 +154,7 @@ export default function ImageCarver() {
   }, [])
 
   const onResize = async () => {
-    if (!imageSrc) return
+    if (!imageSrc && !file) return
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -171,15 +163,23 @@ export default function ImageCarver() {
     isCancelledRef.current = false
 
     try {
-      const srcImg = await loadImage(imageSrc)
+      let srcImg
+      if (file && typeof createImageBitmap === 'function') {
+        srcImg = await createImageBitmap(file)
+      } else {
+        srcImg = await loadImage(imageSrc)
+      }
 
-      let w = useNaturalSize ? srcImg.naturalWidth : Math.min(800, srcImg.naturalWidth)
-      let h = Math.floor(w * (srcImg.naturalHeight / srcImg.naturalWidth))
+      const imgW = srcImg.width || srcImg.naturalWidth
+      const imgH = srcImg.height || srcImg.naturalHeight
+
+      let w = useNaturalSize ? imgW : Math.min(800, imgW)
+      let h = Math.floor(w * (imgH / imgW))
       const ratio = w / h
 
       setOriginalImgViewSize({
-        w: srcImg.naturalWidth,
-        h: srcImg.naturalHeight,
+        w: imgW,
+        h: imgH,
       })
 
       if (w > MAX_WIDTH_LIMIT) {
