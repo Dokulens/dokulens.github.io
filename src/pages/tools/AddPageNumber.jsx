@@ -132,6 +132,7 @@ export default function AddPageNumber() {
   const [targetPageMode, setTargetPageMode] = useState('all') // 'all' | 'specific'
   const [targetPagesInput, setTargetPagesInput] = useState('Semua')
   const [perPageOverrides, setPerPageOverrides] = useState({})
+  const [perPageFormatOverrides, setPerPageFormatOverrides] = useState({})
   const [usePerPagePosition, setUsePerPagePosition] = useState(false)
   const [perPagePositionOverrides, setPerPagePositionOverrides] = useState({})
 
@@ -160,6 +161,7 @@ export default function AddPageNumber() {
     setError('')
     setCurrentPage(1)
     setPerPageOverrides({})
+    setPerPageFormatOverrides({})
     setPerPagePositionOverrides({})
     setPerPageWoOverrides({})
     setUsePerPagePosition(false)
@@ -368,7 +370,7 @@ export default function AddPageNumber() {
     }
   }
 
-  const getPageNumberText = (pageIdx, total) => {
+  const getPageNumberText = (pageIdx, total, pageNum) => {
     const numRaw = pageIdx - (skipFirstPage ? 1 : 0) + startNumber - 1 + 1
     let numStr = String(numRaw)
     if (formatId === 'roman_upper') {
@@ -376,7 +378,23 @@ export default function AddPageNumber() {
     } else if (formatId === 'roman_lower') {
       numStr = toRoman(numRaw, false)
     }
-    const tpl = formatId === 'custom' ? customTemplate : (FORMAT_TEMPLATES.find((f) => f.id === formatId)?.template || '{n}')
+    
+    // Check for per-page format override
+    const pageFormat = pageNum && perPageFormatOverrides[pageNum]
+    let tpl
+    if (pageFormat) {
+      // Apply per-page format but keep the sequential number
+      if (pageFormat.formatId === 'roman_upper') {
+        numStr = toRoman(numRaw, true)
+      } else if (pageFormat.formatId === 'roman_lower') {
+        numStr = toRoman(numRaw, false)
+      }
+      tpl = pageFormat.formatId === 'custom' 
+        ? pageFormat.customTemplate 
+        : (FORMAT_TEMPLATES.find((f) => f.id === pageFormat.formatId)?.template || '{n}')
+    } else {
+      tpl = formatId === 'custom' ? customTemplate : (FORMAT_TEMPLATES.find((f) => f.id === formatId)?.template || '{n}')
+    }
     return tpl.replace('{n}', numStr).replace('{total}', total)
   }
 
@@ -499,7 +517,7 @@ export default function AddPageNumber() {
           const page = pages[i]
           const { width: pWidth, height: pHeight } = page.getSize()
 
-          const numText = getPageNumberText(i + 1, total)
+          const numText = getPageNumberText(i + 1, total, pageNum)
           const textWidth = font.widthOfTextAtSize(numText, fontSize)
 
           const pagePos = getPagePosition(pageNum)
@@ -580,7 +598,7 @@ export default function AddPageNumber() {
   }
 
   const currentIncluded = isPageIncluded(currentPage)
-  const previewNumText = getPageNumberText(currentPage, totalPages)
+  const previewNumText = getPageNumberText(currentPage, totalPages, currentPage)
   const base = file ? stripExt(file.name) : 'document'
   const outExt = fileType === 'docx' ? 'docx' : 'pdf'
 
@@ -816,6 +834,84 @@ export default function AddPageNumber() {
                   ))}
                 </select>
               </div>
+
+              {/* Per-page format toggle */}
+              {fileType === 'pdf' && (
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Object.keys(perPageFormatOverrides).length > 0}
+                      onChange={(e) => {
+                        if (!e.target.checked) {
+                          setPerPageFormatOverrides({})
+                        } else {
+                          // Initialize with current format for current page
+                          setPerPageFormatOverrides({
+                            [currentPage]: { formatId, customTemplate }
+                          })
+                        }
+                      }}
+                    />
+                    <span className="font-semibold">Custom Format per Halaman</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Per-page format selector */}
+              {fileType === 'pdf' && Object.keys(perPageFormatOverrides).length > 0 && (
+                <div className="col-span-full border-t border-[--color-border] pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-[--color-text-2]">
+                      Format Halaman {currentPage}
+                    </label>
+                    <span className="text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-0.5 rounded">
+                      {perPageFormatOverrides[currentPage] 
+                        ? (FORMAT_TEMPLATES.find(f => f.id === perPageFormatOverrides[currentPage].formatId)?.label || 'Custom')
+                        : (FORMAT_TEMPLATES.find(f => f.id === formatId)?.label || 'Default')}
+                    </span>
+                  </div>
+                  <select
+                    value={perPageFormatOverrides[currentPage]?.formatId || formatId}
+                    onChange={(e) => {
+                      const newFormatId = e.target.value
+                      setPerPageFormatOverrides(prev => ({
+                        ...prev,
+                        [currentPage]: { 
+                          formatId: newFormatId, 
+                          customTemplate: newFormatId === 'custom' 
+                            ? (prev[currentPage]?.customTemplate || customTemplate || '{n}')
+                            : (FORMAT_TEMPLATES.find(f => f.id === newFormatId)?.template || '{n}')
+                        }
+                      }))
+                    }}
+                    className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                  >
+                    {FORMAT_TEMPLATES.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
+                        {tpl.label}
+                      </option>
+                    ))}
+                  </select>
+                  {perPageFormatOverrides[currentPage]?.formatId === 'custom' && (
+                    <input
+                      type="text"
+                      value={perPageFormatOverrides[currentPage]?.customTemplate || customTemplate || '{n}'}
+                      onChange={(e) => {
+                        setPerPageFormatOverrides(prev => ({
+                          ...prev,
+                          [currentPage]: { 
+                            ...prev[currentPage],
+                            customTemplate: e.target.value 
+                          }
+                        }))
+                      }}
+                      placeholder="Contoh: Hal {n} dari {total}"
+                      className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-xs text-[--color-text] outline-none focus:border-[--color-brand]"
+                    />
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
