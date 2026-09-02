@@ -237,42 +237,57 @@ export default function ImageCarver() {
   }
 
   const startCarving = async () => {
-    if (!imgRef.current || isResizing) return
-    onReset()
+    if (!imageSrc || isResizing) return
     setIsResizing(true)
     isCancelledRef.current = false
     setError('')
     setCarvePhase('')
-
-    const srcImg = imgRef.current
-    let w = useHigherQuality ? srcImg.naturalWidth : Math.min(srcImg.naturalWidth, 600)
-    let h = useHigherQuality ? srcImg.naturalHeight : Math.min(srcImg.naturalHeight, Math.round((600 * srcImg.naturalHeight) / srcImg.naturalWidth))
-    const ratio = w / h
-
-    if (w > MAX_WIDTH_LIMIT) {
-      w = MAX_WIDTH_LIMIT
-      h = Math.floor(w / ratio)
-    }
-    if (h > MAX_HEIGHT_LIMIT) {
-      h = MAX_HEIGHT_LIMIT
-      w = Math.floor(h * ratio)
-    }
-
-    const tempCanvas = document.createElement('canvas')
-    tempCanvas.width = w
-    tempCanvas.height = h
-    const tempCtx = tempCanvas.getContext('2d')
-    tempCtx.drawImage(srcImg, 0, 0, w, h)
-
-    const img = tempCtx.getImageData(0, 0, w, h)
-    applyMaskToImageData(img)
-
-    const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
-    const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
-
-    setWorkingSize({ w, h })
+    setResizedImgSrc(null)
+    setProgress(0)
 
     try {
+      const loadedImg = new Image()
+      loadedImg.crossOrigin = 'anonymous'
+      await new Promise((resolve, reject) => {
+        loadedImg.onload = resolve
+        loadedImg.onerror = () => reject(new Error('Gagal memuat piksel gambar'))
+        loadedImg.src = imageSrc
+      })
+
+      let w = useHigherQuality ? loadedImg.naturalWidth : Math.min(loadedImg.naturalWidth, 600)
+      let h = useHigherQuality ? loadedImg.naturalHeight : Math.min(loadedImg.naturalHeight, Math.round((600 * loadedImg.naturalHeight) / loadedImg.naturalWidth))
+      const ratio = w / h
+
+      if (w > MAX_WIDTH_LIMIT) {
+        w = MAX_WIDTH_LIMIT
+        h = Math.floor(w / ratio)
+      }
+      if (h > MAX_HEIGHT_LIMIT) {
+        h = MAX_HEIGHT_LIMIT
+        w = Math.floor(h * ratio)
+      }
+
+      const tempCanvas = document.createElement('canvas')
+      tempCanvas.width = w
+      tempCanvas.height = h
+      const tempCtx = tempCanvas.getContext('2d')
+      tempCtx.drawImage(loadedImg, 0, 0, w, h)
+
+      const imgData = tempCtx.getImageData(0, 0, w, h)
+      applyMaskToImageData(imgData)
+
+      const toWidth = Math.max(10, Math.floor((toWidthScale * w) / 100))
+      const toHeight = Math.max(10, Math.floor((toHeightScale * h) / 100))
+
+      setWorkingSize({ w, h })
+
+      if (workingCanvasRef.current) {
+        workingCanvasRef.current.width = w
+        workingCanvasRef.current.height = h
+        const ctx = workingCanvasRef.current.getContext('2d')
+        ctx.drawImage(loadedImg, 0, 0, w, h)
+      }
+
       const onIteration = async ({ seam, img: currentImg, size, energyMap, step, steps, phase }) => {
         if (workingCanvasRef.current) {
           workingCanvasRef.current.width = size.w
@@ -325,7 +340,7 @@ export default function ImageCarver() {
       }
 
       const res = await resizeImage({
-        img,
+        img: imgData,
         toWidth,
         toHeight,
         onIteration,
@@ -349,22 +364,15 @@ export default function ImageCarver() {
         }
         outCtx.putImageData(finalImgData, 0, 0)
 
-        outCanvas.toBlob((blob) => {
-          if (blob) {
-            setResizedImgSrc(URL.createObjectURL(blob))
-          }
-        }, 'image/png')
+        const finalUrl = outCanvas.toDataURL('image/png')
+        setResizedImgSrc(finalUrl)
+        setProgress(100)
       }
     } catch (e) {
       setError(`Gagal: ${e.message}`)
+      console.error('[Carver Error]', e)
     } finally {
       setIsResizing(false)
-      setMaskCanvasElement(null)
-      setHasMask(false)
-      if (origOverlayCanvasRef.current) {
-        const ctx = origOverlayCanvasRef.current.getContext('2d')
-        ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
-      }
     }
   }
 
