@@ -354,32 +354,31 @@ export default function ImageCarver() {
           )}
 
           {/* Working / Result Canvas */}
-          {(workingImgSize || resizedImgSrc) && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                  {resizedImgSrc ? 'Hasil Resize' : 'Proses Carving'} {workingImgSize ? `(${workingImgSize.w} × ${workingImgSize.h} px)` : ''}
-                </span>
-                {isResizing && (
-                  <span className="text-[11px] font-bold text-[--color-brand] animate-pulse">● Real-Time</span>
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                {resizedImgSrc ? 'Hasil Resize' : 'Proses Carving'} {workingImgSize ? `(${workingImgSize.w} × ${workingImgSize.h} px)` : ''}
+              </span>
+              {isResizing && (
+                <span className="text-[11px] font-bold text-[--color-brand] animate-pulse">● Real-Time</span>
+              )}
+            </div>
+            <div className="flex justify-center overflow-auto rounded border border-[--color-border] bg-[--color-surface-2] p-2 min-h-[200px]">
+              <div className="relative inline-block">
+                <canvas ref={canvasRef} className="block max-h-[400px] w-auto" />
+                {showSeams && seam && workingImgSize && !resizedImgSrc && (
+                  <svg
+                    className="absolute top-0 left-0 pointer-events-none"
+                    width={workingImgSize.w}
+                    height={workingImgSize.h}
+                  >
+                    {seam.map(({ x, y }, i) => (
+                      <rect key={i} x={x} y={y} width={1} height={1} fill="rgba(239, 68, 68, 0.9)" />
+                    ))}
+                  </svg>
                 )}
               </div>
-              <div className="flex justify-center overflow-auto rounded border border-[--color-border] bg-[--color-surface-2] p-2">
-                <div className="relative inline-block">
-                  <canvas ref={canvasRef} className="block max-h-[400px] w-auto" />
-                  {showSeams && seam && workingImgSize && !resizedImgSrc && (
-                    <svg
-                      className="absolute top-0 left-0 pointer-events-none"
-                      width={workingImgSize.w}
-                      height={workingImgSize.h}
-                    >
-                      {seam.map(({ x, y }, i) => (
-                        <rect key={i} x={x} y={y} width={1} height={1} fill="rgba(239, 68, 68, 0.9)" />
-                      ))}
-                    </svg>
-                  )}
-                </div>
-              </div>
+            </div>
 
               {/* Download */}
               {resizedImgSrc && (
@@ -405,7 +404,6 @@ export default function ImageCarver() {
                 </div>
               )}
             </div>
-          )}
 
           {/* Energy Map */}
           {showEnergyMap && energyMap && workingImgSize && !resizedImgSrc && (
