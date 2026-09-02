@@ -7,7 +7,6 @@ import Layout from './components/Layout'
 const Landing = lazy(() => import('./pages/Landing'))
 const EditPDF = lazy(() => import('./pages/tools/EditPDF'))
 const AddPageNumber = lazy(() => import('./pages/tools/AddPageNumber'))
-const MergePDF = lazy(() => import('./pages/tools/MergePDF'))
 const SplitPDF = lazy(() => import('./pages/tools/SplitPDF'))
 const CompressPDF = lazy(() => import('./pages/tools/CompressPDF'))
 const PDFToDocx = lazy(() => import('./pages/tools/PDFToDocx'))
@@ -44,7 +43,6 @@ export default function App() {
               <Route index element={<Landing />} />
               <Route path="edit-pdf" element={<EditPDF />} />
               <Route path="add-page-number" element={<AddPageNumber />} />
-              <Route path="merge-pdf" element={<MergePDF />} />
               <Route path="split-pdf" element={<SplitPDF />} />
               <Route path="compress-pdf" element={<CompressPDF />} />
               <Route path="pdf-to-docx" element={<PDFToDocx />} />

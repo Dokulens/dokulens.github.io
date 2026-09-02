@@ -30,7 +30,7 @@ export const TOOL_REGISTRY = [
   {
     id: 'rotate-pdf',
     route: 'rotate-pdf',
-    label: 'Rotate / Reorder Halaman',
+    label: 'Rotate, Reorder & Merge PDF',
     icon: 'RotateCw',
     accepts: ['application/pdf'],
   },
@@ -46,13 +46,6 @@ export const TOOL_REGISTRY = [
     route: 'split-pdf',
     label: 'Split PDF',
     icon: 'Scissors',
-    accepts: ['application/pdf'],
-  },
-  {
-    id: 'merge-pdf',
-    route: 'merge-pdf',
-    label: 'Merge PDF',
-    icon: 'Combine',
     accepts: ['application/pdf'],
   },
   {

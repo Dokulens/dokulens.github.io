@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { PDFDocument } from 'pdf-lib'
+import { useState, useCallback, useRef } from 'react'
+import { PDFDocument, degrees } from 'pdf-lib'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors,
@@ -9,143 +9,190 @@ import {
   rectSortingStrategy, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { RotateCw, Trash2, GripVertical, Loader2 } from 'lucide-react'
+import {
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, FileText,
+} from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
-import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
-function SortablePageCard({ id, pageNum, preview, rotation, onRotate, onRemove }) {
+/* ─── Sortable Page Card Component ─── */
+function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-col items-center rounded-lg border border-[--color-border] bg-[--color-surface] p-2 select-none"
+      className={`group relative flex flex-col items-center rounded-lg border border-[--color-border] bg-[--color-surface] p-2 select-none transition-all ${
+        isDragging ? 'shadow-xl ring-2 ring-[--color-brand]' : 'hover:border-[--color-brand-light]'
+      }`}
     >
+      {/* Top Bar */}
       <div className="flex w-full items-center justify-between px-1 mb-1 text-xs text-[--color-text-3]">
-        <button {...attributes} {...listeners} className="cursor-grab hover:text-[--color-text]">
+        <button {...attributes} {...listeners} className="cursor-grab text-[--color-text-3] hover:text-[--color-text] p-0.5">
           <GripVertical size={14} />
         </button>
-        <span className="font-semibold">Hal {pageNum}</span>
-        <button onClick={() => onRemove(id)} className="hover:text-[--color-danger]">
+        <span className="font-semibold text-[11px] truncate max-w-[90px]" title={page.fileName}>
+          {page.fileName}
+        </span>
+        <button onClick={() => onRemove(id)} className="text-[--color-text-3] hover:text-[--color-danger] p-0.5" title="Hapus Halaman">
           <Trash2 size={13} />
         </button>
       </div>
 
-      <div className={`relative w-full overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center ${
-        (rotation === 90 || rotation === 270) ? 'aspect-[4/3]' : 'aspect-[3/4]'
-      }`}>
-{preview ? (
-            <img
-              src={preview}
-              alt={`Page ${pageNum}`}
-              className="max-h-full max-w-full object-contain transition-opacity duration-200"
-            />
-          ) : (
-          <Loader2 size={16} className="animate-spin text-[--color-text-3]" />
+      {/* Thumbnail */}
+      <div className="relative w-full aspect-[3/4] overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center border border-[--color-border]">
+        {page.preview ? (
+          <img
+            src={page.preview}
+            alt={`Page ${page.pdfPageNumber}`}
+            style={{ transform: `rotate(${page.rotation}deg)` }}
+            className="max-h-full max-w-full object-contain transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <Loader2 size={16} className="animate-spin text-[--color-brand]" />
+            <span className="text-[10px] text-[--color-text-3]">Hal {page.pdfPageNumber}</span>
+          </div>
         )}
+
+        {/* Global Sequence Badge */}
+        <span className="absolute top-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+          #{index + 1}
+        </span>
+
+        {/* Page Origin Badge */}
+        <span className="absolute bottom-1 right-1 rounded bg-[--color-brand] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+          p.{page.pdfPageNumber}
+        </span>
       </div>
 
-      <button
-        onClick={() => onRotate(id)}
-        className="mt-2 flex items-center gap-1 text-xs text-[--color-brand] hover:underline"
-      >
-        <RotateCw size={12} />
-        Putar (+90°)
-      </button>
+      {/* Bottom Rotation Button */}
+      <div className="mt-2 flex w-full items-center justify-between px-1">
+        <span className="text-[10px] text-[--color-text-3]">
+          {page.rotation > 0 ? `${page.rotation}°` : '0°'}
+        </span>
+        <button
+          onClick={() => onRotate(id)}
+          className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface-2] px-2 py-1 text-[11px] font-medium text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer"
+          title="Putar 90° Searah Jarum Jam"
+        >
+          <RotateCw size={11} /> Putar
+        </button>
+      </div>
     </div>
   )
 }
 
 export default function RotatePDF() {
-  const [file, setFile] = useState(null)
-  useIncomingFile(setFile)
-  const [pages, setPages] = useState([])
-  const [pdfDoc, setPdfDoc] = useState(null)
+  const [files, setFiles] = useState([]) // [{ id, file, pdfjsDoc, pdfLibDoc }]
+  const [pages, setPages] = useState([]) // [{ id, fileId, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc }]
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
+  const fileInputRef = useRef(null)
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const handleFile = async ([f]) => {
-    setFile(f)
-    setPages([])
-    setResult(null)
-    setError('')
+  const loadPdfFiles = useCallback(async (newFilesList) => {
     setLoading(true)
+    setError('')
     setProgress(0)
 
     try {
-      const arrayBuf = await readAsArrayBuffer(f)
-      const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
-      const pdfDoc = await loadingTask.promise
-      setPdfDoc(pdfDoc)
-      const totalPages = pdfDoc.numPages
+      const addedFiles = []
+      const addedPages = []
 
-      const initialPages = Array.from({ length: totalPages }, (_, i) => ({
-        id: crypto.randomUUID(),
-        origIndex: i,
-        pageNum: i + 1,
-        preview: null,
-        rotation: 0,
-      }))
-      setPages(initialPages)
+      for (let fIdx = 0; fIdx < newFilesList.length; fIdx++) {
+        const file = newFilesList[fIdx]
+        const fileId = crypto.randomUUID()
+        const arrayBuf = await readAsArrayBuffer(file)
+        const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf.slice(0)) }).promise
+        const pdfLibDoc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
+        const totalPages = pdfjsDoc.numPages
 
-// Render previews progressively
-      for (let i = 1; i <= totalPages; i++) {
-        const page = await pdfDoc.getPage(i)
-        const rotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
-        const { dataUrl } = await renderPageToDataUrl(pdfDoc, i, 0.4, rotation)
-        setPages((prev) =>
-          prev.map((p) => (p.pageNum === i ? { ...p, preview: dataUrl, rotation } : p)),
-        )
-        setProgress(Math.round((i / totalPages) * 100))
+        addedFiles.push({
+          id: fileId,
+          file,
+          pdfjsDoc,
+          pdfLibDoc,
+        })
+
+        for (let p = 0; p < totalPages; p++) {
+          addedPages.push({
+            id: crypto.randomUUID(),
+            fileId,
+            fileName: file.name,
+            pageIndex: p,
+            pdfPageNumber: p + 1,
+            rotation: 0,
+            preview: null,
+            pdfLibDoc,
+          })
+        }
+        setProgress(Math.round(((fIdx + 1) / newFilesList.length) * 40))
+      }
+
+      setFiles((prev) => [...prev, ...addedFiles])
+      setPages((prev) => [...prev, ...addedPages])
+
+      // Render thumbnails progressively
+      for (let i = 0; i < addedPages.length; i++) {
+        const pObj = addedPages[i]
+        const parentFile = addedFiles.find((f) => f.id === pObj.fileId)
+        if (parentFile) {
+          try {
+            const page = await parentFile.pdfjsDoc.getPage(pObj.pageIndex + 1)
+            const origRotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
+            const { dataUrl } = await renderPageToDataUrl(parentFile.pdfjsDoc, pObj.pageIndex + 1, 0.4, origRotation)
+            setPages((prev) => prev.map((p) => p.id === pObj.id ? { ...p, preview: dataUrl, rotation: origRotation } : p))
+          } catch {
+            // thumbnail fallback
+          }
+        }
+        setProgress(40 + Math.round(((i + 1) / addedPages.length) * 60))
       }
     } catch (e) {
       setError(`Gagal memuat PDF: ${e.message}`)
     } finally {
       setLoading(false)
+      setProgress(0)
     }
+  }, [])
+
+  useIncomingFile((f) => loadPdfFiles([f]))
+
+  const handleFilesAdded = (newFiles) => {
+    if (!newFiles || !newFiles.length) return
+    setResult(null)
+    loadPdfFiles(newFiles)
   }
 
-  const rotatePage = async (id) => {
-    const target = pages.find((p) => p.id === id)
-    if (!target) return
-    const newRotation = (target.rotation + 90) % 360
-    const page = await pdfDoc.getPage(target.pageNum)
-    const { dataUrl } = await renderPageToDataUrl(pdfDoc, target.pageNum, 0.4, newRotation)
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, rotation: newRotation, preview: dataUrl } : p)),
-    )
+  const rotatePage = (pageId) => {
+    setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, rotation: (p.rotation + 90) % 360 } : p)))
+    setResult(null)
   }
 
-  const rotateAll = async () => {
-    const rotated = []
-    for (const p of pages) {
-      const page = await pdfDoc.getPage(p.pageNum)
-      const origRotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
-      const newRotation = (origRotation + 90) % 360
-      const { dataUrl } = await renderPageToDataUrl(pdfDoc, p.pageNum, 0.4, newRotation)
-      rotated.push({ ...p, rotation: newRotation, preview: dataUrl })
-    }
-    setPages(rotated)
+  const rotateAllPages = (angle = 90) => {
+    setPages((prev) => prev.map((p) => ({ ...p, rotation: (p.rotation + angle) % 360 })))
+    setResult(null)
   }
 
-  const removePage = (id) => {
-    setPages((prev) => prev.filter((p) => p.id !== id))
+  const removePage = (pageId) => {
+    setPages((prev) => prev.filter((p) => p.id !== pageId))
+    setResult(null)
   }
 
   const handleDragEnd = (event) => {
@@ -156,109 +203,136 @@ export default function RotatePDF() {
         const newIdx = prev.findIndex((p) => p.id === over.id)
         return arrayMove(prev, oldIdx, newIdx)
       })
+      setResult(null)
     }
   }
 
+  const clearAll = () => {
+    setFiles([])
+    setPages([])
+    setResult(null)
+    setError('')
+  }
+
+  /* Vector-lossless PDF saving & merging via pdf-lib */
   const savePDF = async () => {
     if (!pages.length) {
-      setError('Tidak ada halaman yang tersisa.')
+      setError('Tidak ada halaman tersisa untuk disimpan.')
       return
     }
     setProcessing(true)
     setError('')
+
     try {
-      const arrayBuf = await readAsArrayBuffer(file)
-      const srcDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) }).promise
       const outDoc = await PDFDocument.create()
 
-      for (const p of pages) {
-        const page = await srcDoc.getPage(p.pageNum)
-        const viewport = page.getViewport({ scale: 2 })
-        const canvas = document.createElement('canvas')
-        canvas.width = viewport.width
-        canvas.height = viewport.height
-
-        const ctx = canvas.getContext('2d')
-        await page.render({ canvasContext: ctx, viewport }).promise
-
-        // Apply user-chosen rotation on top
-        const rotCanvas = document.createElement('canvas')
-        if (p.rotation === 90 || p.rotation === 270) {
-          rotCanvas.width = canvas.height
-          rotCanvas.height = canvas.width
-        } else {
-          rotCanvas.width = canvas.width
-          rotCanvas.height = canvas.height
+      for (const pObj of pages) {
+        const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
+        if (pObj.rotation > 0) {
+          const origAngle = copiedPage.getRotation().angle
+          copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
         }
-        const rotCtx = rotCanvas.getContext('2d')
-        if (p.rotation === 90) {
-          rotCtx.translate(rotCanvas.width, 0)
-          rotCtx.rotate(Math.PI / 2)
-        } else if (p.rotation === 180) {
-          rotCtx.translate(rotCanvas.width, rotCanvas.height)
-          rotCtx.rotate(Math.PI)
-        } else if (p.rotation === 270) {
-          rotCtx.translate(0, rotCanvas.height)
-          rotCtx.rotate(-Math.PI / 2)
-        }
-        rotCtx.drawImage(canvas, 0, 0)
-
-        const imgDataUrl = rotCanvas.toDataURL('image/png')
-        const imgBytes = Uint8Array.from(atob(imgDataUrl.split(',')[1]), (c) => c.charCodeAt(0))
-        const img = await outDoc.embedPng(imgBytes)
-
-        const newPage = outDoc.addPage([rotCanvas.width, rotCanvas.height])
-        newPage.drawImage(img, { x: 0, y: 0, width: rotCanvas.width, height: rotCanvas.height })
+        outDoc.addPage(copiedPage)
       }
 
       const bytes = await outDoc.save()
       setResult(new Blob([bytes], { type: 'application/pdf' }))
     } catch (e) {
-      setError(`Gagal: ${e.message}`)
+      setError(`Gagal menyimpan PDF: ${e.message}`)
     } finally {
       setProcessing(false)
     }
   }
 
-  const base = file ? stripExt(file.name) : 'document'
+  const isMultiFile = files.length > 1
+  const outputFileName = isMultiFile
+    ? 'merged_rotated_document.pdf'
+    : (files[0] ? `${stripExt(files[0].file.name)}_organize.pdf` : 'output.pdf')
 
   return (
     <ToolShell
-      title="Rotate / Reorder PDF"
-      description="Putar orientasi dan ubah susunan halaman PDF dengan mudah."
+      title="Rotate, Reorder & Merge PDF"
+      description="Putar orientasi halaman, atur susunan urutan halaman, hapus halaman tidak terpakai, dan gabungkan beberapa file PDF sekaligus menjadi satu dokumen murni."
     >
-      <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF" />
-      {file && <FilePreview file={file} />}
+      <DropZone
+        accept=".pdf,application/pdf"
+        multiple
+        onFiles={handleFilesAdded}
+        disabled={loading}
+        label="Pilih atau drop file PDF"
+        hint="Bisa pilih beberapa file PDF sekaligus untuk digabungkan"
+      />
 
       {loading && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-          <ProgressBar value={progress} label="Membuat preview halaman…" />
+          <div className="flex items-center justify-between text-xs font-semibold text-[--color-brand]">
+            <span className="flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Memuat dokumen & membuat pratinjau halaman...
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <ProgressBar value={progress} />
         </div>
       )}
 
       {pages.length > 0 && !loading && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[--color-text-3]">{pages.length} halaman tersisa</span>
-            <button
-              onClick={rotateAll}
-              className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1 text-xs font-medium text-[--color-text-2] hover:bg-[--color-surface-3]"
-            >
-              <RotateCw size={12} />
-              Putar Semua (+90°)
-            </button>
+          {/* Controls Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[--color-text]">
+                {pages.length} Halaman {isMultiFile ? `(dari ${files.length} file PDF)` : ''}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length) {
+                    handleFilesAdded(Array.from(e.target.files))
+                    e.target.value = ''
+                  }
+                }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 text-xs font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer"
+              >
+                <Plus size={13} /> Tambah PDF
+              </button>
+
+              <button
+                onClick={() => rotateAllPages(90)}
+                className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface-2] px-2.5 py-1.5 text-xs font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] cursor-pointer"
+              >
+                <RotateCw size={12} /> Putar Semua (+90°)
+              </button>
+
+              <button
+                onClick={clearAll}
+                className="flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white cursor-pointer"
+              >
+                <Trash2 size={12} /> Bersihkan
+              </button>
+            </div>
           </div>
 
+          {/* Sortable Grid View */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {pages.map((p) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {pages.map((p, i) => (
                   <SortablePageCard
                     key={p.id}
                     id={p.id}
-                    pageNum={p.pageNum}
-                    preview={p.preview}
-                    rotation={p.rotation}
+                    page={p}
+                    index={i}
+                    totalPages={pages.length}
                     onRotate={rotatePage}
                     onRemove={removePage}
                   />
@@ -275,29 +349,31 @@ export default function RotatePDF() {
         </p>
       )}
 
+      {/* Save / Merge Button */}
       {pages.length > 0 && !result && !loading && (
         <button
           onClick={savePDF}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[--color-brand] px-4 py-3 text-sm font-bold text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors cursor-pointer shadow-md"
         >
-          {processing && <Loader2 size={16} className="animate-spin" />}
-          {processing ? 'Menyimpan…' : 'Simpan PDF Baru'}
+          {processing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          {processing
+            ? 'Memproses PDF...'
+            : isMultiFile
+            ? `Gabungkan & Simpan ${pages.length} Halaman PDF`
+            : `Simpan ${pages.length} Halaman PDF Baru`}
         </button>
       )}
 
+      {/* Result Card */}
       {result && (
         <ResultCard
-          fileName={`${base}_rotated.pdf`}
+          fileName={outputFileName}
           blob={result}
-          extraInfo={`${pages.length} halaman — ${fmtBytes(result.size)}`}
+          extraInfo={`${pages.length} halaman ${isMultiFile ? `(digabung dari ${files.length} file)` : ''} → ${fmtBytes(result.size)}`}
           outputMimeType="application/pdf"
           sourceRoute="rotate-pdf"
-          onReset={() => {
-            setResult(null)
-            setFile(null)
-            setPages([])
-          }}
+          onReset={clearAll}
         />
       )}
     </ToolShell>
