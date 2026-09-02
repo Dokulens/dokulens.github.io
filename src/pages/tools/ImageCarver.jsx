@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Shrink, RotateCcw, Paintbrush, ShieldCheck, ShieldAlert,
-  Play, Square, Sparkles, Download, Activity, Lock, Unlock, Image as ImageIcon,
+  Play, Square, Sparkles, Download, Activity, Lock, Unlock, Trash2, Image as ImageIcon,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
