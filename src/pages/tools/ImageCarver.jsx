@@ -93,6 +93,14 @@ export default function ImageCarver() {
       const ctx = origOverlayCanvasRef.current.getContext('2d')
       ctx.clearRect(0, 0, origOverlayCanvasRef.current.width, origOverlayCanvasRef.current.height)
     }
+    if (imgRef.current && workingCanvasRef.current) {
+      const w = imgRef.current.naturalWidth
+      const h = imgRef.current.naturalHeight
+      workingCanvasRef.current.width = w
+      workingCanvasRef.current.height = h
+      const ctx = workingCanvasRef.current.getContext('2d')
+      ctx.drawImage(imgRef.current, 0, 0)
+    }
   }
 
   const cancelCarving = () => {
@@ -106,6 +114,22 @@ export default function ImageCarver() {
     const w = imgRef.current.naturalWidth
     const h = imgRef.current.naturalHeight
     setOriginalSize({ w, h })
+    setWorkingSize({ w, h })
+
+    if (workingCanvasRef.current) {
+      workingCanvasRef.current.width = w
+      workingCanvasRef.current.height = h
+      const ctx = workingCanvasRef.current.getContext('2d')
+      ctx.drawImage(imgRef.current, 0, 0)
+    }
+
+    if (seamsCanvasRef.current) {
+      seamsCanvasRef.current.width = w
+      seamsCanvasRef.current.height = h
+      const sctx = seamsCanvasRef.current.getContext('2d')
+      sctx.clearRect(0, 0, w, h)
+    }
+
     renderOriginalOverlayMask()
   }
 

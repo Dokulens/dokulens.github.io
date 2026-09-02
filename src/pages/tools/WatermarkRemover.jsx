@@ -633,44 +633,9 @@ export default function WatermarkRemover() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => { setRemovalMode('gemini'); setHasMask(false); setVideoMaskSrc(null) }}
-                  className={[
-                    'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
-                    removalMode === 'gemini'
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                      : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-bold">
-                    <Sparkles size={15} className="text-[--color-brand]" />
-                    <span>Gemini AI Otomatis ⭐</span>
-                  </div>
-                  <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
-                    Deteksi & hapus watermark Gemini AI di pojok kanan bawah secara otomatis dari seluruh frame.
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setRemovalMode('inpaint'); setIsModalOpen(true) }}
-                  className={[
-                    'flex flex-col items-start rounded-lg border p-3.5 text-left transition-all',
-                    removalMode === 'inpaint'
-                      ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs'
-                      : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
-                  ].join(' ')}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-bold">
-                    <Paintbrush size={15} className="text-amber-500" />
-                    <span>Kuas Inpainting (Logo / Teks Bebas)</span>
-                  </div>
-                  <span className="text-[11px] font-normal opacity-80 mt-1 leading-relaxed">
-                    Tandai area watermark di manapun dengan kuas seleksi pop-up. Cocok untuk watermark non-Gemini.
-                  </span>
-                </button>
+              <div className="flex items-center gap-2 text-xs text-[--color-text-2]">
+                <Sparkles size={14} className="text-[--color-brand]" />
+                <span>Mesin Gemini AI Lossless Resmi akan mendeteksi & menghapus watermark secara otomatis dari seluruh frame video.</span>
               </div>
 
             </div>
@@ -756,33 +721,7 @@ export default function WatermarkRemover() {
                       }}
                       className="block max-h-[420px] w-auto rounded"
                     />
-                    {removalMode === 'inpaint' && hasMask && videoMaskSrc && (
-                      <canvas
-                        ref={(el) => {
-                          videoMaskCanvasRef.current = el
-                          if (el && videoMaskSrc && videoRef.current) {
-                            el.width = videoRef.current.videoWidth || 1280
-                            el.height = videoRef.current.videoHeight || 720
-                            const ctx = el.getContext('2d')
-                            ctx.clearRect(0, 0, el.width, el.height)
-                            ctx.drawImage(videoMaskSrc, 0, 0)
-                          }
-                        }}
-                        className="absolute top-0 left-0 block pointer-events-none opacity-80 rounded"
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    )}
-                    {removalMode === 'inpaint' && (
-                      <div className="absolute bottom-2 right-2 z-10">
-                        <button
-                          onClick={() => setIsModalOpen(true)}
-                          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <Paintbrush size={13} />
-                          {hasMask ? 'Ubah Masking' : 'Beri Masking Watermark'}
-                        </button>
-                      </div>
-                    )}
+                    {/* Video Player */}
                   </div>
                 )}
               </div>
@@ -831,18 +770,14 @@ export default function WatermarkRemover() {
           {!resultBlob && (
             <button
               onClick={activeMedia === 'video' ? processVideoWatermark : processImageWatermark}
-              disabled={processing || (activeMedia === 'image' && removalMode === 'inpaint' && !hasMask) || (activeMedia === 'video' && removalMode === 'inpaint' && !videoMaskSrc)}
+              disabled={processing || (activeMedia === 'image' && removalMode === 'inpaint' && !hasMask)}
               className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               {processing && <Loader2 size={16} className="animate-spin" />}
               {processing
                 ? 'Menghapus Watermark…'
                 : activeMedia === 'video'
-                ? removalMode === 'gemini'
-                  ? 'Hapus Watermark Gemini dari Video'
-                  : hasMask
-                  ? 'Hapus Watermark Video (Inpainting)'
-                  : 'Tandai Area Watermark di Video'
+                ? 'Hapus Watermark Gemini dari Video'
                 : removalMode === 'gemini'
                 ? 'Hapus Watermark Gemini AI (Lossless)'
                 : hasMask
