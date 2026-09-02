@@ -511,12 +511,13 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box — always use manual/user position (×4 converts preview px → PDF pt)
+          // 1) White-out Box — preview px → PDF pt via dynamic scale (pageH / 500)
           if (woEnabled) {
             const paperRgb = hexToRgb(paperColor)
             const woPos = getWoPosition(pageNum)
-            const woPtW = woWidth * 4
-            const woPtH = woHeight * 4
+            const pxToPt = pHeight / 500
+            const woPtW = woWidth * pxToPt
+            const woPtH = woHeight * pxToPt
             let woX = (woPos.x / 100) * pWidth
             let woY = pHeight - (woPos.y / 100) * pHeight
             if (woPos.preset.includes('center')) woX -= woPtW / 2
