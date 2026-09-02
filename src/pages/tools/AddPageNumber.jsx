@@ -142,6 +142,7 @@ export default function AddPageNumber() {
   const [processing, setProcessing] = useState(false)
   const [resultBlob, setResultBlob] = useState(null)
   const [resultPages, setResultPages] = useState([])
+  const [renderingResult, setRenderingResult] = useState(false)
   const [resultCurrentPage, setResultCurrentPage] = useState(1)
   const [error, setError] = useState('')
   const [pageDimensions, setPageDimensions] = useState({ width: 595, height: 842 }) // default A4
@@ -560,6 +561,7 @@ export default function AddPageNumber() {
 
         // Render result pages for preview
         try {
+          setRenderingResult(true)
           const resultDoc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
           const pages = []
           for (let p = 1; p <= resultDoc.numPages; p++) {
@@ -568,6 +570,7 @@ export default function AddPageNumber() {
           }
           setResultPages(pages)
         } catch { setResultPages([]) }
+        finally { setRenderingResult(false) }
       }
     } catch (e) {
       setError(`Gagal memproses penomoran: ${e.message}`)
@@ -1100,7 +1103,7 @@ export default function AddPageNumber() {
                             transform: 'translate(-50%, -50%)',
                             backgroundColor: coverExistingNumber ? paperColor : undefined,
                             color: fontColor,
-                            fontSize: `${Math.max(9, fontSize)}px`,
+                            fontSize: `${Math.max(9, Math.round(fontSize * pageDimensions.height / 500))}px`,
                             fontWeight: isBold ? 'bold' : 'normal',
                             fontFamily: fontFamily === 'TimesRoman' ? 'Times New Roman, serif' : fontFamily === 'Courier' ? 'Courier, monospace' : 'Arial, sans-serif',
                             lineHeight: 1.1,
@@ -1174,7 +1177,15 @@ export default function AddPageNumber() {
               </div>
 
               {/* Result Preview */}
-              {resultPages.length > 0 && (
+              {renderingResult && (
+                <div className="rounded border border-[--color-border] bg-[--color-surface] p-6 space-y-3">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 size={28} className="animate-spin text-[--color-brand]" />
+                    <span className="text-xs font-medium text-[--color-text-3]">Merender preview hasil…</span>
+                  </div>
+                </div>
+              )}
+              {!renderingResult && resultPages.length > 0 && (
                 <div className="rounded border border-[--color-border] bg-[--color-surface] p-3 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-[--color-text-2]">Preview Hasil</span>
