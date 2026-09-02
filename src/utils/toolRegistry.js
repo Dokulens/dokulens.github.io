@@ -30,9 +30,9 @@ export const TOOL_REGISTRY = [
   {
     id: 'rotate-pdf',
     route: 'rotate-pdf',
-    label: 'Rotate, Reorder & Merge PDF',
+    label: 'Rotate, Reorder & Merge PDF / Gambar',
     icon: 'RotateCw',
-    accepts: ['application/pdf'],
+    accepts: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
   },
   {
     id: 'password-pdf',

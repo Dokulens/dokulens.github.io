@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, FileText,
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -20,10 +20,36 @@ import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
+/* ─── Helper: Convert image file to PNG Uint8Array bytes ─── */
+async function convertImageToPngBytes(file) {
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  await new Promise((resolve, reject) => {
+    img.onload = resolve
+    img.onerror = reject
+    img.src = url
+  })
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth || img.width
+  canvas.height = img.naturalHeight || img.height
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(img, 0, 0)
+  const dataUrl = canvas.toDataURL('image/png')
+  const base64 = dataUrl.split(',')[1]
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
 /* ─── Sortable Page Card Component ─── */
-function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
+function SortablePageCard({ id, page, index, onRotate, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+
+  const isImg = page.type === 'image'
 
   return (
     <div
@@ -38,7 +64,8 @@ function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
         <button {...attributes} {...listeners} className="cursor-grab text-[--color-text-3] hover:text-[--color-text] p-0.5">
           <GripVertical size={14} />
         </button>
-        <span className="font-semibold text-[11px] truncate max-w-[90px]" title={page.fileName}>
+        <span className="font-semibold text-[11px] truncate max-w-[90px] flex items-center gap-1" title={page.fileName}>
+          {isImg ? <ImageIcon size={11} className="text-emerald-500 shrink-0" /> : <FileText size={11} className="text-blue-500 shrink-0" />}
           {page.fileName}
         </span>
         <button onClick={() => onRemove(id)} className="text-[--color-text-3] hover:text-[--color-danger] p-0.5" title="Hapus Halaman">
@@ -51,14 +78,14 @@ function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
         {page.preview ? (
           <img
             src={page.preview}
-            alt={`Page ${page.pdfPageNumber}`}
+            alt={page.fileName}
             style={{ transform: `rotate(${page.rotation}deg)` }}
             className="max-h-full max-w-full object-contain transition-transform duration-300"
           />
         ) : (
           <div className="flex flex-col items-center gap-1">
             <Loader2 size={16} className="animate-spin text-[--color-brand]" />
-            <span className="text-[10px] text-[--color-text-3]">Hal {page.pdfPageNumber}</span>
+            <span className="text-[10px] text-[--color-text-3]">Memuat...</span>
           </div>
         )}
 
@@ -68,8 +95,10 @@ function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
         </span>
 
         {/* Page Origin Badge */}
-        <span className="absolute bottom-1 right-1 rounded bg-[--color-brand] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
-          p.{page.pdfPageNumber}
+        <span className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[9px] font-bold text-white shadow ${
+          isImg ? 'bg-emerald-600' : 'bg-[--color-brand]'
+        }`}>
+          {isImg ? 'GAMBAR' : `p.${page.pdfPageNumber}`}
         </span>
       </div>
 
@@ -91,8 +120,8 @@ function SortablePageCard({ id, page, index, totalPages, onRotate, onRemove }) {
 }
 
 export default function RotatePDF() {
-  const [files, setFiles] = useState([]) // [{ id, file, pdfjsDoc, pdfLibDoc }]
-  const [pages, setPages] = useState([]) // [{ id, fileId, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc }]
+  const [files, setFiles] = useState([]) // [{ id, file, type }]
+  const [pages, setPages] = useState([]) // [{ id, fileId, type, fileName, pageIndex, pdfPageNumber, rotation, preview, pdfLibDoc, file }]
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
@@ -106,7 +135,7 @@ export default function RotatePDF() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const loadPdfFiles = useCallback(async (newFilesList) => {
+  const loadFiles = useCallback(async (newFilesList) => {
     setLoading(true)
     setError('')
     setProgress(0)
@@ -118,28 +147,53 @@ export default function RotatePDF() {
       for (let fIdx = 0; fIdx < newFilesList.length; fIdx++) {
         const file = newFilesList[fIdx]
         const fileId = crypto.randomUUID()
-        const arrayBuf = await readAsArrayBuffer(file)
-        const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf.slice(0)) }).promise
-        const pdfLibDoc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
-        const totalPages = pdfjsDoc.numPages
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
-        addedFiles.push({
-          id: fileId,
-          file,
-          pdfjsDoc,
-          pdfLibDoc,
-        })
+        if (isPdf) {
+          const arrayBuf = await readAsArrayBuffer(file)
+          const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf.slice(0)) }).promise
+          const pdfLibDoc = await PDFDocument.load(arrayBuf, { ignoreEncryption: true })
+          const totalPages = pdfjsDoc.numPages
 
-        for (let p = 0; p < totalPages; p++) {
+          addedFiles.push({
+            id: fileId,
+            file,
+            type: 'pdf',
+            pdfjsDoc,
+            pdfLibDoc,
+          })
+
+          for (let p = 0; p < totalPages; p++) {
+            addedPages.push({
+              id: crypto.randomUUID(),
+              fileId,
+              type: 'pdf',
+              fileName: file.name,
+              pageIndex: p,
+              pdfPageNumber: p + 1,
+              rotation: 0,
+              preview: null,
+              pdfLibDoc,
+            })
+          }
+        } else {
+          // Image File (JPG, PNG, WebP, etc.)
+          const previewUrl = URL.createObjectURL(file)
+          addedFiles.push({
+            id: fileId,
+            file,
+            type: 'image',
+          })
           addedPages.push({
             id: crypto.randomUUID(),
             fileId,
+            type: 'image',
             fileName: file.name,
-            pageIndex: p,
-            pdfPageNumber: p + 1,
+            pageIndex: 0,
+            pdfPageNumber: 1,
             rotation: 0,
-            preview: null,
-            pdfLibDoc,
+            preview: previewUrl,
+            file,
           })
         }
         setProgress(Math.round(((fIdx + 1) / newFilesList.length) * 40))
@@ -148,36 +202,38 @@ export default function RotatePDF() {
       setFiles((prev) => [...prev, ...addedFiles])
       setPages((prev) => [...prev, ...addedPages])
 
-      // Render thumbnails progressively
+      // Render PDF page thumbnails progressively
       for (let i = 0; i < addedPages.length; i++) {
         const pObj = addedPages[i]
-        const parentFile = addedFiles.find((f) => f.id === pObj.fileId)
-        if (parentFile) {
-          try {
-            const page = await parentFile.pdfjsDoc.getPage(pObj.pageIndex + 1)
-            const origRotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
-            const { dataUrl } = await renderPageToDataUrl(parentFile.pdfjsDoc, pObj.pageIndex + 1, 0.4, origRotation)
-            setPages((prev) => prev.map((p) => p.id === pObj.id ? { ...p, preview: dataUrl, rotation: origRotation } : p))
-          } catch {
-            // thumbnail fallback
+        if (pObj.type === 'pdf') {
+          const parentFile = addedFiles.find((f) => f.id === pObj.fileId)
+          if (parentFile) {
+            try {
+              const page = await parentFile.pdfjsDoc.getPage(pObj.pageIndex + 1)
+              const origRotation = typeof page.getRotation === 'function' ? page.getRotation() : (page.rotation || 0)
+              const { dataUrl } = await renderPageToDataUrl(parentFile.pdfjsDoc, pObj.pageIndex + 1, 0.4, origRotation)
+              setPages((prev) => prev.map((p) => p.id === pObj.id ? { ...p, preview: dataUrl, rotation: origRotation } : p))
+            } catch {
+              // thumbnail fallback
+            }
           }
         }
         setProgress(40 + Math.round(((i + 1) / addedPages.length) * 60))
       }
     } catch (e) {
-      setError(`Gagal memuat PDF: ${e.message}`)
+      setError(`Gagal memuat file: ${e.message}`)
     } finally {
       setLoading(false)
       setProgress(0)
     }
   }, [])
 
-  useIncomingFile((f) => loadPdfFiles([f]))
+  useIncomingFile((f) => loadFiles([f]))
 
   const handleFilesAdded = (newFiles) => {
     if (!newFiles || !newFiles.length) return
     setResult(null)
-    loadPdfFiles(newFiles)
+    loadFiles(newFiles)
   }
 
   const rotatePage = (pageId) => {
@@ -214,7 +270,7 @@ export default function RotatePDF() {
     setError('')
   }
 
-  /* Vector-lossless PDF saving & merging via pdf-lib */
+  /* Vector-lossless PDF & Image saving & merging via pdf-lib */
   const savePDF = async () => {
     if (!pages.length) {
       setError('Tidak ada halaman tersisa untuk disimpan.')
@@ -227,12 +283,42 @@ export default function RotatePDF() {
       const outDoc = await PDFDocument.create()
 
       for (const pObj of pages) {
-        const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
-        if (pObj.rotation > 0) {
-          const origAngle = copiedPage.getRotation().angle
-          copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
+        if (pObj.type === 'pdf') {
+          const [copiedPage] = await outDoc.copyPages(pObj.pdfLibDoc, [pObj.pageIndex])
+          if (pObj.rotation > 0) {
+            const origAngle = copiedPage.getRotation().angle
+            copiedPage.setRotation(degrees((origAngle + pObj.rotation) % 360))
+          }
+          outDoc.addPage(copiedPage)
+        } else {
+          // Embed image file into PDF page
+          let embeddedImg
+          const imgBuf = await readAsArrayBuffer(pObj.file)
+          const isJpg = pObj.file.type === 'image/jpeg' || pObj.file.name.toLowerCase().endsWith('.jpg') || pObj.file.name.toLowerCase().endsWith('.jpeg')
+          const isPng = pObj.file.type === 'image/png' || pObj.file.name.toLowerCase().endsWith('.png')
+
+          if (isJpg) {
+            embeddedImg = await outDoc.embedJpg(imgBuf)
+          } else if (isPng) {
+            try {
+              embeddedImg = await outDoc.embedPng(imgBuf)
+            } catch {
+              const pngBytes = await convertImageToPngBytes(pObj.file)
+              embeddedImg = await outDoc.embedPng(pngBytes)
+            }
+          } else {
+            const pngBytes = await convertImageToPngBytes(pObj.file)
+            embeddedImg = await outDoc.embedPng(pngBytes)
+          }
+
+          const imgW = embeddedImg.width
+          const imgH = embeddedImg.height
+          const newPage = outDoc.addPage([imgW, imgH])
+          newPage.drawImage(embeddedImg, { x: 0, y: 0, width: imgW, height: imgH })
+          if (pObj.rotation > 0) {
+            newPage.setRotation(degrees(pObj.rotation))
+          }
         }
-        outDoc.addPage(copiedPage)
       }
 
       const bytes = await outDoc.save()
@@ -246,21 +332,21 @@ export default function RotatePDF() {
 
   const isMultiFile = files.length > 1
   const outputFileName = isMultiFile
-    ? 'merged_rotated_document.pdf'
+    ? 'merged_document.pdf'
     : (files[0] ? `${stripExt(files[0].file.name)}_organize.pdf` : 'output.pdf')
 
   return (
     <ToolShell
-      title="Rotate, Reorder & Merge PDF"
-      description="Putar orientasi halaman, atur susunan urutan halaman, hapus halaman tidak terpakai, dan gabungkan beberapa file PDF sekaligus menjadi satu dokumen murni."
+      title="Rotate, Reorder & Merge PDF / Gambar"
+      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), putar orientasi halaman, susun ulang urutan halaman, dan hapus halaman yang tidak terpakai menjadi satu dokumen PDF murni."
     >
       <DropZone
-        accept=".pdf,application/pdf"
+        accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
         multiple
         onFiles={handleFilesAdded}
         disabled={loading}
-        label="Pilih atau drop file PDF"
-        hint="Bisa pilih beberapa file PDF sekaligus untuk digabungkan"
+        label="Pilih atau drop file PDF / Gambar"
+        hint="Dapat memilih beberapa file PDF dan Gambar (JPG, PNG, WebP) sekaligus"
       />
 
       {loading && (
@@ -281,7 +367,7 @@ export default function RotatePDF() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[--color-text]">
-                {pages.length} Halaman {isMultiFile ? `(dari ${files.length} file PDF)` : ''}
+                {pages.length} Halaman {isMultiFile ? `(dari ${files.length} file)` : ''}
               </span>
             </div>
 
@@ -289,7 +375,7 @@ export default function RotatePDF() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
                 multiple
                 className="hidden"
                 onChange={(e) => {
@@ -303,7 +389,7 @@ export default function RotatePDF() {
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 text-xs font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer"
               >
-                <Plus size={13} /> Tambah PDF
+                <Plus size={13} /> Tambah PDF / Gambar
               </button>
 
               <button
@@ -332,7 +418,6 @@ export default function RotatePDF() {
                     id={p.id}
                     page={p}
                     index={i}
-                    totalPages={pages.length}
                     onRotate={rotatePage}
                     onRemove={removePage}
                   />
@@ -360,7 +445,7 @@ export default function RotatePDF() {
           {processing
             ? 'Memproses PDF...'
             : isMultiFile
-            ? `Gabungkan & Simpan ${pages.length} Halaman PDF`
+            ? `Gabungkan & Simpan ${pages.length} Halaman`
             : `Simpan ${pages.length} Halaman PDF Baru`}
         </button>
       )}

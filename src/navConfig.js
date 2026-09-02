@@ -6,7 +6,7 @@ export const NAV_GROUPS = [
       { path: 'edit-pdf',        label: 'Edit PDF (Teks & Anotasi)',    icon: 'FilePenLine',  desc: 'Deteksi & ganti teks otomatis pada dokumen PDF' },
       { path: 'split-pdf',       label: 'Split PDF',                   icon: 'Scissors',     desc: 'Pisah halaman PDF jadi file terpisah' },
       { path: 'compress-pdf',    label: 'Compress PDF',                icon: 'PackageOpen',  desc: 'Kurangi ukuran file PDF' },
-      { path: 'rotate-pdf',      label: 'Rotate, Reorder & Merge PDF', icon: 'RotateCw',     desc: 'Putar orientasi, susun ulang & gabung halaman PDF' },
+      { path: 'rotate-pdf',      label: 'Rotate, Reorder & Merge PDF / Gambar', icon: 'RotateCw',     desc: 'Putar orientasi, susun ulang & gabungkan halaman PDF dan Gambar' },
       { path: 'watermark-pdf',   label: 'Watermark PDF',               icon: 'Stamp',        desc: 'Tambah teks watermark ke PDF' },
       { path: 'password-pdf',    label: 'Password & Keamanan PDF',     icon: 'Lock',         desc: 'Kunci PDF (wajib password) atau buka proteksi' },
     ],
