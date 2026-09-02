@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Loader2, Check, Download, RefreshCw, Trash2, Cpu,
-  Paintbrush, Wand2, Info, Maximize2, X, Trash
+  Paintbrush, Info, Maximize2, X, Trash
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
-import { magicWandAppend } from '../../utils/magicWand'
 
 const MAX_DIM = 512
 
@@ -20,9 +19,6 @@ export default function ObjectRemover() {
   })
   const [fileName, setFileName] = useState('')
   const [brushSize, setBrushSize] = useState(30)
-  const [maskTool, setMaskTool] = useState('brush') // 'brush' | 'wand'
-  const [tolerance, setTolerance] = useState(32)
-  const [history, setHistory] = useState([])
   const [processing, setProcessing] = useState(false)
   const [loadStage, setLoadStage] = useState('')
   const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 })
@@ -108,54 +104,6 @@ export default function ObjectRemover() {
       if (img.complete && img.naturalWidth > 0) init()
     }
   }, [isModalOpen])
-
-  const handleModalCanvasMouseDown = (e) => {
-    if (maskTool === 'wand') {
-      if (!modalCanvasRef.current || !modalImgRef.current) return
-      const canvas = modalCanvasRef.current
-      const img = modalImgRef.current
-
-      const rect = canvas.getBoundingClientRect()
-      const scaleX = canvas.width / rect.width
-      const scaleY = canvas.height / rect.height
-      const startX = Math.floor((e.clientX - rect.left) * scaleX)
-      const startY = Math.floor((e.clientY - rect.top) * scaleY)
-
-      const snapshot = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
-      setHistory((prev) => [...prev, snapshot])
-
-      const offCanvas = document.createElement('canvas')
-      offCanvas.width = canvas.width
-      offCanvas.height = canvas.height
-      const imgCtx = offCanvas.getContext('2d', { willReadFrequently: true })
-      imgCtx.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-      const selCtx = canvas.getContext('2d')
-
-      magicWandAppend({
-        imgCtx,
-        selCtx,
-        width: canvas.width,
-        height: canvas.height,
-        startX,
-        startY,
-        tolerance,
-        maskColor: { r: 239, g: 68, b: 68, a: 204 }
-      })
-
-      setHasMask(true)
-    } else {
-      startModalPaint(e)
-    }
-  }
-
-  const handleUndoSelection = () => {
-    if (history.length === 0 || !modalCanvasRef.current) return
-    const selCtx = modalCanvasRef.current.getContext('2d')
-    const last = history[history.length - 1]
-    selCtx.putImageData(last, 0, 0)
-    setHistory((prev) => prev.slice(0, -1))
-  }
 
   const startModalPaint = (e) => {
     isPainting.current = true
@@ -521,73 +469,24 @@ export default function ObjectRemover() {
                 <span>Pilih alat seleksi lalu tandai area objek yang ingin dihapus oleh AI.</span>
               </div>
 
-              {/* Mode & Tools Selector */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setMaskTool('brush')}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      maskTool === 'brush'
-                        ? 'bg-red-600 text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <Paintbrush size={13} /> Kuas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMaskTool('wand')}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      maskTool === 'wand'
-                        ? 'bg-red-600 text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <Wand2 size={13} /> Magic Wand
-                  </button>
+              <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center gap-3">
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 px-3 py-2">
+                  <Paintbrush size={14} className="text-red-500" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Ukuran Kuas</span>
                 </div>
-
-                {maskTool === 'brush' ? (
-                  <div className="flex items-center gap-3 flex-1 max-w-xs">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Kuas:</span>
-                    <input
-                      type="range"
-                      min="6"
-                      max="80"
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="flex-1 h-2 accent-red-600"
-                    />
-                    <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md w-10 text-center">
-                      {brushSize}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 flex-1 max-w-md">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Toleransi (0-150):</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="150"
-                      value={tolerance}
-                      onChange={(e) => setTolerance(Number(e.target.value))}
-                      className="flex-1 h-2 accent-red-600"
-                    />
-                    <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md w-8 text-center">
-                      {tolerance}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleUndoSelection}
-                      disabled={history.length === 0}
-                      className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      ↩ Undo
-                    </button>
-                  </div>
-                )}
-
+                <div className="flex items-center gap-3 flex-1">
+                  <input
+                    type="range"
+                    min="6"
+                    max="80"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="flex-1 h-2 accent-red-600"
+                  />
+                  <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md w-10 text-center">
+                    {brushSize}
+                  </span>
+                </div>
                 <button
                   onClick={clearModalMask}
                   className="flex items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-800/50 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
@@ -623,7 +522,7 @@ export default function ObjectRemover() {
                 />
                 <canvas
                   ref={modalCanvasRef}
-                  onMouseDown={handleModalCanvasMouseDown}
+                  onMouseDown={startModalPaint}
                   onMouseMove={paintModal}
                   onMouseUp={stopModalPaint}
                   onMouseLeave={stopModalPaint}
