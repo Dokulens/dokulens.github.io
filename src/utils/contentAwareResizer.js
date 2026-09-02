@@ -4,7 +4,7 @@ export const ALPHA_DELETE_THRESHOLD = 244
 export const MAX_WIDTH_LIMIT = 1500
 export const MAX_HEIGHT_LIMIT = 1500
 
-const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
+export const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const getPixel = (img, { x, y }) => {
   const i = y * img.width + x

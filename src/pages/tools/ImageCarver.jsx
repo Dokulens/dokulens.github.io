@@ -123,6 +123,7 @@ export default function ImageCarver() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    // Build a tight ImageData frame matching current (w, h) to guarantee 100% accurate rendering without row stride mismatch
     const frame = ctx.createImageData(w, h)
     for (let y = 0; y < h; y += 1) {
       const srcStart = y * img.width * 4
