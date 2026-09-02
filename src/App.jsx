@@ -18,7 +18,6 @@ const ImageWatermark = lazy(() => import('./pages/tools/ImageWatermark'))
 const ImageCropRotate = lazy(() => import('./pages/tools/ImageCropRotate'))
 const ImageToPDF = lazy(() => import('./pages/tools/ImageToPDF'))
 const PDFToImage = lazy(() => import('./pages/tools/PDFToImage'))
-const RotatePDF = lazy(() => import('./pages/tools/RotatePDF'))
 const ImageConvert = lazy(() => import('./pages/tools/ImageConvert'))
 const ImageEditText = lazy(() => import('./pages/tools/ImageEditText'))
 const ImageUpscaler = lazy(() => import('./pages/tools/ImageUpscaler'))
@@ -55,7 +54,6 @@ export default function App() {
               <Route path="image-crop-rotate" element={<ImageCropRotate />} />
               <Route path="image-to-pdf" element={<ImageToPDF />} />
               <Route path="pdf-to-image" element={<PDFToImage />} />
-              <Route path="rotate-pdf" element={<RotatePDF />} />
               <Route path="image-convert" element={<ImageConvert />} />
               <Route path="image-edit-text" element={<ImageEditText />} />
               <Route path="image-upscale" element={<ImageUpscaler />} />

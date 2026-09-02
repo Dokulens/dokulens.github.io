@@ -4,10 +4,9 @@ export const NAV_GROUPS = [
     label: 'PDF Tools',
     items: [
       { path: 'edit-pdf',        label: 'Edit PDF (Teks & Anotasi)',    icon: 'FilePenLine',  desc: 'Deteksi & ganti teks otomatis pada dokumen PDF' },
-      { path: 'merge-pdf',       label: 'Merge PDF / Gambar',          icon: 'Combine',      desc: 'Gabung beberapa PDF & Gambar dengan opsi lebar & urutan per-halaman' },
+      { path: 'merge-pdf',       label: 'Merge PDF / Gambar',          icon: 'Combine',      desc: 'Gabung beberapa PDF & Gambar, samakan lebar, atur urutan, putar & ekspor ke PDF/Gambar' },
       { path: 'split-pdf',       label: 'Split PDF',                   icon: 'Scissors',     desc: 'Pisah halaman PDF jadi file terpisah' },
       { path: 'compress-pdf',    label: 'Compress PDF',                icon: 'PackageOpen',  desc: 'Kurangi ukuran file PDF' },
-      { path: 'rotate-pdf',      label: 'Rotate, Reorder & Merge PDF / Gambar', icon: 'RotateCw',     desc: 'Putar orientasi, susun ulang & gabungkan halaman PDF dan Gambar' },
       { path: 'watermark-pdf',   label: 'Watermark PDF',               icon: 'Stamp',        desc: 'Tambah teks watermark ke PDF' },
       { path: 'password-pdf',    label: 'Password & Keamanan PDF',     icon: 'Lock',         desc: 'Kunci PDF (wajib password) atau buka proteksi' },
     ],

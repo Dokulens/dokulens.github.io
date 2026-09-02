@@ -28,13 +28,6 @@ export const TOOL_REGISTRY = [
     accepts: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   },
   {
-    id: 'rotate-pdf',
-    route: 'rotate-pdf',
-    label: 'Rotate, Reorder & Merge PDF / Gambar',
-    icon: 'RotateCw',
-    accepts: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
-  },
-  {
     id: 'password-pdf',
     route: 'password-pdf',
     label: 'Password & Keamanan PDF',
