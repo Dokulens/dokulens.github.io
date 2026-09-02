@@ -573,6 +573,19 @@ export default function MergePDF() {
         const ext = isJpg ? 'jpg' : 'png'
         const pageCanvasList = []
 
+        // Determine target width for image export
+        let targetWidth = null
+        if (widthOption === 'a4') {
+          targetWidth = 794 // 595.28pt at 96 DPI
+        } else if (widthOption === 'letter') {
+          targetWidth = 816 // 612pt at 96 DPI
+        } else if (widthOption !== 'original' && widthOption.startsWith('file-')) {
+          const fileIdx = parseInt(widthOption.replace('file-', ''), 10)
+          if (files[fileIdx] && files[fileIdx].firstPageWidth) {
+            targetWidth = Math.round(files[fileIdx].firstPageWidth * 96 / 72) // pt to px at 96 DPI
+          }
+        }
+
         for (let i = 0; i < activePages.length; i++) {
           const pageObj = activePages[i]
           let pCanvas
@@ -610,6 +623,19 @@ export default function MergePDF() {
             }
             ctx.drawImage(img, 0, 0)
             URL.revokeObjectURL(imgUrl)
+          }
+
+          // Apply width scaling if target width is set
+          if (pCanvas && targetWidth && targetWidth > 0 && Math.abs(pCanvas.width - targetWidth) > 1) {
+            const scale = targetWidth / pCanvas.width
+            const scaledCanvas = document.createElement('canvas')
+            scaledCanvas.width = targetWidth
+            scaledCanvas.height = Math.round(pCanvas.height * scale)
+            const scaledCtx = scaledCanvas.getContext('2d')
+            scaledCtx.imageSmoothingEnabled = true
+            scaledCtx.imageSmoothingQuality = 'high'
+            scaledCtx.drawImage(pCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height)
+            pCanvas = scaledCanvas
           }
 
           if (pCanvas) {
@@ -941,8 +967,8 @@ export default function MergePDF() {
             </div>
           )}
 
-          {/* Page Width Option Selector (Visible when >1 files uploaded & export format is PDF) */}
-          {files.length > 1 && exportFormat === 'pdf' && (
+          {/* Page Width Option Selector (Visible when >1 files uploaded) */}
+          {files.length > 1 && (exportFormat === 'pdf' || exportFormat === 'png' || exportFormat === 'jpg') && (
             <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
               <div className="flex items-center gap-2 font-semibold text-[--color-text]">
                 <SlidersHorizontal size={14} className="text-[--color-brand]" />
