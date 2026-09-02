@@ -485,6 +485,15 @@ export default function AddPageNumber() {
         const font = await doc.embedFont(isBold ? fontObj.boldRef : fontObj.ref)
         const color = hexToRgb(fontColor)
 
+        // Load pdfjs doc once for text detection
+        let pdfjsDoc = null
+        if (woEnabled) {
+          try {
+            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) })
+            pdfjsDoc = await loadingTask.promise
+          } catch { /* ignore */ }
+        }
+
         const pages = doc.getPages()
         const total = pages.length
 
@@ -508,8 +517,32 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // 1) White-out Box (solid paper color — user-controlled position)
-          if (woEnabled) {
+          // 1) White-out Box — detect old page number per-page, cover at exact position
+          if (woEnabled && pdfjsDoc) {
+            try {
+              const pdfPage = await pdfjsDoc.getPage(pageNum)
+              const textContent = await pdfPage.getTextContent()
+              const paperRgb = hexToRgb(paperColor)
+
+              for (const item of textContent.items) {
+                const str = item.str.trim()
+                if (/^(\d+|hal\s*\d+|page\s*\d+|\-\s*\d+\s*\-)$/i.test(str)) {
+                  const itemX = item.transform[4]
+                  const itemY = item.transform[5]
+                  const itemW = item.width
+                  const itemH = item.height
+                  page.drawRectangle({
+                    x: itemX - 10, y: itemY - 4,
+                    width: Math.max(woWidth, itemW + 20),
+                    height: Math.max(woHeight, itemH + 8),
+                    color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+                  })
+                  break
+                }
+              }
+            } catch { /* ignore per-page errors */ }
+          } else if (woEnabled) {
+            // Fallback: manual position
             const paperRgb = hexToRgb(paperColor)
             const woPos = getWoPosition(pageNum)
             let woX = (woPos.x / 100) * pWidth
@@ -991,15 +1024,45 @@ export default function AddPageNumber() {
                 </div>
               </div>
 
-              {/* Live Document Preview with Draggable simulated Number Tag without offset icon */}
-              <div className="relative flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
-                {loadingPreview && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
-                    <Loader2 size={24} className="animate-spin text-[--color-brand]" />
+              {/* Live Document Preview with Page List Sidebar */}
+              <div className="flex gap-3 rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
+                {/* Page List Sidebar */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col gap-1 shrink-0 w-16 max-h-[520px] overflow-y-auto pr-1 scrollbar-thin">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
+                      const included = isPageIncluded(pNum)
+                      const isCurrent = pNum === currentPage
+                      return (
+                        <button
+                          key={pNum}
+                          type="button"
+                          onClick={() => { setCurrentPage(pNum); if (pdfDocRef.current) loadPreview(pdfDocRef.current, pNum) }}
+                          className={[
+                            'flex items-center justify-center rounded border text-[11px] font-medium transition-all shrink-0 h-7',
+                            isCurrent
+                              ? 'border-[--color-brand] bg-[--color-brand] text-white shadow-xs font-bold'
+                              : included
+                                ? 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3] hover:border-[--color-border-strong]'
+                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] opacity-50 line-through',
+                          ].join(' ')}
+                          title={isCurrent ? `Halaman ${pNum} (aktif)` : included ? `Ke halaman ${pNum}` : `Halaman ${pNum} (dilewati)`}
+                        >
+                          {pNum}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
 
-                {pagePreview && (
+                {/* Main Preview */}
+                <div className="relative flex-1 flex justify-center">
+                  {loadingPreview && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
+                      <Loader2 size={24} className="animate-spin text-[--color-brand]" />
+                    </div>
+                  )}
+
+                  {pagePreview && (
                   <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white">
                     <img
                       src={pagePreview.dataUrl}
@@ -1063,6 +1126,7 @@ export default function AddPageNumber() {
                     })()}
                   </div>
                 )}
+                </div>
               </div>
             </div>
           ) : (
@@ -1106,7 +1170,6 @@ export default function AddPageNumber() {
               sourceRoute="add-page-number"
               onReset={() => {
                 setResultBlob(null)
-                setFile(null)
               }}
             />
           )}
