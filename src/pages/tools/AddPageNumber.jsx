@@ -35,6 +35,7 @@ function toRoman(num, isUpper = true) {
 }
 
 const FONT_OPTIONS = [
+  { id: 'Calibri', label: 'Calibri (Standard Word / Laporan)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
   { id: 'Helvetica', label: 'Helvetica / Arial (Standard Modern)', ref: StandardFonts.Helvetica, boldRef: StandardFonts.HelveticaBold },
   { id: 'TimesRoman', label: 'Times Roman (Formal / Skripsi / Jurnal)', ref: StandardFonts.TimesRoman, boldRef: StandardFonts.TimesRomanBold },
   { id: 'Courier', label: 'Courier (Monospace / Ketikan Mesin)', ref: StandardFonts.Courier, boldRef: StandardFonts.CourierBold },

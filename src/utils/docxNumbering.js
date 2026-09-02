@@ -34,7 +34,7 @@ export async function addPageNumberToDocx(docxArrayBuffer, options = {}) {
   const relId = isHeader ? 'rIdHeaderDokuLens' : 'rIdFooterDokuLens'
 
   const halfPtSize = fontSize * 2
-  const fontXml = fontFamily === 'TimesRoman' ? 'Times New Roman' : fontFamily === 'Courier' ? 'Courier New' : 'Arial'
+  const fontXml = fontFamily === 'Calibri' ? 'Calibri' : fontFamily === 'TimesRoman' ? 'Times New Roman' : fontFamily === 'Courier' ? 'Courier New' : 'Arial'
   const rPr = `<w:rPr><w:rFonts w:ascii="${fontXml}" w:hAnsi="${fontXml}"/><w:sz w:val="${halfPtSize}"/>${isBold ? '<w:b/>' : ''}</w:rPr>`
 
   let runXml = ''
