@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useLocation, Link } from 'react-router-dom'
 import { NAV_GROUPS } from '../navConfig'
 import { useTheme } from '../context/ThemeContext'
@@ -14,7 +14,7 @@ function getCurrentMeta(pathname) {
   return { label: 'Beranda', group: null }
 }
 
-export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
+export default function TopBar({ onMenuClick }) {
   const location = useLocation()
   const { label, group } = getCurrentMeta(location.pathname)
   const { isDark, toggleTheme } = useTheme()
@@ -29,15 +29,6 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
           title="Buka Menu"
         >
           <Menu size={18} />
-        </button>
-
-        {/* Desktop sidebar collapse/expand toggle */}
-        <button
-          onClick={onToggleCollapse}
-          className="hidden lg:flex h-8 w-8 items-center justify-center rounded border border-[--color-border] text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
-          title={isCollapsed ? 'Expand Sidebar' : 'Minimize Sidebar'}
-        >
-          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
 
         <div className="flex items-center gap-2 text-sm">
