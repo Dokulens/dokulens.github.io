@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal, ArrowDown, ArrowRight, FolderArchive,
+  RotateCw, Trash2, GripVertical, Loader2, Plus, Sparkles, Image as ImageIcon, FileText, SlidersHorizontal, ArrowDown, ArrowRight, FolderArchive, Layers,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -123,6 +123,8 @@ export default function RotatePDF() {
   const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | etc.
   const [exportFormat, setExportFormat] = useState('pdf') // 'pdf' | 'png' | 'jpg'
   const [imageLayout, setImageLayout] = useState('vertical') // 'vertical' | 'horizontal' | 'zip'
+  const [imageGap, setImageGap] = useState(0) // 0 to 100 px gap between stitched images
+  const [gapBgColor, setGapBgColor] = useState('white') // 'white' | 'black' | 'transparent'
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
@@ -285,9 +287,11 @@ export default function RotatePDF() {
     setWidthOption('original')
     setExportFormat('pdf')
     setImageLayout('vertical')
+    setImageGap(0)
+    setGapBgColor('white')
   }
 
-  /* Save Output in PDF or Image format (Single Stitched Image or ZIP) */
+  /* Save Output in PDF or Image format (Stitched Image or ZIP) */
   const savePDF = async () => {
     if (!pages.length) {
       setError('Tidak ada halaman tersisa untuk disimpan.')
@@ -433,14 +437,16 @@ export default function RotatePDF() {
 
         if (pages.length === 1 || imageLayout !== 'zip') {
           // Single stitched image (Vertical or Horizontal) or 1 page
+          const gap = imageLayout !== 'zip' && pages.length > 1 ? imageGap : 0
           let masterW, masterH
+
           if (imageLayout === 'horizontal' && pageCanvasList.length > 1) {
-            masterW = pageCanvasList.reduce((sum, item) => sum + item.width, 0)
+            masterW = pageCanvasList.reduce((sum, item) => sum + item.width, 0) + (pageCanvasList.length - 1) * gap
             masterH = Math.max(...pageCanvasList.map((item) => item.height))
           } else {
             // Vertical (default) or single page
             masterW = Math.max(...pageCanvasList.map((item) => item.width))
-            masterH = pageCanvasList.reduce((sum, item) => sum + item.height, 0)
+            masterH = pageCanvasList.reduce((sum, item) => sum + item.height, 0) + (pageCanvasList.length - 1) * gap
           }
 
           const masterCanvas = document.createElement('canvas')
@@ -448,24 +454,27 @@ export default function RotatePDF() {
           masterCanvas.height = masterH
           const masterCtx = masterCanvas.getContext('2d')
 
-          if (isJpg) {
-            masterCtx.fillStyle = '#ffffff'
+          // Fill gap background color
+          if (isJpg || gapBgColor !== 'transparent') {
+            masterCtx.fillStyle = gapBgColor === 'black' ? '#000000' : '#ffffff'
             masterCtx.fillRect(0, 0, masterW, masterH)
           }
 
           if (imageLayout === 'horizontal' && pageCanvasList.length > 1) {
             let currentX = 0
-            for (const item of pageCanvasList) {
+            for (let i = 0; i < pageCanvasList.length; i++) {
+              const item = pageCanvasList[i]
               const y = Math.floor((masterH - item.height) / 2)
               masterCtx.drawImage(item.canvas, currentX, y)
-              currentX += item.width
+              currentX += item.width + gap
             }
           } else {
             let currentY = 0
-            for (const item of pageCanvasList) {
+            for (let i = 0; i < pageCanvasList.length; i++) {
+              const item = pageCanvasList[i]
               const x = Math.floor((masterW - item.width) / 2)
               masterCtx.drawImage(item.canvas, x, currentY)
-              currentY += item.height
+              currentY += item.height + gap
             }
           }
 
@@ -479,7 +488,7 @@ export default function RotatePDF() {
             blob: new Blob([bytes], { type: mimeType }),
             mime: mimeType,
             ext,
-            fileName: pages.length > 1 ? `merged_images_${imageLayout}.${ext}` : `halaman_1.${ext}`,
+            fileName: pages.length > 1 ? `merged_image_${imageLayout}.${ext}` : `halaman_1.${ext}`,
           })
         } else {
           // Multiple pages -> zip
@@ -523,7 +532,7 @@ export default function RotatePDF() {
   return (
     <ToolShell
       title="Merge PDF / Image (Rotate & Reorder)"
-      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), atur orientasi & susunan halaman, samakan lebar halaman, dan ekspor ke format PDF atau Gambar."
+      description="Gabungkan file PDF dan gambar (JPG, PNG, WebP), atur orientasi & susunan halaman, samakan lebar halaman, atur jarak antar-gambar, dan ekspor ke format PDF atau Gambar."
     >
       <DropZone
         accept=".pdf,application/pdf,image/*,.jpg,.jpeg,.png,.webp,.bmp"
@@ -594,7 +603,7 @@ export default function RotatePDF() {
           </div>
 
           {/* Export Format Option */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
+          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-3 text-xs">
             <div className="flex items-center gap-2 font-semibold text-[--color-text]">
               <Sparkles size={14} className="text-[--color-brand]" />
               <span>Format Hasil Output (Export Format):</span>
@@ -636,9 +645,9 @@ export default function RotatePDF() {
             </div>
           </div>
 
-          {/* Image Layout Option (Visible when Export Format is PNG or JPG) */}
+          {/* Image Layout & Gap Options (Visible when Export Format is PNG or JPG) */}
           {(exportFormat === 'png' || exportFormat === 'jpg') && pages.length > 1 && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
+            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-3 text-xs">
               <div className="flex items-center gap-2 font-semibold text-[--color-text]">
                 <ImageIcon size={14} className="text-emerald-500" />
                 <span>Susunan & Penggabungan Gambar:</span>
@@ -686,6 +695,42 @@ export default function RotatePDF() {
                   </span>
                 </label>
               </div>
+
+              {/* Range / Gap spacing control between images */}
+              {imageLayout !== 'zip' && (
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 border-t border-[--color-border]/60">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[--color-text-2]">Jarak / Range Antar Gambar:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={imageGap}
+                      onChange={(e) => setImageGap(Number(e.target.value))}
+                      className="w-28 accent-emerald-600 cursor-pointer"
+                    />
+                    <span className="font-mono text-emerald-500 font-bold w-10 text-[11px]">{imageGap}px</span>
+                  </div>
+
+                  {imageGap > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-[--color-text-2]">Warna Jarak:</span>
+                      <select
+                        value={gapBgColor}
+                        onChange={(e) => setGapBgColor(e.target.value)}
+                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                      >
+                        <option value="white" className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Putih</option>
+                        <option value="black" className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Hitam</option>
+                        {exportFormat === 'png' && (
+                          <option value="transparent" className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Transparan</option>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
