@@ -11,7 +11,11 @@ function NavIcon({ name, active }) {
   return (
     <Comp
       size={18}
-      className={active ? 'text-[--color-brand]' : 'text-[--color-text-2] group-hover:text-[--color-text]'}
+      className={
+        active
+          ? 'text-[--color-brand] shrink-0 scale-110 transition-transform duration-200'
+          : 'text-[--color-text-2] group-hover:text-[--color-text] shrink-0 transition-colors duration-150'
+      }
     />
   )
 }
@@ -72,27 +76,38 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
             onClick={onClose}
             className={({ isActive }) =>
               [
-                'flex items-center rounded-lg text-xs font-medium no-underline transition-all',
+                'group relative flex items-center rounded-lg text-xs font-medium no-underline transition-all duration-150',
                 isCollapsed
-                  ? 'h-9 w-9 justify-center'
-                  : 'w-full justify-between px-2.5 py-2',
+                  ? 'h-9.5 w-9.5 justify-center'
+                  : 'w-full justify-between px-3 py-2',
                 isActive
-                  ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold ring-1 ring-[--color-brand]'
+                  ? 'bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs border border-[--color-brand]/30 ring-1 ring-[--color-brand]/40'
                   : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
               ].join(' ')
             }
           >
             {({ isActive }) => (
               <>
+                {isActive && !isCollapsed && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[--color-brand] shadow-sm" />
+                )}
                 <div className="flex items-center gap-2.5">
                   <Home
                     size={18}
-                    className={isActive ? 'text-[--color-brand]' : 'text-[--color-text-2] group-hover:text-[--color-text]'}
+                    className={
+                      isActive
+                        ? 'text-[--color-brand] scale-110 transition-transform duration-200'
+                        : 'text-[--color-text-2] group-hover:text-[--color-text] transition-colors duration-150'
+                    }
                   />
-                  {!isCollapsed && <span>Semua Tools</span>}
+                  {!isCollapsed && (
+                    <span className={isActive ? 'font-bold text-[--color-brand-text]' : 'font-medium'}>
+                      Semua Tools
+                    </span>
+                  )}
                 </div>
                 {isActive && !isCollapsed && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[--color-brand]" />
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[--color-brand] shadow-xs animate-pulse" />
                 )}
               </>
             )}
@@ -126,24 +141,33 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                     onClick={onClose}
                     className={({ isActive }) =>
                       [
-                        'flex items-center rounded-lg text-xs font-medium no-underline transition-all',
+                        'group relative flex items-center rounded-lg text-xs font-medium no-underline transition-all duration-150',
                         isCollapsed
-                          ? 'h-9 w-9 justify-center'
-                          : 'w-full justify-between px-2.5 py-1.5',
+                          ? 'h-9.5 w-9.5 justify-center'
+                          : 'w-full justify-between px-3 py-2',
                         isActive
-                          ? 'bg-[--color-brand-light] text-[--color-brand-text] font-semibold ring-1 ring-[--color-brand]'
+                          ? 'bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs border border-[--color-brand]/30 ring-1 ring-[--color-brand]/40'
                           : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
                       ].join(' ')
                     }
                   >
                     {({ isActive }) => (
                       <>
+                        {isActive && !isCollapsed && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[--color-brand] shadow-sm" />
+                        )}
+
                         <div className="flex items-center gap-2.5 min-w-0">
                           <NavIcon name={item.icon} active={isActive} />
-                          {!isCollapsed && <span className="truncate">{item.label}</span>}
+                          {!isCollapsed && (
+                            <span className={`truncate ${isActive ? 'font-bold text-[--color-brand-text]' : 'font-medium'}`}>
+                              {item.label}
+                            </span>
+                          )}
                         </div>
+
                         {isActive && !isCollapsed && (
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[--color-brand]" />
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-[--color-brand] shadow-xs animate-pulse" />
                         )}
                       </>
                     )}
