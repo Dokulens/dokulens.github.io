@@ -116,6 +116,12 @@ export default function AddPageNumber() {
   const [fontColor, setFontColor] = useState('#000000')
   const [paperColor, setPaperColor] = useState('#FFFFFF')
   const [coverExistingNumber, setCoverExistingNumber] = useState(true)
+  const [whiteoutMode, setWhiteoutMode] = useState('auto') // 'auto' | 'manual'
+  const [whiteoutPreset, setWhiteoutPreset] = useState('bottom-center')
+  const [whiteoutCustomX, setWhiteoutCustomX] = useState(50)
+  const [whiteoutCustomY, setWhiteoutCustomY] = useState(95)
+  const [usePerPageWhiteout, setUsePerPageWhiteout] = useState(false)
+  const [perPageWhiteoutOverrides, setPerPageWhiteoutOverrides] = useState({})
   const [isBold, setIsBold] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
   const [skipFirstPage, setSkipFirstPage] = useState(true)
@@ -145,7 +151,10 @@ export default function AddPageNumber() {
     setCurrentPage(1)
     setPerPageOverrides({})
     setPerPagePositionOverrides({})
+    setPerPageWhiteoutOverrides({})
     setUsePerPagePosition(false)
+    setUsePerPageWhiteout(false)
+    setWhiteoutMode('auto')
     setDetectedPosition(null)
     setDocxTextSummary('')
 
@@ -372,6 +381,37 @@ export default function AddPageNumber() {
     }))
   }
 
+  const getWhiteoutPosition = (page) => {
+    if (usePerPageWhiteout && perPageWhiteoutOverrides[page]) {
+      return perPageWhiteoutOverrides[page]
+    }
+    if (whiteoutMode === 'auto') {
+      const pagePos = getPagePosition(page)
+      return { preset: pagePos.preset, x: pagePos.x, y: pagePos.y }
+    }
+    return { preset: whiteoutPreset, x: whiteoutCustomX, y: whiteoutCustomY }
+  }
+
+  const setCurrentPageWhiteout = (preset, x, y) => {
+    setPerPageWhiteoutOverrides((prev) => ({
+      ...prev,
+      [currentPage]: { preset, x, y },
+    }))
+  }
+
+  const selectWhiteoutPreset = (presetId) => {
+    const p = POSITION_PRESETS.find((pr) => pr.id === presetId)
+    if (usePerPageWhiteout) {
+      setCurrentPageWhiteout(presetId, p?.xPct ?? 50, p?.yPct ?? 95)
+    } else {
+      setWhiteoutPreset(presetId)
+      if (p) {
+        setWhiteoutCustomX(p.xPct)
+        setWhiteoutCustomY(p.yPct)
+      }
+    }
+  }
+
   const hexToRgb = (hex) => {
     const r = parseInt(hex.slice(1, 3), 16) / 255
     const g = parseInt(hex.slice(3, 5), 16) / 255
@@ -427,29 +467,49 @@ export default function AddPageNumber() {
             targetX -= textWidth
           }
 
-          // Cover up existing page number text with paper color rectangle
+          // 1) Paper-colored text background (always when coverExistingNumber is on)
           if (coverExistingNumber) {
+            const paperRgb = hexToRgb(paperColor)
+            const textPadX = 6
+            const textPadY = 4
+            page.drawRectangle({
+              x: targetX - textPadX,
+              y: targetY - textPadY,
+              width: textWidth + textPadX * 2,
+              height: fontSize + textPadY * 2,
+              color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
+            })
+          }
+
+          // 2) White-out rectangle at whiteout position (auto/manual/per-page)
+          if (coverExistingNumber) {
+            const woPos = getWhiteoutPosition(pageNum)
+            let woX = (woPos.x / 100) * pWidth
+            let woY = pHeight - (woPos.y / 100) * pHeight
+
             const padX = 20
             const padY = 10
-            // Use a generous width to cover common page number formats (e.g., "Page 1 of 100")
             const estimatedMaxTextWidth = Math.max(textWidth, 120)
             const rectWidth = estimatedMaxTextWidth + padX * 2
             const rectHeight = fontSize + padY * 2
-            const rectX = targetX - padX
-            const rectY = targetY - padY / 2
+
+            if (woPos.preset.includes('center')) {
+              woX -= rectWidth / 2
+            } else if (woPos.preset.includes('right')) {
+              woX -= rectWidth
+            }
 
             const paperRgb = hexToRgb(paperColor)
             page.drawRectangle({
-              x: rectX,
-              y: rectY,
+              x: woX - padX,
+              y: woY - padY / 2,
               width: rectWidth,
               height: rectHeight,
               color: rgb(paperRgb.r, paperRgb.g, paperRgb.b),
             })
           }
 
-          // Draw text with paper-colored background to further mask any remaining original text
-          const paperRgb = hexToRgb(paperColor)
+          // 3) Draw page number text on top
           page.drawText(numText, {
             x: targetX,
             y: targetY,
@@ -779,30 +839,114 @@ export default function AddPageNumber() {
               </div>
             </div>
 
-            {/* Cover-up / Wite-out Option Row for PDF */}
+            {/* Cover-up / Wite-out Section for PDF */}
             {fileType === 'pdf' && (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[--color-border] pt-3 text-xs">
-                <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={coverExistingNumber}
-                    onChange={(e) => setCoverExistingNumber(e.target.checked)}
-                    className="accent-[--color-brand] cursor-pointer"
-                  />
-                  <span>Timpa / Wite-out Nomor Halaman Lama (Cover-up)</span>
-                </label>
-
-                {coverExistingNumber && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[--color-text-3]">Warna Kertas Menimpa:</span>
+              <div className="border-t border-[--color-border] pt-3 space-y-3 text-xs">
+                {/* Main toggle + paper color */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
                     <input
-                      type="color"
-                      value={paperColor}
-                      onChange={(e) => setPaperColor(e.target.value)}
-                      className="h-6 w-8 cursor-pointer rounded border border-[--color-border]"
-                      title="Pilih Warna Kertas untuk Menimpa Nomor Lama"
+                      type="checkbox"
+                      checked={coverExistingNumber}
+                      onChange={(e) => setCoverExistingNumber(e.target.checked)}
+                      className="accent-[--color-brand] cursor-pointer"
                     />
-                    <span className="font-mono text-[11px] text-[--color-text-3] uppercase">{paperColor}</span>
+                    <span>Timpa / Wite-out Nomor Halaman Lama</span>
+                  </label>
+
+                  {coverExistingNumber && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[--color-text-3]">Warna Kertas:</span>
+                      <input
+                        type="color"
+                        value={paperColor}
+                        onChange={(e) => setPaperColor(e.target.value)}
+                        className="h-6 w-8 cursor-pointer rounded border border-[--color-border]"
+                        title="Pilih Warna Kertas untuk Menimpa & Background Font"
+                      />
+                      <span className="font-mono text-[11px] text-[--color-text-3] uppercase">{paperColor}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Auto/Manual mode + per-page toggle */}
+                {coverExistingNumber && (
+                  <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[--color-text-2]">Mode Wite-out:</span>
+                        <div className="flex rounded border border-[--color-border] overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setWhiteoutMode('auto')}
+                            className={`px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                              whiteoutMode === 'auto'
+                                ? 'bg-[--color-brand] text-white'
+                                : 'bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]'
+                            }`}
+                          >
+                            Auto (Ikuti Posisi Nomor)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWhiteoutMode('manual')}
+                            className={`px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer border-l border-[--color-border] ${
+                              whiteoutMode === 'manual'
+                                ? 'bg-[--color-brand] text-white'
+                                : 'bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]'
+                            }`}
+                          >
+                            Manual (Posisi Terpisah)
+                          </button>
+                        </div>
+                      </div>
+
+                      {whiteoutMode === 'manual' && (
+                        <label className="flex items-center gap-1.5 text-[--color-text-2] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={usePerPageWhiteout}
+                            onChange={(e) => setUsePerPageWhiteout(e.target.checked)}
+                          />
+                          <span className="font-semibold">Custom Wite-out per Halaman</span>
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Manual position presets */}
+                    {whiteoutMode === 'manual' && (
+                      <>
+                        {(usePerPageWhiteout || true) && (
+                          <div className="flex items-center justify-between text-[10px] text-[--color-brand] font-mono bg-[--color-brand-light] px-2 py-0.5 rounded w-fit">
+                            {usePerPageWhiteout
+                              ? `Hal ${currentPage}: ${getWhiteoutPosition(currentPage).preset === 'custom' ? `${getWhiteoutPosition(currentPage).x}%, ${getWhiteoutPosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getWhiteoutPosition(currentPage).preset)?.label || 'Custom'}`
+                              : `Semua Halaman: ${POSITION_PRESETS.find(p => p.id === whiteoutPreset)?.label || 'Custom'}`
+                            }
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                          {POSITION_PRESETS.map((pos) => {
+                            const activePreset = usePerPageWhiteout ? getWhiteoutPosition(currentPage).preset : whiteoutPreset
+                            return (
+                              <button
+                                key={pos.id}
+                                type="button"
+                                onClick={() => selectWhiteoutPreset(pos.id)}
+                                className={[
+                                  'flex flex-col items-center justify-center rounded border p-2 text-xs text-center transition-all',
+                                  activePreset === pos.id
+                                    ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold shadow-xs'
+                                    : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3]',
+                                ].join(' ')}
+                              >
+                                <span>{pos.label}</span>
+                                <span className="text-[10px] opacity-75 font-normal">{pos.desc}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -889,6 +1033,27 @@ export default function AddPageNumber() {
                         >
                           {previewNumText}
                         </div>
+                      )
+                    })()}
+
+                    {/* White-out position indicator (orange dashed rect) */}
+                    {coverExistingNumber && currentIncluded && (() => {
+                      const woPos = getWhiteoutPosition(currentPage)
+                      return (
+                        <div
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${woPos.x}%`,
+                            top: `${woPos.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            width: '80px',
+                            height: '22px',
+                            border: '2px dashed #f97316',
+                            borderRadius: '3px',
+                            backgroundColor: `${paperColor}40`,
+                          }}
+                          title={`Area Wite-out: ${woPos.preset === 'custom' ? `${woPos.x}%, ${woPos.y}%` : POSITION_PRESETS.find(p => p.id === woPos.preset)?.label || woPos.preset}`}
+                        />
                       )
                     })()}
                   </div>
