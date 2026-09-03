@@ -447,26 +447,21 @@ export default function ImageCollage() {
       }
 
       if (isCustom) {
-        // Use grid layout with gap between cells
-        let cumY = 0
+        // Match preview getCellRect exactly
         for (let r = 0; r < rowHeights.length; r++) {
           let cumX = 0
+          const cumY = rowHeights.slice(0, r).reduce((a, b) => a + b, 0) + r * gap
           for (let c = 0; c < colWidths.length; c++) {
             const imgIdx = cellMap[r]?.[c]
             if (imgIdx != null && images[imgIdx]) {
               const imgEl = await loadImage(images[imgIdx].url)
-              const cellW = colWidths[c] - gap
-              const cellH = rowHeights[r] - gap
-              if (cellW > 0 && cellH > 0) {
-                const scale = Math.min(cellW / imgEl.naturalWidth, cellH / imgEl.naturalHeight)
-                const dw = Math.floor(imgEl.naturalWidth * scale)
-                const dh = Math.floor(imgEl.naturalHeight * scale)
-                ctx.drawImage(imgEl, cumX + Math.floor((colWidths[c] - dw) / 2), cumY + Math.floor((rowHeights[r] - dh) / 2), dw, dh)
-              }
+              const scale = Math.min(colWidths[c] / imgEl.naturalWidth, rowHeights[r] / imgEl.naturalHeight)
+              const dw = Math.floor(imgEl.naturalWidth * scale)
+              const dh = Math.floor(imgEl.naturalHeight * scale)
+              ctx.drawImage(imgEl, cumX + Math.floor((colWidths[c] - dw) / 2), cumY + Math.floor((rowHeights[r] - dh) / 2), dw, dh)
             }
             cumX += colWidths[c] + gap
           }
-          cumY += rowHeights[r] + gap
         }
       } else {
         const cellW = Math.floor((canvasW - (pr.cols - 1) * gap) / pr.cols)
