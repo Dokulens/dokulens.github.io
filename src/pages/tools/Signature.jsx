@@ -132,26 +132,28 @@ function SignaturePad({ onSave }) {
           className="block w-full cursor-crosshair touch-none"
         />
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <label className="flex items-center gap-2 text-xs text-(--color-text-2)">
-          Warna
-          <input type="color" value={penColor} onChange={(e) => setPenColor(e.target.value)} className="h-7 w-9 cursor-pointer rounded border border-(--color-border) bg-transparent" />
-        </label>
-        <label className="flex items-center gap-2 text-xs text-(--color-text-2)">
-          Tebal
-          <input type="range" min="1" max="10" step="1" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-24 accent-(--color-brand) cursor-pointer" />
-          <span className="font-mono text-[11px] text-(--color-text-3)">{penWidth}px</span>
-        </label>
-        <button onClick={clear} disabled={!hasInk} className="flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer">
-          <Eraser size={14} /> Bersihkan
-        </button>
-        <div className="ml-auto flex items-center gap-2">
+      <div className="flex flex-col gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
+          <label className="flex items-center gap-2 text-xs font-medium text-(--color-text-2)">
+            Warna
+            <input type="color" value={penColor} onChange={(e) => setPenColor(e.target.value)} className="h-7 w-9 cursor-pointer rounded border border-(--color-border) bg-transparent" />
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-(--color-text-2)">
+            Tebal
+            <input type="range" min="1" max="10" step="1" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-24 accent-(--color-brand) cursor-pointer" />
+            <span className="font-mono text-[11px] text-(--color-text-3) w-6">{penWidth}px</span>
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-(--color-border) sm:ml-auto sm:border-l sm:pl-2.5">
+          <button onClick={clear} disabled={!hasInk} className="flex h-9 items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:hover:bg-red-500/10 disabled:hover:text-red-600 dark:disabled:hover:text-red-400 transition-colors cursor-pointer">
+            <Eraser size={14} /> Bersihkan
+          </button>
           {hasInk && (
-            <button onClick={download} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+            <button onClick={download} className="flex h-9 items-center gap-1.5 rounded-md border border-(--color-border) bg-(--color-surface) px-3 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
               <Download size={14} /> Download PNG
             </button>
           )}
-          <button onClick={save} disabled={!hasInk} className="flex items-center gap-2 rounded-lg bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm">
+          <button onClick={save} disabled={!hasInk} className="flex h-9 items-center gap-2 rounded-md bg-(--color-brand) px-4 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm">
             <Check size={15} /> Pakai Tanda Tangan
           </button>
         </div>
@@ -435,10 +437,10 @@ export default function Signature() {
               <img src={sigDataUrl} alt="ttd" className="h-16 w-auto rounded border border-(--color-border) object-contain" style={{ background: 'repeating-conic-gradient(#e5e7eb 0 25%, #fff 0 50%) 0 0 / 12px 12px' }} />
               <span className="text-xs text-(--color-text-2)">TTD siap (latar transparan).</span>
               <div className="ml-auto flex items-center gap-2">
-                <button onClick={downloadCurrent} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+                <button onClick={downloadCurrent} className="flex h-9 items-center gap-1.5 rounded-md border border-(--color-border) bg-(--color-surface) px-3 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
                   <Download size={13} /> Download PNG
                 </button>
-                <button onClick={() => setMode('sign')} className="flex items-center gap-1.5 rounded-lg bg-(--color-brand) px-3 py-1.5 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer">
+                <button onClick={() => setMode('sign')} className="flex h-9 items-center gap-1.5 rounded-md bg-(--color-brand) px-4 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer">
                   <FileUp size={13} /> Terapkan ke Dokumen
                 </button>
               </div>
