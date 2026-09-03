@@ -349,8 +349,8 @@ export default function ImageWatermark() {
                   <DropZone
                     accept="image/*"
                     onFiles={handleIconFile}
-                    label=""
-                    hint="JPG, PNG, WebP, GIF, SVG"
+                    label="Pilih file ikon"
+                    size="sm"
                   />
                   {iconSrc && (
                     <button

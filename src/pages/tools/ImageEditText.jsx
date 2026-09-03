@@ -318,8 +318,8 @@ export default function ImageEditText() {
               <DropZone
                 accept="image/png,image/jpeg,image/webp"
                 onFiles={handleFiles}
-                label="Ganti gambar"
-                hint="Upload gambar baru"
+                label="Ganti gambar (PNG/JPG/WebP)"
+                size="sm"
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { Upload, Clipboard, AlertCircle, X } from 'lucide-react'
 
-export default function DropZone({ accept, multiple = false, onFiles, label, hint }) {
+export default function DropZone({ accept, multiple = false, onFiles, label, hint, size = 'lg' }) {
   const inputRef = useRef()
   const [dragging, setDragging] = useState(false)
   const [formatError, setFormatError] = useState('')
@@ -124,32 +124,44 @@ export default function DropZone({ accept, multiple = false, onFiles, label, hin
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         className={[
-          'group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-all select-none',
+          'group relative flex cursor-pointer items-center justify-center gap-3 rounded-lg border-2 border-dashed text-center transition-all select-none',
+          size === 'sm' ? 'flex-row px-3 py-2' : 'flex-col px-6 py-10',
           dragging
             ? 'border-(--color-brand) bg-(--color-brand-light) drop-active scale-[1.01]'
             : 'border-(--color-border-strong) bg-(--color-surface) hover:border-(--color-brand) hover:bg-(--color-brand-light)',
         ].join(' ')}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-(--color-surface-3) text-(--color-text-2) group-hover:text-(--color-brand) group-hover:scale-110 transition-transform duration-150">
-          <Upload size={24} />
-        </div>
+        {size === 'sm' ? (
+          <>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-(--color-surface-3) text-(--color-text-2) group-hover:text-(--color-brand) transition-colors">
+              <Upload size={16} />
+            </div>
+            <span className="text-xs font-semibold text-(--color-text) group-hover:text-(--color-brand) transition-colors">{label || 'Pilih file'}</span>
+          </>
+        ) : (
+          <>
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-(--color-surface-3) text-(--color-text-2) group-hover:text-(--color-brand) group-hover:scale-110 transition-transform duration-150">
+              <Upload size={24} />
+            </div>
 
-        <div>
-          <p className="font-semibold text-sm text-(--color-text)">
-            {label || 'Drag & drop atau klik untuk pilih file'}
-          </p>
-          {hint ? (
-            <p className="mt-1 text-xs text-(--color-text-3)">{hint}</p>
-          ) : accept ? (
-            <p className="mt-1 text-xs text-(--color-text-3)">Format diterima: {getFormatDescription()}</p>
-          ) : null}
-        </div>
+            <div>
+              <p className="font-semibold text-sm text-(--color-text)">
+                {label || 'Drag & drop atau klik untuk pilih file'}
+              </p>
+              {hint ? (
+                <p className="mt-1 text-xs text-(--color-text-3)">{hint}</p>
+              ) : accept ? (
+                <p className="mt-1 text-xs text-(--color-text-3)">Format diterima: {getFormatDescription()}</p>
+              ) : null}
+            </div>
 
-        {/* Ctrl+V Paste Shortcut Tag */}
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-(--color-border) bg-(--color-surface-2) px-3 py-1 text-[11px] font-medium text-(--color-text-2) group-hover:border-(--color-brand) transition-colors">
-          <Clipboard size={12} className="text-(--color-brand)" />
-          <span>Bisa Paste langsung (<kbd className="font-mono font-semibold">Ctrl+V</kbd> / <kbd className="font-mono font-semibold">⌘V</kbd>)</span>
-        </div>
+            {/* Ctrl+V Paste Shortcut Tag */}
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-(--color-border) bg-(--color-surface-2) px-3 py-1 text-[11px] font-medium text-(--color-text-2) group-hover:border-(--color-brand) transition-colors">
+              <Clipboard size={12} className="text-(--color-brand)" />
+              <span>Bisa Paste langsung (<kbd className="font-mono font-semibold">Ctrl+V</kbd> / <kbd className="font-mono font-semibold">⌘V</kbd>)</span>
+            </div>
+          </>
+        )}
 
         <input
           ref={inputRef}

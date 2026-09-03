@@ -822,7 +822,7 @@ export default function ImageCarver() {
             {section(1, 'Gambar', file?.name || 'Ganti foto bila perlu')}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5">
               <div className="flex flex-wrap items-center gap-2">
-                <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Ganti foto" hint="JPG, PNG, WebP" />
+                <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Ganti foto" hint="JPG, PNG, WebP" size="sm" />
                 <button
                   onClick={handleReset}
                   disabled={isCarving}
