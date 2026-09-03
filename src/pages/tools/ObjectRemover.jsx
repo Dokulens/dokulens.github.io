@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
+import SendToDropdown from '../../components/SendToDropdown'
 import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -383,16 +384,23 @@ export default function ObjectRemover() {
                   <Check size={14} /> Selesai! Objek berhasil dihapus.
                 </div>
                 <img src={resultUrl} alt="Result" className="w-full rounded-lg border border-(--color-border)" />
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center justify-end">
                   <button
                     onClick={downloadResult}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
                   >
                     <Download size={14} /> Download
                   </button>
+                  <SendToDropdown
+                    blob={resultBlob}
+                    fileName={`${stripExt(fileName || 'image')}_clean.png`}
+                    outputMimeType="image/png"
+                    excludeRoute="object-remover"
+                  />
                   <button
                     onClick={() => { setResultUrl(null); setResultBlob(null) }}
                     className="flex items-center justify-center gap-1.5 rounded-lg border border-(--color-border) bg-(--color-surface-3) px-3 py-2 text-xs font-bold text-(--color-text-2) hover:bg-(--color-surface-2) transition-all"
+                    title="Proses lagi"
                   >
                     <RefreshCw size={14} />
                   </button>

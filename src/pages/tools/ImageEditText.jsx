@@ -2,10 +2,17 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Eraser, Type, Download, Loader2, MousePointer, Undo2 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
+import SendToDropdown from '../../components/SendToDropdown'
 import ProgressBar from '../../components/ProgressBar'
 import { createWorker } from 'tesseract.js'
 import { inpaintWatermark } from '../../utils/watermarkRemover'
 import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
+
+function dataUrlToBlob(d) {
+  const [head, body] = d.split(',')
+  const mime = head.match(/:(.*?);/)?.[1] || 'image/png'
+  return new Blob([Uint8Array.from(atob(body), (c) => c.charCodeAt(0))], { type: mime })
+}
 
 const FONT_FAMILIES = [
   { id: 'Arial', label: 'Arial' },
@@ -36,6 +43,7 @@ export default function ImageEditText() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [status, setStatus] = useState('')
   const [resultUrl, setResultUrl] = useState(null)
+  const [resultBlob, setResultBlob] = useState(null)
   const [ocrProgress, setOcrProgress] = useState(0)
   const [editHistory, setEditHistory] = useState([])
   const [hoveredWord, setHoveredWord] = useState(null)
@@ -52,7 +60,7 @@ export default function ImageEditText() {
     setOcrWords([])
     setSelectedWord(null)
     setNewText('')
-    setResultUrl(null)
+    setResultUrl(null); setResultBlob(null)
     setEditHistory([])
     setOcrProgress(0)
   }, [])
@@ -175,6 +183,7 @@ export default function ImageEditText() {
 
       const result = canvas.toDataURL('image/png')
       setResultUrl(result)
+      setResultBlob(dataUrlToBlob(result))
 
       setEditHistory((prev) => [
         ...prev,
@@ -200,7 +209,7 @@ export default function ImageEditText() {
   const handleUndo = useCallback(() => {
     if (editHistory.length === 0) return
     setEditHistory((prev) => prev.slice(0, -1))
-    setResultUrl(null)
+    setResultUrl(null); setResultBlob(null)
     setStatus('Undo — pilih teks lagi')
   }, [editHistory])
 
@@ -293,7 +302,7 @@ export default function ImageEditText() {
 
             {/* Action buttons */}
             {resultUrl && (
-              <div className="flex gap-2 justify-center">
+              <div className="flex gap-2 justify-center items-center">
                 <button
                   type="button"
                   onClick={handleDownload}
@@ -302,6 +311,12 @@ export default function ImageEditText() {
                   <Download size={16} />
                   Download Hasil
                 </button>
+                <SendToDropdown
+                  blob={resultBlob}
+                  fileName="edited-image.png"
+                  outputMimeType="image/png"
+                  excludeRoute="image-edit-text"
+                />
                 <button
                   type="button"
                   onClick={handleUndo}

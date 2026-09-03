@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Grid, Loader2, Download, X, Upload, Plus, Minus } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
+import SendToDropdown from '../../components/SendToDropdown'
 
 /* ──────────────────────────────────────────────────────────────────────────
    CollageGridEditor – Grid editor with draggable borders + image drag-drop
@@ -727,6 +728,17 @@ export default function ImageCollage() {
 
       {result && (
         <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-(--color-border) bg-(--color-surface) px-4 py-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3)">Hasil Kolase</span>
+            <div className="flex items-center gap-1">
+              <SendToDropdown
+                blob={result.blob}
+                fileName={result.fileName}
+                outputMimeType={result.ext === 'jpg' ? 'image/jpeg' : 'image/png'}
+                excludeRoute="image-collage"
+              />
+            </div>
+          </div>
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
             <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg shadow-lg" />
           </div>

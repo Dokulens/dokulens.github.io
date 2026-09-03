@@ -4,6 +4,7 @@ import {
   StopCircle, CheckCircle2, SlidersHorizontal, AlertTriangle
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
+import SendToDropdown from '../../components/SendToDropdown'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import FilePreview from '../../components/FilePreview'
@@ -385,12 +386,22 @@ export default function WatermarkRemover() {
               )}
 
               <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
-                <button
-                  onClick={() => { setResultBlob(null); setResultUrl(null) }}
-                  className="rounded border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3)"
-                >
-                  Edit / Proses Ulang
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setResultBlob(null); setResultUrl(null) }}
+                    className="rounded border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3)"
+                  >
+                    Edit / Proses Ulang
+                  </button>
+                  {activeMedia === 'image' && resultBlob && (
+                    <SendToDropdown
+                      blob={resultBlob}
+                      fileName={`${base}_clean.png`}
+                      outputMimeType="image/png"
+                      excludeRoute="watermark-remover"
+                    />
+                  )}
+                </div>
 
                 <a
                   href={resultUrl}

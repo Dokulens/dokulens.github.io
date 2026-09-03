@@ -16,6 +16,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
+import SendToDropdown from '../../components/SendToDropdown'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
@@ -1483,6 +1484,12 @@ export default function MergePDF() {
               <p className="text-xs text-(--color-text-3)">{result.fileName || 'output'} — {fmtBytes(result.blob.size)}</p>
             </div>
             <div className="flex items-center gap-2">
+              <SendToDropdown
+                blob={result.blob}
+                fileName={result.fileName || 'output'}
+                outputMimeType={result.mime || 'application/pdf'}
+                excludeRoute="merge-pdf"
+              />
               <button
                 onClick={() => { setResult(null); setResultPages([]); setResultCurrentPage(1) }}
                 className="flex h-7 items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 text-xs text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors"

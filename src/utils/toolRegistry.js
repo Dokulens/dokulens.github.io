@@ -105,6 +105,41 @@ export const TOOL_REGISTRY = [
     icon: 'Wand2',
     accepts: ['image/png', 'image/jpeg', 'image/webp'],
   },
+  {
+    id: 'image-collage',
+    route: 'image-collage',
+    label: 'Kolase Gambar',
+    icon: 'Grid',
+    accepts: ['image/png', 'image/jpeg', 'image/webp'],
+  },
+  {
+    id: 'signature',
+    route: 'signature',
+    label: 'Tanda Tangan (TTD)',
+    icon: 'PenLine',
+    accepts: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
+  },
+  {
+    id: 'image-upscale',
+    route: 'image-upscale',
+    label: 'Perbesar Gambar (Upscaler)',
+    icon: 'ZoomIn',
+    accepts: ['image/png', 'image/jpeg', 'image/webp'],
+  },
+  {
+    id: 'doc-to-markdown',
+    route: 'doc-to-markdown',
+    label: 'Dokumen → Markdown',
+    icon: 'FileCode2',
+    accepts: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+    ],
+  },
 ]
 
 export function getTargetsForOutput(outputMimeType, excludeRoute) {
