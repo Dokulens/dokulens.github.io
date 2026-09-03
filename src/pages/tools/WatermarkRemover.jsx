@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import FilePreview from '../../components/FilePreview'
@@ -403,13 +404,13 @@ export default function WatermarkRemover() {
                   )}
                 </div>
 
-                <a
-                  href={resultUrl}
-                  download={`${base}_clean.${activeMedia === 'video' ? 'webm' : 'png'}`}
+                <DownloadButton
+                  blob={resultBlob}
+                  fileName={`${base}_clean.${activeMedia === 'video' ? 'webm' : 'png'}`}
                   className="flex items-center justify-center gap-2 rounded bg-(--color-success) px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity no-underline shadow-sm"
                 >
                   <Download size={16} /> Download {activeMedia === 'video' ? 'Video' : 'Gambar'} Bersih
-                </a>
+                </DownloadButton>
               </div>
             </div>
           )}

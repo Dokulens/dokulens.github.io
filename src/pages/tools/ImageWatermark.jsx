@@ -6,6 +6,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 import { stripExt } from '../../utils/helpers'
 import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -207,14 +208,14 @@ export default function ImageWatermark() {
     }
   }, [dragging, redraw])
 
-  const downloadResult = () => {
+  const downloadResult = (name) => {
     if (!canvasRef.current) return
     canvasRef.current.toBlob((blob) => {
       if (!blob) return
       setResultBlob(blob)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `watermarked_${stripExt(fileName)}.png`
+      a.download = name || `watermarked_${stripExt(fileName)}.png`
       a.click()
     }, 'image/png')
   }
@@ -392,12 +393,14 @@ export default function ImageWatermark() {
 
           {/* Action buttons */}
           <div className="flex gap-2 items-center">
-            <button
-              onClick={downloadResult}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-(--color-brand) bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
+            <DownloadButton
+              blob={resultBlob}
+              fileName={`watermarked_${stripExt(fileName)}.png`}
+              onDownload={downloadResult}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-(--color-brand) bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
             >
               <Download size={16} /> Download Hasil
-            </button>
+            </DownloadButton>
             <SendToDropdown
               blob={resultBlob}
               fileName={`watermarked_${stripExt(fileName)}.png`}

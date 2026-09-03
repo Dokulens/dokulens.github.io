@@ -3,6 +3,7 @@ import { Eraser, Type, Download, Loader2, MousePointer, Undo2 } from 'lucide-rea
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 import ProgressBar from '../../components/ProgressBar'
 import { createWorker } from 'tesseract.js'
 import { inpaintWatermark } from '../../utils/watermarkRemover'
@@ -213,11 +214,11 @@ export default function ImageEditText() {
     setStatus('Undo — pilih teks lagi')
   }, [editHistory])
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback((name) => {
     if (!resultUrl) return
     const a = document.createElement('a')
     a.href = resultUrl
-    a.download = 'edited-image.png'
+    a.download = name || 'edited-image.png'
     a.click()
   }, [resultUrl])
 
@@ -303,14 +304,14 @@ export default function ImageEditText() {
             {/* Action buttons */}
             {resultUrl && (
               <div className="flex gap-2 justify-center items-center">
-                <button
-                  type="button"
-                  onClick={handleDownload}
+                <DownloadButton
+                  blob={resultBlob}
+                  fileName="edited-image.png"
+                  onDownload={handleDownload}
                   className="flex items-center gap-2 rounded border border-(--color-brand) bg-(--color-brand) px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                 >
-                  <Download size={16} />
-                  Download Hasil
-                </button>
+                  <Download size={16} /> Download Hasil
+                </DownloadButton>
                 <SendToDropdown
                   blob={resultBlob}
                   fileName="edited-image.png"

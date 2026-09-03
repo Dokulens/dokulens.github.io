@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Grid, Loader2, Download, X, Upload, Plus, Minus } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 
 /* ──────────────────────────────────────────────────────────────────────────
    CollageGridEditor – Grid editor with draggable borders + image drag-drop
@@ -749,11 +750,15 @@ export default function ImageCollage() {
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
             <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg shadow-lg" />
           </div>
-          <div className="flex gap-2">
-            <button onClick={downloadResult}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-md">
+          <div className="flex gap-2 items-center">
+            <DownloadButton
+              blob={result.blob}
+              fileName={resultName || result.fileName}
+              onNameChange={(n) => setResultName(n)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-md"
+            >
               <Download size={18} /> Unduh {result.ext.toUpperCase()}
-            </button>
+            </DownloadButton>
             <button onClick={() => { setResult(null); setResultName('') }}
               className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
               Kembali

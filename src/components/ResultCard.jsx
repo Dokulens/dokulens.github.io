@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, X, MoreVertical, Send, Check, Pencil } from 'lucide-react'
+import { X, MoreVertical, Send, Check, Pencil } from 'lucide-react'
+import DownloadButton from './DownloadButton'
 import { getTargetsForOutput } from '../utils/toolRegistry'
 
 function splitExt(name) {
@@ -10,7 +11,6 @@ function splitExt(name) {
 
 export default function ResultCard({ fileName, blob, onReset, extraInfo, outputMimeType, sourceRoute }) {
   const initial = splitExt(fileName)
-  const url = blob ? URL.createObjectURL(blob) : null
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [nameBase, setNameBase] = useState(initial.base)
@@ -120,15 +120,16 @@ export default function ResultCard({ fileName, blob, onReset, extraInfo, outputM
           </button>
         </div>
       </div>
-      {url && (
-        <a
-          href={url}
-          download={finalName}
-          className="mt-3 flex items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
+      {blob && (
+        <DownloadButton
+          blob={blob}
+          fileName={finalName}
+          onNameChange={(n) => { setNameBase(splitExt(n).base) }}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
         >
           <Download size={16} />
           Download
-        </a>
+        </DownloadButton>
       )}
     </div>
   )

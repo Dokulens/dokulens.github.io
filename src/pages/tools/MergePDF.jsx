@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
@@ -1498,13 +1499,14 @@ export default function MergePDF() {
               >
                 <X size={12} /> Tutup
               </button>
-              <a
-                href={URL.createObjectURL(result.blob)}
-                download={resultName || result.fileName || 'output'}
+              <DownloadButton
+                blob={result.blob}
+                fileName={resultName || result.fileName || 'output'}
+                onNameChange={(n) => setResultName(n)}
                 className="flex h-7 items-center gap-1 rounded bg-(--color-brand) px-3 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors no-underline"
               >
                 <ArrowDown size={12} /> Unduh
-              </a>
+              </DownloadButton>
             </div>
           </div>
 

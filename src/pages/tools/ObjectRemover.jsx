@@ -6,6 +6,7 @@ import {
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import SendToDropdown from '../../components/SendToDropdown'
+import DownloadButton from '../../components/DownloadButton'
 import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
@@ -385,12 +386,13 @@ export default function ObjectRemover() {
                 </div>
                 <img src={resultUrl} alt="Result" className="w-full rounded-lg border border-(--color-border)" />
                 <div className="flex gap-2 items-center justify-end">
-                  <button
-                    onClick={downloadResult}
+                  <DownloadButton
+                    blob={resultBlob}
+                    fileName={`no-object_${stripExt(fileName || 'image')}.png`}
                     className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
                   >
                     <Download size={14} /> Download
-                  </button>
+                  </DownloadButton>
                   <SendToDropdown
                     blob={resultBlob}
                     fileName={`${stripExt(fileName || 'image')}_clean.png`}
