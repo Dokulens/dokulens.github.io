@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import mammoth from 'mammoth'
-import { FileDown, Loader2, FileText, Copy, Check, FileCode2 } from 'lucide-react'
+import { createWorker } from 'tesseract.js'
+import { FileDown, Loader2, Copy, Check, FileCode2, ScanText } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import FilePreview from '../../components/FilePreview'
@@ -22,7 +23,6 @@ function htmlToMarkdown(html) {
     .replace(/<table[\s\S]*?<\/table>/gi, (tbl) => {
       const rows = []
       const trs = tbl.match(/<tr[\s\S]*?<\/tr>/gi) || []
-      let headerSet = false
       for (const tr of trs) {
         const tds = tr.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi) || []
         const cells = tds.map((td) => td.replace(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/i, '$1').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim())
@@ -34,7 +34,6 @@ function htmlToMarkdown(html) {
       if (rows[0] && (rows[0].every((c) => c) || rows.length === 1)) {
         out.push(`| ${rows[0].join(' | ')} |`)
         out.push(`| ${Array(w).fill('---').join(' | ')} |`)
-        headerSet = true
         rows.shift()
       } else {
         out.push(`| ${Array(w).fill('---').join(' | ')} |`)
@@ -102,12 +101,36 @@ async function docxToMd(file) {
 }
 
 const Y_TOL = 5
-async function pdfToMd(file) {
+async function pdfPageToPng(page, scale = 2) {
+  const viewport = page.getViewport({ scale })
+  const canvas = document.createElement('canvas')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  await page.render({ canvasContext: ctx, viewport }).promise
+  return canvas.toDataURL('image/png')
+}
+
+// OCR satu halaman/gambar via tesseract.js; cb(logger {status,progress,page})
+async function ocrImage(dataUrl, cb) {
+  const worker = await createWorker('eng+ind', 1, {
+    logger: (m) => cb && cb(m),
+  })
+  try {
+    const { data } = await worker.recognize(dataUrl, {}, { text: true })
+    return (data.text || '').trim()
+  } finally {
+    await worker.terminate()
+  }
+}
+
+async function pdfToMd(file, ocrEnabled, ocrCb) {
   const buf = await readAsArrayBuffer(file)
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise
   const total = doc.numPages
   const parts = []
   for (let i = 1; i <= total; i++) {
+    if (ocrCb) ocrCb({ stage: 'page', page: i, total })
     let page
     try {
       page = await doc.getPage(i)
@@ -119,14 +142,27 @@ async function pdfToMd(file) {
     try {
       tc = await page.getTextContent()
     } catch {
-      parts.push(`<!-- halaman ${i}: tidak dapat diekstrak (kemungkinan hasil scan/gambar) -->`)
-      continue
+      tc = null
     }
-    const items = tc.items
+    const items = (tc?.items || [])
       .filter((t) => t.str?.trim())
       .map((t) => ({ text: t.str, x: t.transform[4], y: t.transform[5], w: t.width || 0 }))
     if (!items.length) {
-      parts.push(`<!-- halaman ${i}: tanpa teks (gambar/scan) -->`)
+      if (ocrEnabled) {
+        if (ocrCb) ocrCb({ stage: 'ocr', page: i, total })
+        try {
+          const png = await pdfPageToPng(page)
+          const text = await ocrImage(png, (m) => {
+            if (m.status === 'recognizing text' && ocrCb) ocrCb({ stage: 'ocr', page: i, total, progress: Math.round(m.progress * 100) })
+          })
+          parts.push(text || `<!-- halaman ${i}: OCR kosong -->`)
+          continue
+        } catch (e) {
+          parts.push(`<!-- halaman ${i}: OCR gagal (${e.message}) -->`)
+          continue
+        }
+      }
+      parts.push(`<!-- halaman ${i}: tanpa teks (gambar/scan) → aktifkan OCR -->`)
       continue
     }
     const sorted = items.sort((a, b) => b.y - a.y || a.x - b.x)
@@ -163,6 +199,13 @@ async function txtToMd(file) {
   return { md: text.replace(/\r\n/g, '\n').trim() + '\n', ext: 'md', name: 'md' }
 }
 
+async function imgToMd(file) {
+  const url = URL.createObjectURL(file)
+  const text = await ocrImage(url)
+  URL.revokeObjectURL(url)
+  return { md: (text || '').trim() + '\n', ext: 'md', name: 'md' }
+}
+
 export default function DocToMarkdown() {
   const [file, setFile] = useState(null)
   useIncomingFile((f) => setFile(f))
@@ -172,32 +215,46 @@ export default function DocToMarkdown() {
   const [md, setMd] = useState('')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
+  const [ocrEnabled, setOcrEnabled] = useState(true)
 
   const handleFile = ([f]) => { setFile(f); setMd(''); setError(''); setCopied(false) }
 
-  const detectKind = (name) => {
+  const detectKind = (name, type = '') => {
     const n = name.toLowerCase()
     if (n.endsWith('.docx')) return 'docx'
     if (n.endsWith('.pdf')) return 'pdf'
     if (n.endsWith('.txt') || n.endsWith('.md')) return 'txt'
+    if (type.startsWith('image/')) return 'img'
     if (n.endsWith('.doc')) return 'doc'
     return ''
   }
 
   const convert = async () => {
     if (!file) return
-    const kind = detectKind(file.name)
-    if (!kind) { setError('Format tidak didukung. Terima .docx, .pdf, .txt'); return }
+    const kind = detectKind(file.name, file.type)
+    if (!kind) { setError('Format tidak didukung. Terima .docx, .pdf, .txt, atau gambar (OCR)'); return }
     setProcessing(true); setError(''); setProgress(0)
     try {
       setProgressText('Mengonversi ke Markdown…')
-      setProgress(20)
+      setProgress(10)
       let out
       if (kind === 'docx') out = await docxToMd(file)
-      else if (kind === 'pdf') out = await pdfToMd(file)
+      else if (kind === 'pdf') {
+        setProgressText('Membaca halaman PDF…')
+        setProgress(15)
+        out = await pdfToMd(file, ocrEnabled, ({ stage, page, total, progress: p }) => {
+          if (stage === 'ocr') { setProgressText(`OCR halaman ${page}/${total}…`); if (p != null) setProgress(15 + Math.round((p / 100) * 70)) }
+          else { setProgressText(`Membaca halaman ${page}/${total}…`); setProgress(Math.round((page / total) * 30)) }
+        })
+      }
       else if (kind === 'txt') out = await txtToMd(file)
+      else if (kind === 'img') {
+        setProgressText('OCR gambar…')
+        setProgress(20)
+        out = await imgToMd(file)
+      }
       else throw new Error('.doc lama belum didukung — simpan sebagai .docx dulu')
-      setProgress(90)
+      setProgress(95)
       setMd(out.md)
       setProgress(100)
       setProgressText('Selesai')
@@ -228,13 +285,26 @@ export default function DocToMarkdown() {
       description="Ubah DOCX, PDF, atau TXT menjadi Markdown (.md) yang rapi — siap untuk disalin atau dikirim ke AI."
     >
       <DropZone
-        accept=".docx,.pdf,.txt,.md,application/pdf,text/plain"
+        accept=".docx,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/*"
         multiple={false}
         onFiles={handleFile}
         label="Pilih dokumen untuk diubah ke Markdown"
-        hint=".docx · .pdf · .txt/.md — kirim hasil langsung ke AI"
+        hint=".docx · .pdf · .txt/.md · Gambar (OCR)"
       />
+      {file && file.type?.startsWith('image/') && (
+        <p className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 text-xs text-(--color-text-2)">
+          <ScanText size={13} className="mr-1 inline text-(--color-brand)" />
+          Gambar akan diproses dengan OCR (pengenalan teks) → Markdown.
+        </p>
+      )}
       {file && <FilePreview file={file} />}
+
+      {file && !md && (
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-(--color-text-2) select-none">
+          <input type="checkbox" checked={ocrEnabled} onChange={(e) => setOcrEnabled(e.target.checked)} className="accent-(--color-brand) cursor-pointer" />
+          <ScanText size={13} className="text-(--color-brand)" /> OCR halaman PDF hasil scan/gambar
+        </label>
+      )}
 
       {file && !md && (
         <button
