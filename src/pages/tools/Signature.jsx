@@ -23,48 +23,77 @@ function loadImg(src) {
 }
 
 /* ============ Signature Drawing Canvas ============ */
-function SignaturePad({ onSave }) {
+function SignaturePad({ onSave, onDownload }) {
   const canvasRef = useRef(null)
   const drawingRef = useRef(false)
+  const lastRef = useRef(null)
   const [hasInk, setHasInk] = useState(false)
   const [penColor, setPenColor] = useState('#1d4ed8')
   const [penWidth, setPenWidth] = useState(3)
 
+  // map event -> canvas-internal coords (canvas 560x200 may render smaller)
+  const toCanvas = (cx, cy) => {
+    const c = canvasRef.current
+    const rect = c.getBoundingClientRect()
+    return {
+      x: (cx - rect.left) * (c.width / rect.width),
+      y: (cy - rect.top) * (c.height / rect.height),
+    }
+  }
   const getPos = (e) => {
     const cx = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX
     const cy = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY
-    const rect = canvasRef.current.getBoundingClientRect()
-    return { x: cx - rect.left, y: cy - rect.top }
+    return toCanvas(cx, cy)
+  }
+
+  const drawSmooth = (from, to) => {
+    const c = canvasRef.current
+    const ctx = c.getContext('2d')
+    ctx.strokeStyle = penColor
+    ctx.lineWidth = penWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    // midpoint smoothing for crisp stroke
+    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y)
+    ctx.quadraticCurveTo(from.x, from.y, mid.x, mid.y)
+    ctx.lineTo(to.x, to.y)
+    ctx.stroke()
   }
 
   const start = (e) => {
     e.preventDefault()
     drawingRef.current = true
-    const c = canvasRef.current
     const pos = getPos(e)
-    const ctx = c.getContext('2d')
+    lastRef.current = pos
+    const ctx = canvasRef.current.getContext('2d')
     ctx.beginPath()
     ctx.moveTo(pos.x, pos.y)
+    // dot for click-only
+    ctx.strokeStyle = penColor
+    ctx.lineWidth = penWidth
+    ctx.lineCap = 'round'
+    ctx.lineTo(pos.x + 0.01, pos.y + 0.01)
+    ctx.stroke()
+    setHasInk(true)
   }
   const move = (e) => {
     if (!drawingRef.current) return
     e.preventDefault()
-    const c = canvasRef.current
-    const ctx = c.getContext('2d')
     const pos = getPos(e)
-    ctx.strokeStyle = penColor
-    ctx.lineWidth = penWidth
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.lineTo(pos.x, pos.y)
-    ctx.stroke()
+    const last = lastRef.current
+    if (last) drawSmooth(last, pos)
+    lastRef.current = pos
     setHasInk(true)
   }
-  const end = () => { drawingRef.current = false }
+  const end = () => { drawingRef.current = false; lastRef.current = null }
   const clear = () => {
-    canvasRef.current?.getContext('2d').clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+    const c = canvasRef.current
+    c.getContext('2d').clearRect(0, 0, c.width, c.height)
     setHasInk(false)
   }
+  // output = transparent PNG (no white fill)
   const save = () => {
     const c = canvasRef.current
     if (!hasInk) return
@@ -72,15 +101,15 @@ function SignaturePad({ onSave }) {
     out.width = c.width
     out.height = c.height
     const ctx = out.getContext('2d')
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, out.width, out.height)
+    ctx.clearRect(0, 0, out.width, out.height)
     ctx.drawImage(c, 0, 0)
     onSave(out.toDataURL('image/png'))
   }
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border-2 border-dashed border-(--color-border-strong) bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border-2 border-dashed border-(--color-border-strong)"
+        style={{ background: 'repeating-conic-gradient(#e5e7eb 0 25%, #fff 0 50%) 0 0 / 16px 16px' }}>
         <canvas
           ref={canvasRef}
           width={560}
@@ -102,15 +131,22 @@ function SignaturePad({ onSave }) {
         </label>
         <label className="flex items-center gap-2 text-xs text-(--color-text-2)">
           Tebal
-          <input type="range" min="1" max="8" step="1" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-24 accent-(--color-brand) cursor-pointer" />
+          <input type="range" min="1" max="10" step="1" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-24 accent-(--color-brand) cursor-pointer" />
           <span className="font-mono text-[11px] text-(--color-text-3)">{penWidth}px</span>
         </label>
         <button onClick={clear} disabled={!hasInk} className="flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer">
           <Eraser size={14} /> Bersihkan
         </button>
-        <button onClick={save} disabled={!hasInk} className="ml-auto flex items-center gap-2 rounded-lg bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm">
-          <Check size={15} /> Pakai Tanda Tangan
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {onDownload && hasInk && (
+            <button onClick={onDownload} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+              <Download size={14} /> Download PNG
+            </button>
+          )}
+          <button onClick={save} disabled={!hasInk} className="flex items-center gap-2 rounded-lg bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm">
+            <Check size={15} /> Pakai Tanda Tangan
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -365,10 +401,14 @@ export default function Signature() {
       active ? 'bg-(--color-brand) text-white shadow-sm' : 'border border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:bg-(--color-surface-3)'
     }`
 
+  const downloadCurrent = () => {
+    if (sigDataUrl) downloadBlob(dataUrlToBlob(sigDataUrl), 'ttd.png')
+  }
+
   return (
     <ToolShell
       title="Tanda Tangan Dokumen"
-      description="Buat tanda tangan di kanvas lalu simpan PNG, atau terapkan ke dokumen PDF/gambar dengan menyeret posisi presisi."
+      description="Buat tanda tangan transparan lalu simpan PNG, atau terapkan ke dokumen PDF/gambar dengan menyeret posisi presisi."
     >
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setMode('create')} className={tabCls(mode === 'create')}><PenLine size={15} /> Buat TTD</button>
@@ -378,15 +418,23 @@ export default function Signature() {
       {mode === 'create' && (
         <div className="space-y-4">
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
-            <SignaturePad onSave={(d) => { setSigDataUrl(d); setMode('sign') }} />
+            <SignaturePad
+              onDownload={downloadCurrent}
+              onSave={(d) => { setSigDataUrl(d); setMode('create') }}
+            />
           </div>
           {sigDataUrl && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3">
-              <img src={sigDataUrl} alt="ttd" className="h-16 w-auto rounded border border-(--color-border) bg-white object-contain" />
-              <span className="text-xs text-(--color-text-2)">TTD tersimpan — buka tab <b>TTD Dokumen</b> untuk menerapkannya.</span>
-              <button onClick={() => downloadBlob(dataUrlToBlob(sigDataUrl), 'ttd.png')} className="ml-auto flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
-                <Download size={13} /> Download PNG
-              </button>
+              <img src={sigDataUrl} alt="ttd" className="h-16 w-auto rounded border border-(--color-border) object-contain" style={{ background: 'repeating-conic-gradient(#e5e7eb 0 25%, #fff 0 50%) 0 0 / 12px 12px' }} />
+              <span className="text-xs text-(--color-text-2)">TTD siap (latar transparan).</span>
+              <div className="ml-auto flex items-center gap-2">
+                <button onClick={downloadCurrent} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+                  <Download size={13} /> Download PNG
+                </button>
+                <button onClick={() => setMode('sign')} className="flex items-center gap-1.5 rounded-lg bg-(--color-brand) px-3 py-1.5 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer">
+                  <FileUp size={13} /> Terapkan ke Dokumen
+                </button>
+              </div>
             </div>
           )}
         </div>
