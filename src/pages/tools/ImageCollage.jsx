@@ -344,11 +344,37 @@ export default function ImageCollage() {
     setResult(null)
   }
 
+  // Auto-fill empty grid cells when new images are added
+  useEffect(() => {
+    if (!isCustom || images.length === 0) return
+    setCellMap((prev) => {
+      const next = prev.map((r) => [...r])
+      const used = new Set()
+      for (let r = 0; r < next.length; r++) for (let c = 0; c < next[r].length; c++) {
+        if (next[r][c] != null) used.add(next[r][c])
+      }
+      let idx = 0
+      for (let r = 0; r < next.length; r++) for (let c = 0; c < next[r].length; c++) {
+        if (next[r][c] == null) {
+          while (used.has(idx) && idx < images.length) idx++
+          if (idx < images.length) { next[r][c] = idx; used.add(idx); idx++ }
+        }
+      }
+      return next
+    })
+  }, [images.length, isCustom])
+
   const removeImage = (id) => {
     setImages((prev) => {
       const removed = prev.find((i) => i.id === id)
       if (removed) URL.revokeObjectURL(removed.url)
       return prev.filter((i) => i.id !== id)
+    })
+    // Clear removed image from grid cells
+    setCellMap((prev) => {
+      const imgIdx = images.findIndex((i) => i.id === id)
+      if (imgIdx < 0) return prev
+      return prev.map((r) => r.map((v) => v === imgIdx ? null : v))
     })
     setResult(null)
   }
