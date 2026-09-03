@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Shrink, RotateCcw, Paintbrush,
-  Square, Sparkles, Activity, Trash2,
+  Shrink, RotateCcw,
+  Square, Activity, Trash2,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -768,13 +768,22 @@ export default function ImageCarver() {
   const baseName = file ? stripExt(file.name) : 'image'
   const hasImage = !!origImageDataRef.current
   const step = hasImage ? (carveStage === 0 ? 2 : 3) : 1
+  const section = (n, title, sub) => (
+    <div className="flex items-center gap-2.5 pt-1 pb-2">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--color-brand) text-xs font-bold text-white">{n}</span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-(--color-text) leading-tight">{title}</h3>
+        {sub && <p className="text-[11px] text-(--color-text-3)">{sub}</p>}
+      </div>
+    </div>
+  )
 
   return (
     <ToolShell
       title="Image Carver (Content-Aware Seam Carving)"
       description="Hapus objek bertarget atau lindungi objek penting dengan masking, lalu cepatkan resolusi tanpa merusak proporsi — bisa dijalankan berulang tanpa muat ulang."
     >
-            {/* Empty state */}
+      {/* Empty state */}
       {!hasImage && (
         <div className="rounded-xl border-2 border-dashed border-(--color-border-strong) bg-(--color-surface) p-8">
           <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Pilih foto untuk mulai" hint="JPG, PNG, WebP — diproses 100% di browser" />
@@ -784,89 +793,82 @@ export default function ImageCarver() {
         </div>
       )}
 
-      {/* Stepper */}
       {hasImage && (
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {['Unggah & Atur Ukuran', 'Lukis Mask Area', 'Carve & Ulangi'].map((label, i) => {
-            const active = step === i + 1
-            const done = step > i + 1
-            return (
-              <div
-                key={label}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  active ? 'border-(--color-brand) bg-(--color-brand-light) text-(--color-brand)' : done ? 'border-(--color-success) bg-(--color-success-light) text-(--color-success)' : 'border-(--color-border) bg-(--color-surface) text-(--color-text-3)'
-                }`}
-              >
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-(--color-brand) text-white' : done ? 'bg-(--color-success) text-white' : 'bg-(--color-surface-3) text-(--color-text-3)'}`}>
-                  {done ? '✓' : i + 1}
-                </span>
-                <span className="truncate">{label}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+        <div className="space-y-4">
+          {/* Stepper */}
+          <div className="grid grid-cols-3 gap-2">
+            {['1 · Gambar', '2 · Lukis Area', '3 · Carve & Hasil'].map((label, i) => {
+              const active = step === i + 1
+              const done = step > i + 1
+              return (
+                <div
+                  key={label}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold transition-colors ${
+                    active ? 'border-(--color-brand) bg-(--color-brand-light) text-(--color-brand)' : done ? 'border-(--color-success) bg-(--color-success-light) text-(--color-success)' : 'border-(--color-border) bg-(--color-surface) text-(--color-text-3)'
+                  }`}
+                >
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-(--color-brand) text-white' : done ? 'bg-(--color-success) text-white' : 'bg-(--color-surface-3) text-(--color-text-3)'}`}>
+                    {done ? '✓' : i + 1}
+                  </span>
+                  <span className="truncate">{label}</span>
+                </div>
+              )
+            })}
+          </div>
 
-      {/* Workspace */}
-      <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
-        {/* Row 1: preview + mask */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left: working canvas + mask tools */}
-          <div className="space-y-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-4">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm font-bold text-(--color-text)">
-                <Paintbrush size={15} className="text-(--color-brand)" />
-                {carveStage === 0 ? '1 · Foto Asli & Masking' : `${carveStage + 1} · Hasil Sebelumnya & Masking`}
-              </span>
-              {hasImage && (
-                <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
-                  Lukis pada kanvas
-                </span>
-              )}
+          {/* Single workspace section */}
+          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 sm:p-5">
+            {/* Step 1: image */}
+            {section(1, 'Gambar', file?.name || 'Ganti foto bila perlu')}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Ganti foto" hint="JPG, PNG, WebP" />
+                <button
+                  onClick={handleReset}
+                  disabled={isCarving}
+                  className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={14} /> Reset ke Asli
+                </button>
+              </div>
+              <div className="flex items-center gap-2 px-1 text-xs">
+                {carveStage > 0 && (
+                  <span className="rounded bg-(--color-brand-light) px-2 py-1 font-bold text-(--color-brand)">{totalSeams} seam terpotong</span>
+                )}
+                <span className="font-semibold text-(--color-text)">{origW} × {origH} px</span>
+              </div>
             </div>
 
-            {/* Mask tool bar */}
-            {hasImage && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-(--color-surface-2) p-2.5 text-xs border border-(--color-border)">
+            {/* Step 2: mask */}
+            <div className="mt-5 border-t border-(--color-border) pt-4">
+              {section(2, 'Lukis Area', 'Seret di kanvas untuk menandai objek. Merah = hapus · Hijau = lindungi')}
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-(--color-text-2)">Kuas:</span>
-                  <input
-                    type="range"
-                    min="4"
-                    max="40"
-                    value={brushSize}
-                    disabled={isCarving}
-                    onChange={(e) => setBrushSize(Number(e.target.value))}
-                    className="w-20 accent-(--color-brand) cursor-pointer"
-                  />
+                  <span className="font-medium text-(--color-text-2)">Kuas</span>
+                  <input type="range" min="4" max="40" value={brushSize} disabled={isCarving} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-20 accent-(--color-brand) cursor-pointer" />
                   <span className="font-mono text-[11px] text-(--color-text-3) w-6">{brushSize}px</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <label className="flex cursor-pointer items-center gap-1.5">
                     <input type="radio" name="maskMode" checked={maskMode === 'remove'} disabled={isCarving} onChange={() => setMaskMode('remove')} className="accent-red-500 cursor-pointer" />
-                    <span className="flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400">
-                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" /> Hapus
-                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400"><span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" /> Hapus</span>
                   </label>
                   <label className="flex cursor-pointer items-center gap-1.5">
                     <input type="radio" name="maskMode" checked={maskMode === 'protect'} disabled={isCarving} onChange={() => setMaskMode('protect')} className="accent-emerald-500 cursor-pointer" />
-                    <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> Lindungi
-                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> Lindungi</span>
                   </label>
                 </div>
-                <button
-                  onClick={clearMask}
-                  disabled={isCarving}
-                  className="ml-auto flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer"
-                >
+                <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-(--color-text-2)">
+                  <input type="checkbox" checked={livePreview} disabled={isCarving} onChange={(e) => setLivePreview(e.target.checked)} className="accent-(--color-brand) cursor-pointer" />
+                  Pratinjau langsung
+                </label>
+                <button onClick={clearMask} disabled={isCarving} className="flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer">
                   <Trash2 size={12} /> Hapus Mask
                 </button>
               </div>
-            )}
 
-            <div className="flex h-72 min-h-[260px] items-center justify-center overflow-auto rounded-lg border border-(--color-border) bg-black/90 p-2">
-              {hasImage ? (
+              <div className="mt-3 flex h-72 min-h-[260px] items-center justify-center overflow-auto rounded-lg border border-(--color-border) bg-black/90 p-2">
                 <canvas
                   ref={origCanvasRef}
                   onMouseDown={startDraw}
@@ -878,125 +880,86 @@ export default function ImageCarver() {
                   onTouchEnd={endDraw}
                   className="block max-h-[270px] w-auto h-auto max-w-full cursor-crosshair rounded select-none touch-none"
                 />
-              ) : (
-                <p className="text-xs text-gray-400 text-center p-8">Unggah foto untuk mulai melukis mask.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Right: result preview */}
-          <div className="space-y-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-4">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm font-bold text-(--color-text)">
-                <Sparkles size={15} className="text-(--color-brand)" /> Hasil Carving
-              </span>
-              {resultSizeText !== '—' && (
-                <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">{resultSizeText}</span>
-              )}
-            </div>
-
-            <div className="flex h-72 min-h-[260px] items-center justify-center overflow-auto rounded-lg border border-(--color-border) bg-black/90 p-2">
-              <canvas ref={resCanvasRef} className="block max-h-[270px] w-auto h-auto max-w-full rounded select-none" />
-            </div>
-
-            {/* Carve action + stats */}
-            {hasImage && (
-              <div className="space-y-2.5 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-(--color-text-3)">
-                  <span>
-                    Ukuran kerja: <strong className="text-(--color-text)">{origW} × {origH} px</strong>
-                  </span>
-                  {carveStage > 0 && (
-                    <span className="font-semibold text-(--color-brand)">{totalSeams} seam terpotong</span>
-                  )}
-                </div>
-                {!isCarving ? (
-                  <button
-                    onClick={runCarve}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer shadow-sm active:scale-[0.99]"
-                  >
-                    <Shrink size={15} /> {carveStage === 0 ? 'Mulai Carve' : 'Carve Lagi'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleStop}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
-                  >
-                    <Square size={15} /> Hentikan
-                  </button>
-                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Row 2: controls */}
-        {hasImage && (
-          <div className="space-y-3 border-t border-(--color-border) pt-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 space-y-2">
-                <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">
-                  Lebar
-                  <span className="font-mono text-(--color-brand)">{widthPct}%</span>
-                </span>
-                <input type="range" min="10" max="100" value={widthPct} disabled={isCarving} onChange={(e) => handleWidthChange(Number(e.target.value))} className="w-full accent-(--color-brand) cursor-pointer" />
-              </label>
-              <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 space-y-2">
-                <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">
-                  Tinggi
-                  <span className="font-mono text-(--color-brand)">{heightPct}%</span>
-                </span>
-                <input type="range" min="10" max="100" value={heightPct} disabled={isCarving} onChange={(e) => handleHeightChange(Number(e.target.value))} className="w-full accent-(--color-brand) cursor-pointer" />
-              </label>
-              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 text-[11px] font-semibold text-(--color-text-2)">
-                <span>Jaga Rasio</span>
+            {/* Step 3: carve & result */}
+            <div className="mt-5 border-t border-(--color-border) pt-4">
+              {section(3, 'Carve & Hasil', 'Atur ukuran target lalu jalankan — hasil bisa diproses lagi')}
+
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 sm:p-3">
+                  <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">Lebar <span className="font-mono text-(--color-brand)">{widthPct}%</span></span>
+                  <input type="range" min="10" max="100" value={widthPct} disabled={isCarving} onChange={(e) => handleWidthChange(Number(e.target.value))} className="mt-1 w-full accent-(--color-brand) cursor-pointer" />
+                </label>
+                <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 sm:p-3">
+                  <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">Tinggi <span className="font-mono text-(--color-brand)">{heightPct}%</span></span>
+                  <input type="range" min="10" max="100" value={heightPct} disabled={isCarving} onChange={(e) => handleHeightChange(Number(e.target.value))} className="mt-1 w-full accent-(--color-brand) cursor-pointer" />
+                </label>
+              </div>
+              <label className="mt-2 flex cursor-pointer items-center justify-between rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-xs font-semibold text-(--color-text-2)">
+                Jaga Rasio (keep ratio)
                 <input type="checkbox" checked={keepRatio} disabled={isCarving} onChange={(e) => { setKeepRatio(e.target.checked); if (e.target.checked) updateKeepRatio('width', widthPct, heightPct) }} className="accent-(--color-brand) cursor-pointer" />
               </label>
-              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 text-[11px] font-semibold text-(--color-text-2)">
-                <span>Pratinjau Langsung</span>
-                <input type="checkbox" checked={livePreview} disabled={isCarving} onChange={(e) => setLivePreview(e.target.checked)} className="accent-(--color-brand) cursor-pointer" />
-              </label>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Pilih foto" hint="JPG, PNG, WebP" />
-              <button onClick={handleReset} disabled={isCarving} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-50 transition-colors cursor-pointer">
-                <RotateCcw size={14} /> Reset ke Asli
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Progress & Status */}
-        {(isCarving || statusText) && (
-          <div className="space-y-2 border-t border-(--color-border) pt-3">
-            {isCarving ? (
-              <>
-                <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
-                  <span className="flex items-center gap-1.5">
-                    <Activity size={14} className="animate-pulse" /> {statusText}
-                  </span>
-                  <span>{progress}%</span>
+              <div className="mt-3 flex flex-col items-center gap-3 rounded-lg border border-(--color-border) bg-black/90 p-2 sm:flex-row sm:justify-around">
+                <div className="w-full sm:w-1/2 text-center">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400">Hasil Carving</span>
+                  <canvas ref={resCanvasRef} className="inline-block max-h-[320px] w-auto h-auto max-w-full rounded select-none" />
                 </div>
-                <ProgressBar value={progress} />
-              </>
-            ) : (
-              statusText && <p className="text-xs text-(--color-text-2)">{statusText}</p>
-            )}
-          </div>
-        )}
-      </div>
+                <div className="flex w-full flex-col items-center gap-2 sm:w-1/2">
+                  <span className="text-[11px] text-gray-300">
+                    {resultSizeText !== '—' ? `Ukuran hasil: ${resultSizeText}` : 'Belum ada hasil'}
+                  </span>
+                  {!isCarving ? (
+                    <button
+                      onClick={runCarve}
+                      className="flex w-full max-w-[260px] items-center justify-center gap-2 rounded-lg bg-(--color-brand) px-4 py-3 text-sm font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer shadow-sm active:scale-[0.99]"
+                    >
+                      <Shrink size={16} /> {carveStage === 0 ? 'Mulai Carve' : 'Carve Lagi'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStop}
+                      className="flex w-full max-w-[260px] items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <Square size={16} /> Hentikan
+                    </button>
+                  )}
+                </div>
+              </div>
 
-      {/* Result download */}
-      {resultBlob && (
-        <ResultCard
-          fileName={`${baseName}_carved.png`}
-          blob={resultBlob}
-          extraInfo={`Carving selesai → Ukuran hasil: ${resultSizeText}`}
-          outputMimeType="image/png"
-          sourceRoute="image-carver"
-          onReset={handleReset}
-        />
+              {/* Progress & status */}
+              {(isCarving || statusText) && (
+                <div className="mt-3 space-y-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3">
+                  {isCarving ? (
+                    <>
+                      <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
+                        <span className="flex items-center gap-1.5"><Activity size={14} className="animate-pulse" /> {statusText}</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <ProgressBar value={progress} />
+                    </>
+                  ) : (
+                    statusText && <p className="text-xs text-(--color-text-2)">{statusText}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Result download */}
+          {resultBlob && (
+            <ResultCard
+              fileName={`${baseName}_carved.png`}
+              blob={resultBlob}
+              extraInfo={`Carving selesai → Ukuran hasil: ${resultSizeText}`}
+              outputMimeType="image/png"
+              sourceRoute="image-carver"
+              onReset={handleReset}
+            />
+          )}
+        </div>
       )}
     </ToolShell>
   )
