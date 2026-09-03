@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { PDFDocument, degrees } from 'pdf-lib'
 import JSZip from 'jszip'
 import {
@@ -225,6 +225,225 @@ function SortableFileItem({ id, fileData, index, onRemove, onRangeChange, onRota
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   CollageCustomPreview – Interactive drag & resize collage editor
+   ────────────────────────────────────────────────────────────────────────── */
+function CollageCustomPreview({ pages, canvasWidth, canvasHeight, items, setItems }) {
+  const containerRef = useRef(null)
+  const wrapperRef = useRef(null)
+  const [previewScale, setPreviewScale] = useState(1)
+  const [dragging, setDragging] = useState(null)
+  const [resizing, setResizing] = useState(null)
+  const [pageImages, setPageImages] = useState({})
+  const [activeItem, setActiveItem] = useState(null)
+
+  // Dynamically fill available width from parent
+  useEffect(() => {
+    const calcScale = () => {
+      const parent = wrapperRef.current?.parentElement
+      if (!parent) return
+      const availW = parent.clientWidth - 32
+      const availH = Math.max(400, window.innerHeight * 0.55)
+      setPreviewScale(Math.min(availW / canvasWidth, availH / canvasHeight, 1))
+    }
+    calcScale()
+    window.addEventListener('resize', calcScale)
+    return () => window.removeEventListener('resize', calcScale)
+  }, [canvasWidth, canvasHeight])
+
+  useEffect(() => {
+    const loadImages = async () => {
+      const imgs = {}
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i]
+        if (page.preview) {
+          imgs[i] = page.preview
+        } else if (page.type === 'pdf' && page.pdfDoc) {
+          try {
+            const pdfPage = await page.pdfDoc.getPage(page.pageIndex)
+            const viewport = pdfPage.getViewport({ scale: 0.5 })
+            const canvas = document.createElement('canvas')
+            canvas.width = viewport.width
+            canvas.height = viewport.height
+            const ctx = canvas.getContext('2d')
+            await pdfPage.render({ canvasContext: ctx, viewport }).promise
+            imgs[i] = canvas.toDataURL('image/png')
+          } catch { /* skip */ }
+        }
+      }
+      setPageImages(imgs)
+    }
+    loadImages()
+  }, [pages])
+
+  useEffect(() => {
+    if (items.length === 0 && pages.length > 0) {
+      const cols = Math.ceil(Math.sqrt(pages.length))
+      const rows = Math.ceil(pages.length / cols)
+      const cellW = Math.floor(canvasWidth / cols)
+      const cellH = Math.floor(canvasHeight / rows)
+      setItems(pages.map((_, i) => ({
+        pageIndex: i,
+        x: (i % cols) * cellW,
+        y: Math.floor(i / cols) * cellH,
+        width: cellW,
+        height: cellH,
+      })))
+    }
+  }, [pages, canvasWidth, canvasHeight, items.length, setItems])
+
+  const toCanvas = (clientX, clientY) => {
+    const rect = containerRef.current.getBoundingClientRect()
+    return {
+      x: Math.round((clientX - rect.left) / previewScale),
+      y: Math.round((clientY - rect.top) / previewScale),
+    }
+  }
+
+  const handleMouseDown = (e, index, handle) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActiveItem(index)
+    const pos = toCanvas(e.clientX, e.clientY)
+    const item = items[index]
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = handle ? `${handle}-resize` : 'move'
+    if (handle) {
+      setResizing({ index, startX: pos.x, startY: pos.y, origW: item.width, origH: item.height, origX: item.x, origY: item.y, handle })
+    } else {
+      setDragging({ index, startX: pos.x, startY: pos.y, origX: item.x, origY: item.y })
+    }
+  }
+
+  useEffect(() => {
+    if (!dragging && !resizing) return
+    const handleMouseMove = (e) => {
+      const pos = toCanvas(e.clientX, e.clientY)
+      if (dragging) {
+        const dx = pos.x - dragging.startX
+        const dy = pos.y - dragging.startY
+        setItems((prev) => prev.map((item, i) => {
+          if (i !== dragging.index) return item
+          return { ...item, x: Math.max(0, Math.min(canvasWidth - item.width, dragging.origX + dx)), y: Math.max(0, Math.min(canvasHeight - item.height, dragging.origY + dy)) }
+        }))
+      }
+      if (resizing) {
+        const dx = pos.x - resizing.startX
+        const dy = pos.y - resizing.startY
+        const h = resizing.handle
+        setItems((prev) => prev.map((item, i) => {
+          if (i !== resizing.index) return item
+          let newX = resizing.origX, newY = resizing.origY, newW = resizing.origW, newH = resizing.origH
+          if (h.includes('e')) newW = Math.max(40, resizing.origW + dx)
+          if (h.includes('w')) { newW = Math.max(40, resizing.origW - dx); newX = resizing.origX + (resizing.origW - newW) }
+          if (h.includes('s')) newH = Math.max(40, resizing.origH + dy)
+          if (h.includes('n')) { newH = Math.max(40, resizing.origH - dy); newY = resizing.origY + (resizing.origH - newH) }
+          newX = Math.max(0, Math.min(canvasWidth - newW, newX))
+          newY = Math.max(0, Math.min(canvasHeight - newH, newY))
+          return { ...item, x: newX, y: newY, width: newW, height: newH }
+        }))
+      }
+    }
+    const handleMouseUp = () => {
+      setDragging(null)
+      setResizing(null)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp) }
+  }, [dragging, resizing, canvasWidth, canvasHeight, setItems])
+
+  const pw = Math.round(canvasWidth * previewScale)
+  const ph = Math.round(canvasHeight * previewScale)
+
+  const cursors = { nw: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', se: 'nwse-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' }
+
+  return (
+    <div ref={wrapperRef} className="space-y-2 pt-3 border-t border-[--color-border]/60">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-[--color-text-2]">Preview Kolase Custom</span>
+        <span className="text-[10px] text-[--color-text-3]">{canvasWidth} × {canvasHeight} px &middot; {items.length} gambar</span>
+      </div>
+      <div className="text-[10px] text-[--color-text-3]">Geser gambar untuk posisi &middot; Tarik tepi/pojok untuk resize</div>
+      <div
+        ref={containerRef}
+        className="relative border-2 border-dashed border-[--color-border-strong] rounded-lg bg-gray-100 mx-auto"
+        style={{ width: pw, height: ph, touchAction: 'none' }}
+        onMouseDown={() => { setActiveItem(null) }}
+      >
+        {/* Grid dots for visual reference */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="dots" x="0" y="0" width={20 * previewScale} height={20 * previewScale} patternUnits="userSpaceOnUse">
+              <circle cx={1} cy={1} r={0.8} fill="#999" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dots)" />
+        </svg>
+
+        {items.map((item, i) => {
+          const img = pageImages[item.pageIndex]
+          const isActive = activeItem === i
+          const isDragging = dragging?.index === i
+          return (
+            <div
+              key={i}
+              className={`absolute group select-none ${isDragging ? 'z-20' : 'z-10'}`}
+              style={{
+                left: item.x * previewScale,
+                top: item.y * previewScale,
+                width: item.width * previewScale,
+                height: item.height * previewScale,
+                cursor: isDragging ? 'grabbing' : 'grab',
+              }}
+              onMouseDown={(e) => handleMouseDown(e, i, null)}
+            >
+              {/* Image content */}
+              <div className={`w-full h-full border-2 overflow-hidden ${isActive ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-emerald-500'} rounded-sm transition-shadow`}>
+                {img ? (
+                  <img src={img} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-xs text-gray-500">#{item.pageIndex + 1}</div>
+                )}
+              </div>
+
+              {/* Label */}
+              <div className="absolute top-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm pointer-events-none">
+                #{i + 1}
+              </div>
+
+              {/* Size label when active */}
+              {isActive && (
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-blue-600/90 px-1.5 py-0.5 text-[8px] font-mono font-bold text-white pointer-events-none whitespace-nowrap">
+                  {Math.round(item.width)}×{Math.round(item.height)}
+                </div>
+              )}
+
+              {/* Resize handles — always visible when active, hover otherwise */}
+              {['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'].map((h) => (
+                <div
+                  key={h}
+                  className={`absolute bg-white border-2 border-emerald-600 rounded-sm transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  style={{
+                    width: h === 'n' || h === 's' ? 20 : 10,
+                    height: h === 'e' || h === 'w' ? 20 : 10,
+                    ...(h.includes('n') ? { top: -5 } : h.includes('s') ? { bottom: -5 } : { top: 'calc(50% - 5px)' }),
+                    ...(h.includes('w') ? { left: -5 } : h.includes('e') ? { right: -5 } : { left: 'calc(50% - 5px)' }),
+                    cursor: cursors[h],
+                  }}
+                  onMouseDown={(e) => handleMouseDown(e, i, h)}
+                />
+              ))}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -717,8 +936,9 @@ export default function MergePDF() {
         } else if (imageLayout === 'collage') {
           // Collage/Grid layout
           const gap = imageGap
-          const cols = collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-1x2' ? 1 : 2
-          const rows = collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-2x1' ? 1 : 2
+          const isCustom = collagePreset === 'custom'
+          const cols = isCustom ? 1 : (collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-1x2' ? 1 : 2)
+          const rows = isCustom ? 1 : (collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-2x1' ? 1 : 2)
           
           const masterCanvas = document.createElement('canvas')
           masterCanvas.width = collageWidth
@@ -731,26 +951,34 @@ export default function MergePDF() {
             masterCtx.fillRect(0, 0, collageWidth, collageHeight)
           }
 
-          // Calculate cell dimensions
-          const cellW = Math.floor((collageWidth - (cols - 1) * gap) / cols)
-          const cellH = Math.floor((collageHeight - (rows - 1) * gap) / rows)
+          if (isCustom && collageItems.length > 0) {
+            // Custom mode – use saved positions/sizes directly (already in canvas coords)
+            for (let i = 0; i < Math.min(pageCanvasList.length, collageItems.length); i++) {
+              const ci = collageItems[i]
+              const item = pageCanvasList[ci.pageIndex] || pageCanvasList[i]
+              if (!item) continue
+              masterCtx.drawImage(item.canvas, ci.x, ci.y, ci.width, ci.height)
+            }
+          } else {
+            // Preset grid mode
+            const cellW = Math.floor((collageWidth - (cols - 1) * gap) / cols)
+            const cellH = Math.floor((collageHeight - (rows - 1) * gap) / rows)
 
-          // Draw images in grid
-          for (let i = 0; i < Math.min(pageCanvasList.length, cols * rows); i++) {
-            const item = pageCanvasList[i]
-            const col = i % cols
-            const row = Math.floor(i / cols)
-            const x = col * (cellW + gap)
-            const y = row * (cellH + gap)
-            
-            // Scale to fit cell while maintaining aspect ratio
-            const scale = Math.min(cellW / item.width, cellH / item.height)
-            const drawW = Math.floor(item.width * scale)
-            const drawH = Math.floor(item.height * scale)
-            const drawX = x + Math.floor((cellW - drawW) / 2)
-            const drawY = y + Math.floor((cellH - drawH) / 2)
-            
-            masterCtx.drawImage(item.canvas, drawX, drawY, drawW, drawH)
+            for (let i = 0; i < Math.min(pageCanvasList.length, cols * rows); i++) {
+              const item = pageCanvasList[i]
+              const col = i % cols
+              const row = Math.floor(i / cols)
+              const x = col * (cellW + gap)
+              const y = row * (cellH + gap)
+              
+              const scale = Math.min(cellW / item.width, cellH / item.height)
+              const drawW = Math.floor(item.width * scale)
+              const drawH = Math.floor(item.height * scale)
+              const drawX = x + Math.floor((cellW - drawW) / 2)
+              const drawY = y + Math.floor((cellH - drawH) / 2)
+              
+              masterCtx.drawImage(item.canvas, drawX, drawY, drawW, drawH)
+            }
           }
 
           const dataUrl = masterCanvas.toDataURL(mimeType, isJpg ? 0.92 : undefined)
@@ -1042,12 +1270,13 @@ export default function MergePDF() {
               {imageLayout === 'collage' && (
                 <div className="space-y-3 pt-2 border-t border-[--color-border]/60">
                   <div className="text-xs font-semibold text-[--color-text-2]">Pilih Tata Letak Kolase:</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
                       { id: 'grid-2x2', label: '2 × 2', desc: '4 gambar' },
                       { id: 'grid-3x3', label: '3 × 3', desc: '9 gambar' },
                       { id: 'grid-1x2', label: '1 × 2', desc: '2 gambar vertikal' },
                       { id: 'grid-2x1', label: '2 × 1', desc: '2 gambar horizontal' },
+                      { id: 'custom', label: 'Custom', desc: 'Drag & resize' },
                     ].map((preset) => (
                       <button
                         key={preset.id}
@@ -1106,6 +1335,17 @@ export default function MergePDF() {
                       <span className="font-mono text-emerald-500 font-bold text-[11px]">{imageGap}px</span>
                     </div>
                   </div>
+
+                  {/* Custom collage interactive preview */}
+                  {collagePreset === 'custom' && (
+                    <CollageCustomPreview
+                      pages={activePages}
+                      canvasWidth={collageWidth}
+                      canvasHeight={collageHeight}
+                      items={collageItems}
+                      setItems={setCollageItems}
+                    />
+                  )}
                 </div>
               )}
             </div>
