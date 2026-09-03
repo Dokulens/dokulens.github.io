@@ -5,7 +5,7 @@ import ToolShell from '../../components/ToolShell'
 /* ──────────────────────────────────────────────────────────────────────────
    CollageGridEditor – Grid editor with draggable borders + image drag-drop
    ────────────────────────────────────────────────────────────────────────── */
-function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWidths, setColWidths, rowHeights, setRowHeights, cellMap, setCellMap, onDropImage }) {
+function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWidths, setColWidths, rowHeights, setRowHeights, cellMap, setCellMap, onDropImage, gap }) {
   const containerRef = useRef(null)
   const wrapperRef = useRef(null)
   const [previewScale, setPreviewScale] = useState(1)
@@ -607,6 +607,7 @@ export default function ImageCollage() {
             cellMap={cellMap}
             setCellMap={setCellMap}
             onDropImage={handleCellDrop}
+            gap={gap}
           />
         </div>
       )}
