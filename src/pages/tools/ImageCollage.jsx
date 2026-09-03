@@ -19,7 +19,7 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
       const p = wrapperRef.current?.parentElement
       if (!p) return
       const aw = p.clientWidth - 32
-      const ah = Math.max(350, window.innerHeight * 0.5)
+      const ah = Math.max(500, window.innerHeight * 0.7)
       setPreviewScale(Math.min(aw / canvasW, ah / canvasH, 1))
     }
     calc()
