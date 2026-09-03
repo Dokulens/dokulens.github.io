@@ -359,26 +359,37 @@ export default function ImageCollage() {
     setResult(null)
   }
 
+  const redistribute = (count, total, gapCount) => {
+    const usable = total - gapCount * gap
+    const each = Math.floor(usable / count)
+    const rem = usable - each * count
+    const arr = Array(count).fill(each)
+    for (let i = 0; i < rem; i++) arr[i]++
+    return arr
+  }
+
   const addCol = () => {
     if (colWidths.length >= 6) return
-    const avg = Math.floor(canvasW / (colWidths.length + 1))
-    setColWidths((p) => [...p, avg])
+    const n = colWidths.length + 1
+    setColWidths(redistribute(n, canvasW, n - 1))
     setCellMap((p) => p.map((r) => [...r, null]))
   }
   const removeCol = () => {
     if (colWidths.length <= 1) return
-    setColWidths((p) => p.slice(0, -1))
+    const n = colWidths.length - 1
+    setColWidths(redistribute(n, canvasW, n - 1))
     setCellMap((p) => p.map((r) => r.slice(0, -1)))
   }
   const addRow = () => {
     if (rowHeights.length >= 6) return
-    const avg = Math.floor(canvasH / (rowHeights.length + 1))
-    setRowHeights((p) => [...p, avg])
+    const n = rowHeights.length + 1
+    setRowHeights(redistribute(n, canvasH, n - 1))
     setCellMap((p) => [...p, Array(colWidths.length).fill(null)])
   }
   const removeRow = () => {
     if (rowHeights.length <= 1) return
-    setRowHeights((p) => p.slice(0, -1))
+    const n = rowHeights.length - 1
+    setRowHeights(redistribute(n, canvasH, n - 1))
     setCellMap((p) => p.slice(0, -1))
   }
 
