@@ -11,9 +11,8 @@ import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
 
-// ---------- Konstanta koordinat (sesuai spesifikasi) ----------
-const Y_TOLERANCE = 5 // px — teks selisih Y < 5 → satu baris
-const X_GAP_THRESHOLD = 28 // px — lompat X > 28 → kolom baru
+const Y_TOLERANCE = 5
+const X_GAP_THRESHOLD = 28
 const PT_TO_TWIP = 20
 
 function mergeClosePositions(positions, threshold = 8) {
@@ -21,9 +20,8 @@ function mergeClosePositions(positions, threshold = 8) {
   const sorted = [...new Set(positions)].sort((a, b) => a - b)
   const merged = [sorted[0]]
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] - merged[merged.length - 1] < threshold) {
-      merged[merged.length - 1] = (merged[merged.length - 1] + sorted[i]) / 2
-    } else merged.push(sorted[i])
+    if (sorted[i] - merged[merged.length - 1] < threshold) merged[merged.length - 1] = (merged[merged.length - 1] + sorted[i]) / 2
+    else merged.push(sorted[i])
   }
   return merged
 }
@@ -42,8 +40,7 @@ function detectTable(textItems, pageWidth) {
     grid.push(row)
   }
   const filled = grid.flat().filter((c) => c.length > 0).length
-  const total = grid.length * grid[0].length
-  if (filled / total < 0.3) return null
+  if (filled / (grid.length * grid[0].length) < 0.3) return null
   return grid
 }
 function detectHeading(textItems, medianSize) {
@@ -64,35 +61,38 @@ function detectList(text) {
 }
 function groupByY2Lines(sortedItems) {
   const lines = []
-  let currentLine = []
+  let cur = []
   let lineY = null
   for (const item of sortedItems) {
     if (lineY === null || Math.abs(item.y - lineY) < Y_TOLERANCE) {
-      currentLine.push(item)
-      lineY = lineY === null ? item.y : (lineY * (currentLine.length - 1) + item.y) / currentLine.length
+      cur.push(item)
+      lineY = lineY === null ? item.y : (lineY * (cur.length - 1) + item.y) / cur.length
     } else {
-      lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
-      currentLine = [item]
+      lines.push({ items: [...cur].sort((a, b) => a.x0 - b.x0), y: lineY })
+      cur = [item]
       lineY = item.y
     }
   }
-  if (currentLine.length) lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
+  if (cur.length) lines.push({ items: [...cur].sort((a, b) => a.x0 - b.x0), y: lineY })
   return lines
 }
+// hasil: runs dengan gap + tabStops absolut + firstX untuk indent
 function buildRunsWithXGaps(lineItems) {
   const runs = []
   const tabStops = []
   let prevX1 = null
-  let curTabPosTwip = 0
+  const firstX = lineItems[0]?.x0 ?? 0
+  let curTabTwip = 0
   for (const item of lineItems) {
     if (prevX1 !== null) {
       const gap = item.x0 - prevX1
       if (gap > X_GAP_THRESHOLD) {
         const avgCharW = Math.max(4, (item.rawFontSize || 10) * 0.5)
         const extraSpaces = Math.max(2, Math.min(16, Math.round(gap / avgCharW)))
-        const tabPosTwip = Math.round((item.x0 - lineItems[0].x0) * PT_TO_TWIP)
+        // absolute position dari page left untuk tabStop
+        const tabPosTwip = Math.round(item.x0 * PT_TO_TWIP)
         if (gap > 60) {
-          tabStops.push({ type: TabStopType.LEFT, position: Math.max(tabPosTwip, curTabPosTwip + 240) })
+          tabStops.push({ type: TabStopType.LEFT, position: Math.max(tabPosTwip, curTabTwip + 240) })
           runs.push({ isGap: true, text: '\t' + ' '.repeat(extraSpaces) })
           curTabPosTwip = tabPosTwip
         } else runs.push({ isGap: true, text: ' '.repeat(extraSpaces) })
@@ -101,7 +101,7 @@ function buildRunsWithXGaps(lineItems) {
     runs.push(item)
     prevX1 = item.x1
   }
-  return { runs, tabStops }
+  return { runs, tabStops, firstX }
 }
 function resolvePdfFont(t, styles) {
   const styleObj = styles?.[t.fontName] || {}
@@ -117,10 +117,8 @@ function resolvePdfFont(t, styles) {
     const cleaned = (styleObj.fontFamily || t.fontName || '').replace(/^[A-Z]{2,6}\+/, '').trim()
     if (cleaned) font = cleaned
   }
-  let fh = 12
-  if (t.transform) fh = Math.hypot(t.transform[2] ?? 0, t.transform[3] ?? 12) || Math.abs(t.transform[3]) || 12
-  // color dari pdf.js styles? tidak tersedia, default hitam
-  return { font, bold, italic, fh, halfPt: Math.round(fh * 2), color: '#000000' }
+  const fh = t.transform ? (Math.hypot(t.transform[2] ?? 0, t.transform[3] ?? 12) || Math.abs(t.transform[3]) || 12) : 12
+  return { font, bold, italic, fh, halfPt: Math.round(fh * 2) }
 }
 async function renderPageToPngBytes(page, scale = 2) {
   const viewport = page.getViewport({ scale })
@@ -159,7 +157,6 @@ export default function PDFToDocx() {
       setProgressText('Membaca struktur PDF…')
       const pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) }).promise
       const totalPages = pdfDoc.numPages
-      // median
       const allFontSizes = []
       for (let i = 1; i <= totalPages; i++) {
         const page = await pdfDoc.getPage(i)
@@ -184,14 +181,12 @@ export default function PDFToDocx() {
         const orientation = pageWpt > pageHpt ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT
         const textContent = await page.getTextContent()
         const styles = textContent.styles || {}
-        // 1:1 transform X/Y + Math.hypot + view-aware (viewport sudah rotasi-aware) + margin twip
         const items = textContent.items.filter((t) => t.str?.trim()).map((t) => {
           const resolved = resolvePdfFont(t, styles)
-          // item.transform[4]=X, [5]=Y — absolut pdf user space
           return {
             text: t.str, x0: t.transform[4], y: t.transform[5], x1: t.transform[4] + (t.width || 0),
             font: resolved.font, fontSize: resolved.halfPt, rawFontSize: resolved.fh,
-            bold: resolved.bold, italic: resolved.italic, color: resolved.color,
+            bold: resolved.bold, italic: resolved.italic,
             transform: t.transform, width: t.width || 0,
           }
         })
@@ -201,13 +196,10 @@ export default function PDFToDocx() {
             const hasImg = await pageHasRasterImage(page)
             if (hasImg) {
               const png = await renderPageToPngBytes(page, 1.5)
-              children.push(new Paragraph({
-                children: [new ImageRun({ data: png.bytes, transformation: { width: Math.round(png.widthPt * 2.8), height: Math.round(png.heightPt * 2.8) }, type: 'png' })],
-              }))
+              children.push(new Paragraph({ children: [new ImageRun({ data: png.bytes, transformation: { width: Math.round(png.widthPt * 2.8), height: Math.round(png.heightPt * 2.8) }, type: 'png' })] }))
             } else children.push(new Paragraph({ text: '' }))
           } else children.push(new Paragraph({ text: '' }))
         } else {
-          // sort Y menurun, X menaik — 1:1 koordinat
           const sortedItems = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0)
           const tableGrid = detectTable(sortedItems, pageWpt)
           if (tableGrid && tableGrid.length >= 2 && tableGrid[0].length >= 2) {
@@ -222,22 +214,42 @@ export default function PDFToDocx() {
             }))
             children.push(new Paragraph({ text: '', spacing: { after: 120 } }))
           } else {
-            const lines = groupByY2Lines(sortedItems) // Y-Tolerance 5
-            for (const line of lines) {
+            const lines = groupByY2Lines(sortedItems)
+            let prevY = null
+            for (const lineObj of lines) {
+              const line = lineObj.items
+              const lineY = lineObj.y
               const fullText = line.map((t) => t.text).join(' ').trim()
-              if (!fullText) continue
+              if (!fullText) { prevY = lineY; continue }
+              // spacing before dari delta Y (editable tapi tetap 1:1 vertikal)
+              let spacingBefore = 0
+              if (prevY !== null) {
+                const delta = prevY - lineY
+                const expected = (line[0]?.rawFontSize || medianSize) * 1.2 + 2
+                if (delta > expected + 4) {
+                  // konversi pt delta → twip, kurangi expected agar tidak double
+                  const extraPt = delta - expected
+                  spacingBefore = Math.max(0, Math.min(480, Math.round(extraPt * PT_TO_TWIP)))
+                }
+              }
+              prevY = lineY
               const heading = detectHeading(line, medianSize)
               if (heading) {
+                const { runs, tabStops } = buildRunsWithXGaps(line)
+                const firstX = runs.find((r) => !r.isGap)?.x0 ?? line[0].x0
+                const indentLeft = Math.max(0, Math.min(wTwip - 720, Math.round(firstX * PT_TO_TWIP)))
                 children.push(new Paragraph({
-                  heading, spacing: { after: 200, line: 276 },
-                  children: line.map((it) => new TextRun({ text: it.text + ' ', size: it.fontSize, bold: true, font: it.font, color: it.color })),
+                  heading, spacing: { before: spacingBefore || 120, after: 200, line: 276 },
+                  indent: indentLeft > 120 ? { left: indentLeft } : undefined,
+                  tabStops: tabStops.length ? tabStops : undefined,
+                  children: line.map((it) => new TextRun({ text: it.text + ' ', size: it.fontSize, bold: true, font: it.font })),
                 }))
                 continue
               }
               const listMatch = detectList(fullText)
               if (listMatch) {
                 children.push(new Paragraph({
-                  spacing: { after: 80, line: 260 },
+                  spacing: { before: spacingBefore || 0, after: 80, line: 260 },
                   indent: { left: listMatch.type === 'bullet' ? 720 : 360, hanging: listMatch.type === 'bullet' ? 720 : 360 },
                   children: [
                     new TextRun({ text: listMatch.type === 'numbered' ? listMatch.number + ' ' : '• ', size: 20, font: 'Calibri' }),
@@ -246,14 +258,19 @@ export default function PDFToDocx() {
                 }))
                 continue
               }
-              // X-Distance → TabStop + spasi
-              const { runs, tabStops } = buildRunsWithXGaps(line)
+              // 1:1 X: indent absolut + tabStops absolut
+              const { runs, tabStops: ts, firstX } = buildRunsWithXGaps(line)
+              // firstX adalah X absolut dari page left (pt); indent = X - marginLeft (≈ 0.12" ≈ 8.6pt) → 1:1 X
+              // margin 0.12" tipis agar indent ≈ X asli; Word akan render X ≈ marginLeft + indent ≈ PDF X
+              const leftMarginPt = convertInchesToTwip(0.12) / PT_TO_TWIP
+              const indentLeft = Math.max(0, Math.min(wTwip - 720, Math.round((firstX - leftMarginPt) * PT_TO_TWIP)))
               children.push(new Paragraph({
-                spacing: { after: 90, line: 260 },
-                tabStops: tabStops.length ? tabStops : undefined,
+                spacing: { before: spacingBefore, after: 0, line: 260 },
+                indent: indentLeft > 40 ? { left: indentLeft } : undefined,
+                tabStops: ts.length ? ts : undefined,
                 children: runs.map((r) => {
                   if (r.isGap) return new TextRun({ text: r.text, size: 20, font: 'Calibri' })
-                  return new TextRun({ text: r.text, size: r.fontSize, bold: r.bold, italics: r.italic, font: r.font, color: r.color })
+                  return new TextRun({ text: r.text, size: r.fontSize, bold: r.bold, italics: r.italic, font: r.font })
                 }),
               }))
             }
@@ -261,25 +278,16 @@ export default function PDFToDocx() {
           if (preserveImages) {
             const hasImg = await pageHasRasterImage(page)
             if (hasImg) {
-              // hanya fallback jika halaman memang bergambar tapi teks juga ada — raster opsional (hindari duplikasi berlebihan)
-              // gunakan thumbnail kecil di akhir sebagai fidelity gambar
               const png = await renderPageToPngBytes(page, 1.45)
               const maxWpx = Math.round((wTwip / PT_TO_TWIP) * 3.2)
               const ratio = Math.min(1, maxWpx / png.canvasW)
               children.push(new Paragraph({ spacing: { before: 120 }, children: [] }))
-              children.push(new Paragraph({
-                children: [new ImageRun({ data: png.bytes, transformation: { width: Math.round(png.canvasW * ratio * 0.55), height: Math.round(png.canvasH * ratio * 0.55) }, type: 'png' })],
-              }))
+              children.push(new Paragraph({ children: [new ImageRun({ data: png.bytes, transformation: { width: Math.round(png.canvasW * ratio * 0.55), height: Math.round(png.canvasH * ratio * 0.55) }, type: 'png' })] }))
             }
           }
         }
         sections.push({
-          properties: {
-            page: {
-              size: { width: wTwip, height: hTwip, orientation },
-              margin: { top: convertInchesToTwip(0.55), bottom: convertInchesToTwip(0.55), left: convertInchesToTwip(0.55), right: convertInchesToTwip(0.55), header: 708, footer: 708, gutter: 0 },
-            },
-          },
+          properties: { page: { size: { width: wTwip, height: hTwip, orientation }, margin: { top: convertInchesToTwip(0.35), bottom: convertInchesToTwip(0.35), left: convertInchesToTwip(0.12), right: convertInchesToTwip(0.12), header: 360, footer: 360, gutter: 0 } } },
           children: children.length ? children : [new Paragraph({ text: '' })],
         })
       }
@@ -293,14 +301,14 @@ export default function PDFToDocx() {
   }
   const base = file ? stripExt(file.name) : 'document'
   return (
-    <ToolShell title="PDF → Word (.docx)" description="Konversi PDF ke Word 1:1 — ukuran kertas per halaman, posisi X/Y, font, dan gambar dipertahankan.">
+    <ToolShell title="PDF → Word (.docx)" description="Konversi PDF ke Word 1:1 editable — ukuran kertas, posisi X (indent+TabStop) & Y (spacing before) per baris, font, tabel, dan gambar dipertahankan.">
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diubah ke Word" />
       {file && <FilePreview file={file} />}
       {file && (
         <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3 animate-fade-in">
           <div className="flex items-center justify-between text-sm"><span className="font-medium text-[--color-text] truncate">{file.name}</span><span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span></div>
-          <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer select-none"><input type="checkbox" checked={preserveImages} onChange={(e) => setPreserveImages(e.target.checked)} className="accent-[--color-brand]" />Sertakan gambar (raster per halaman) untuk fidelity 1:1</label>
-          <div className="flex items-start gap-2 rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-xs text-[--color-text-2]"><FileText size={16} className="shrink-0 text-[--color-brand] mt-0.5" /><span>1:1 — <code className="font-mono">item.transform[4]=X, [5]=Y</code> + <code>Math.hypot(transform[2],transform[3])</code> + <code>page.view</code>/viewport, Sections per halaman (twip), Y-Tolerance 5px, X-Gap 28px→TabStop.</span></div>
+          <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer select-none"><input type="checkbox" checked={preserveImages} onChange={(e) => setPreserveImages(e.target.checked)} className="accent-[--color-brand]" />Sertakan gambar (raster per halaman)</label>
+          <div className="flex items-start gap-2 rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-xs text-[--color-text-2]"><FileText size={16} className="shrink-0 text-[--color-brand] mt-0.5" /><span>1:1 editable — <code className="font-mono">X=transform[4]</code> → <code className="font-mono">indent.left</code> + <code>TabStop LEFT</code>, <code className="font-mono">Y=transform[5]</code> → <code>spacing.before</code> (delta Y), <code>Math.hypot</code>, <code>page.view</code> → Sections twip.</span></div>
         </div>
       )}
       {processing && (<div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in"><ProgressBar value={progress} label={progressText} /></div>)}
