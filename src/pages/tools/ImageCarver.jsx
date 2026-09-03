@@ -442,7 +442,7 @@ export default function ImageCarver() {
 
   useEffect(() => {
     drawOriginal()
-  }, [drawOriginal])
+  }, [origW, origH, drawOriginal])
 
   useEffect(() => {
     drawResult()
