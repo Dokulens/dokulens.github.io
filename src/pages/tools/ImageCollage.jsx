@@ -587,6 +587,27 @@ export default function ImageCollage() {
                 className="w-20 rounded-lg border border-[--color-border] bg-[--color-surface] px-2 py-1.5 text-xs text-[--color-text] outline-none focus:ring-2 focus:ring-emerald-500" />
               <span className="text-[10px] text-[--color-text-3]">px</span>
             </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-medium text-[--color-text-3] mr-0.5">Rasio:</span>
+              {[
+                { label: '1:1', w: 1000, h: 1000 },
+                { label: '4:3', w: 1200, h: 900 },
+                { label: '3:4', w: 900, h: 1200 },
+                { label: '16:9', w: 1600, h: 900 },
+                { label: '9:16', w: 900, h: 1600 },
+                { label: '3:2', w: 1200, h: 800 },
+                { label: '2:3', w: 800, h: 1200 },
+              ].map((r) => (
+                <button key={r.label} type="button" onClick={() => { setCanvasW(r.w); setCanvasH(r.h) }}
+                  className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+                    canvasW === r.w && canvasH === r.h
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-[--color-border] text-[--color-text-3] hover:border-[--color-border-strong] hover:text-[--color-text-2]'
+                  }`}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-[--color-text-2]">Jarak:</span>
               <input type="range" min="0" max="50" step="5" value={gap}
