@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, MoreVertical, Send, Check, Pencil } from 'lucide-react'
+import { X, MoreVertical, Send, Check, Pencil, Download } from 'lucide-react'
 import DownloadButton from './DownloadButton'
 import { getTargetsForOutput } from '../utils/toolRegistry'
 
