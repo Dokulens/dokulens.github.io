@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Shrink, RotateCcw, Paintbrush, ShieldCheck, ShieldAlert,
-  Play, Square, Sparkles, Download, Activity, Lock, Unlock, Trash2, Image as ImageIcon,
+  Shrink, RotateCcw, Paintbrush,
+  Square, Sparkles, Activity, Trash2,
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -766,268 +766,228 @@ export default function ImageCarver() {
   }
 
   const baseName = file ? stripExt(file.name) : 'image'
+  const hasImage = !!origImageDataRef.current
+  const step = hasImage ? (carveStage === 0 ? 2 : 3) : 1
 
   return (
     <ToolShell
       title="Image Carver (Content-Aware Seam Carving)"
-      description="Hapus objek bertarget dengan masking warna merah (Low Energy) atau lindungi objek penting (Protect High Energy), serta kecilkan resolusi gambar tanpa merusak proporsi objek."
+      description="Hapus objek bertarget atau lindungi objek penting dengan masking, lalu cepatkan resolusi tanpa merusak proporsi — bisa dijalankan berulang tanpa muat ulang."
     >
-      {/* Top File Input & Action Controls */}
-      <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <DropZone
-              accept="image/*,.jpg,.jpeg,.png,.webp"
-              multiple={false}
-              onFiles={handleFileSelect}
-              disabled={isCarving}
-              label="Pilih foto"
-              hint="JPG, PNG, WebP"
-            />
-            <button
-              onClick={handleReset}
-              disabled={isCarving || !sourceImage}
-              className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              <RotateCcw size={14} /> Reset
-            </button>
-            <button
-              onClick={clearMask}
-              disabled={isCarving || !sourceImage}
-              className="flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              <Trash2 size={14} /> Hapus Mask
-            </button>
+            {/* Empty state */}
+      {!hasImage && (
+        <div className="rounded-xl border-2 border-dashed border-(--color-border-strong) bg-(--color-surface) p-8">
+          <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Pilih foto untuk mulai" hint="JPG, PNG, WebP — diproses 100% di browser" />
+          <p className="mt-3 text-center text-xs text-(--color-text-3)">
+            Lukis mask merah (hapus objek) / hijau (lindungi), lalu carve — bisa diulang tanpa upload ulang.
+          </p>
+        </div>
+      )}
+
+      {/* Stepper */}
+      {hasImage && (
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {['Unggah & Atur Ukuran', 'Lukis Mask Area', 'Carve & Ulangi'].map((label, i) => {
+            const active = step === i + 1
+            const done = step > i + 1
+            return (
+              <div
+                key={label}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold transition-colors ${
+                  active ? 'border-(--color-brand) bg-(--color-brand-light) text-(--color-brand)' : done ? 'border-(--color-success) bg-(--color-success-light) text-(--color-success)' : 'border-(--color-border) bg-(--color-surface) text-(--color-text-3)'
+                }`}
+              >
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-(--color-brand) text-white' : done ? 'bg-(--color-success) text-white' : 'bg-(--color-surface-3) text-(--color-text-3)'}`}>
+                  {done ? '✓' : i + 1}
+                </span>
+                <span className="truncate">{label}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Workspace */}
+      <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
+        {/* Row 1: preview + mask */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left: working canvas + mask tools */}
+          <div className="space-y-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-sm font-bold text-(--color-text)">
+                <Paintbrush size={15} className="text-(--color-brand)" />
+                {carveStage === 0 ? '1 · Foto Asli & Masking' : `${carveStage + 1} · Hasil Sebelumnya & Masking`}
+              </span>
+              {hasImage && (
+                <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
+                  Lukis pada kanvas
+                </span>
+              )}
+            </div>
+
+            {/* Mask tool bar */}
+            {hasImage && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-(--color-surface-2) p-2.5 text-xs border border-(--color-border)">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-(--color-text-2)">Kuas:</span>
+                  <input
+                    type="range"
+                    min="4"
+                    max="40"
+                    value={brushSize}
+                    disabled={isCarving}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="w-20 accent-(--color-brand) cursor-pointer"
+                  />
+                  <span className="font-mono text-[11px] text-(--color-text-3) w-6">{brushSize}px</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex cursor-pointer items-center gap-1.5">
+                    <input type="radio" name="maskMode" checked={maskMode === 'remove'} disabled={isCarving} onChange={() => setMaskMode('remove')} className="accent-red-500 cursor-pointer" />
+                    <span className="flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400">
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" /> Hapus
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-1.5">
+                    <input type="radio" name="maskMode" checked={maskMode === 'protect'} disabled={isCarving} onChange={() => setMaskMode('protect')} className="accent-emerald-500 cursor-pointer" />
+                    <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> Lindungi
+                    </span>
+                  </label>
+                </div>
+                <button
+                  onClick={clearMask}
+                  disabled={isCarving}
+                  className="ml-auto flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  <Trash2 size={12} /> Hapus Mask
+                </button>
+              </div>
+            )}
+
+            <div className="flex h-72 min-h-[260px] items-center justify-center overflow-auto rounded-lg border border-(--color-border) bg-black/90 p-2">
+              {hasImage ? (
+                <canvas
+                  ref={origCanvasRef}
+                  onMouseDown={startDraw}
+                  onMouseMove={moveDraw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
+                  onTouchStart={startDraw}
+                  onTouchMove={moveDraw}
+                  onTouchEnd={endDraw}
+                  className="block max-h-[270px] w-auto h-auto max-w-full cursor-crosshair rounded select-none touch-none"
+                />
+              ) : (
+                <p className="text-xs text-gray-400 text-center p-8">Unggah foto untuk mulai melukis mask.</p>
+              )}
+            </div>
           </div>
 
-          <div className="text-xs text-(--color-text-3)">
-            {origW && origH ? (
-              <div className="text-right space-y-0.5">
-                <span className="font-semibold text-(--color-text) block">{origW} × {origH} px</span>
-                {carveStage > 0 && (
-                  <span className="text-[10px] text-(--color-brand) font-semibold">Tahap {carveStage} · {totalSeams} seam terpotong</span>
+          {/* Right: result preview */}
+          <div className="space-y-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-sm font-bold text-(--color-text)">
+                <Sparkles size={15} className="text-(--color-brand)" /> Hasil Carving
+              </span>
+              {resultSizeText !== '—' && (
+                <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">{resultSizeText}</span>
+              )}
+            </div>
+
+            <div className="flex h-72 min-h-[260px] items-center justify-center overflow-auto rounded-lg border border-(--color-border) bg-black/90 p-2">
+              <canvas ref={resCanvasRef} className="block max-h-[270px] w-auto h-auto max-w-full rounded select-none" />
+            </div>
+
+            {/* Carve action + stats */}
+            {hasImage && (
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] text-(--color-text-3)">
+                  <span>
+                    Ukuran kerja: <strong className="text-(--color-text)">{origW} × {origH} px</strong>
+                  </span>
+                  {carveStage > 0 && (
+                    <span className="font-semibold text-(--color-brand)">{totalSeams} seam terpotong</span>
+                  )}
+                </div>
+                {!isCarving ? (
+                  <button
+                    onClick={runCarve}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-brand-hover) transition-colors cursor-pointer shadow-sm active:scale-[0.99]"
+                  >
+                    <Shrink size={15} /> {carveStage === 0 ? 'Mulai Carve' : 'Carve Lagi'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStop}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
+                  >
+                    <Square size={15} /> Hentikan
+                  </button>
                 )}
               </div>
-            ) : (
-              'Belum ada gambar'
             )}
           </div>
         </div>
 
-        {/* Dimension Sliders & Keep Ratio Options */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 border-t border-(--color-border) text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-(--color-text-2)">Lebar:</span>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={widthPct}
-              disabled={isCarving}
-              onChange={(e) => handleWidthChange(Number(e.target.value))}
-              className="w-24 accent-(--color-brand) cursor-pointer"
-            />
-            <input
-              type="number"
-              min="10"
-              max="100"
-              value={widthPct}
-              disabled={isCarving}
-              onChange={(e) => handleWidthChange(Number(e.target.value))}
-              className="w-14 text-center rounded border border-(--color-border) bg-(--color-surface-2) px-1 py-0.5 text-xs text-(--color-text)"
-            />
-            <span className="text-(--color-text-3)">%</span>
-          </div>
+        {/* Row 2: controls */}
+        {hasImage && (
+          <div className="space-y-3 border-t border-(--color-border) pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 space-y-2">
+                <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">
+                  Lebar
+                  <span className="font-mono text-(--color-brand)">{widthPct}%</span>
+                </span>
+                <input type="range" min="10" max="100" value={widthPct} disabled={isCarving} onChange={(e) => handleWidthChange(Number(e.target.value))} className="w-full accent-(--color-brand) cursor-pointer" />
+              </label>
+              <label className="rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 space-y-2">
+                <span className="flex items-center justify-between text-[11px] font-semibold text-(--color-text-2)">
+                  Tinggi
+                  <span className="font-mono text-(--color-brand)">{heightPct}%</span>
+                </span>
+                <input type="range" min="10" max="100" value={heightPct} disabled={isCarving} onChange={(e) => handleHeightChange(Number(e.target.value))} className="w-full accent-(--color-brand) cursor-pointer" />
+              </label>
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 text-[11px] font-semibold text-(--color-text-2)">
+                <span>Jaga Rasio</span>
+                <input type="checkbox" checked={keepRatio} disabled={isCarving} onChange={(e) => { setKeepRatio(e.target.checked); if (e.target.checked) updateKeepRatio('width', widthPct, heightPct) }} className="accent-(--color-brand) cursor-pointer" />
+              </label>
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3 text-[11px] font-semibold text-(--color-text-2)">
+                <span>Pratinjau Langsung</span>
+                <input type="checkbox" checked={livePreview} disabled={isCarving} onChange={(e) => setLivePreview(e.target.checked)} className="accent-(--color-brand) cursor-pointer" />
+              </label>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-(--color-text-2)">Tinggi:</span>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={heightPct}
-              disabled={isCarving}
-              onChange={(e) => handleHeightChange(Number(e.target.value))}
-              className="w-24 accent-(--color-brand) cursor-pointer"
-            />
-            <input
-              type="number"
-              min="10"
-              max="100"
-              value={heightPct}
-              disabled={isCarving}
-              onChange={(e) => handleHeightChange(Number(e.target.value))}
-              className="w-14 text-center rounded border border-(--color-border) bg-(--color-surface-2) px-1 py-0.5 text-xs text-(--color-text)"
-            />
-            <span className="text-(--color-text-3)">%</span>
-          </div>
-
-          <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-(--color-text)">
-            <input
-              type="checkbox"
-              checked={keepRatio}
-              disabled={isCarving}
-              onChange={(e) => {
-                setKeepRatio(e.target.checked)
-                if (e.target.checked) updateKeepRatio('width', widthPct, heightPct)
-              }}
-              className="accent-(--color-brand) cursor-pointer"
-            />
-            {keepRatio ? <Lock size={13} className="text-(--color-brand)" /> : <Unlock size={13} className="text-(--color-text-3)" />}
-            <span>Jaga Rasio (Keep Ratio)</span>
-          </label>
-
-          <label className="flex items-center gap-1.5 cursor-pointer font-medium text-(--color-text-2)">
-            <input
-              type="checkbox"
-              checked={livePreview}
-              disabled={isCarving}
-              onChange={(e) => setLivePreview(e.target.checked)}
-              className="accent-(--color-brand) cursor-pointer"
-            />
-            <span>Pratinjau Langsung (Live Preview)</span>
-          </label>
-
-          <div className="flex items-center gap-2 ml-auto">
-            {!isCarving ? (
-              <button
-                onClick={runCarve}
-                disabled={!sourceImage}
-                className="flex items-center gap-1.5 rounded-lg bg-(--color-brand) px-4 py-2 text-xs font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
-              >
-                <Shrink size={14} /> Mulai Carving (Carve)
+            <div className="flex flex-wrap items-center gap-2">
+              <DropZone accept="image/*,.jpg,.jpeg,.png,.webp" multiple={false} onFiles={handleFileSelect} disabled={isCarving} label="Pilih foto" hint="JPG, PNG, WebP" />
+              <button onClick={handleReset} disabled={isCarving} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-50 transition-colors cursor-pointer">
+                <RotateCcw size={14} /> Reset ke Asli
               </button>
-            ) : (
-              <button
-                onClick={handleStop}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
-              >
-                <Square size={14} /> Hentikan (Stop)
-              </button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Progress & Status */}
-        {isCarving && (
-          <div className="space-y-2 pt-2 border-t border-(--color-border)">
-            <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
-              <span className="flex items-center gap-1.5">
-                <Activity size={14} className="animate-pulse" /> {statusText}
-              </span>
-              <span>{progress}%</span>
-            </div>
-            <ProgressBar value={progress} />
-          </div>
-        )}
-        {!isCarving && statusText && (
-          <p className="text-xs text-(--color-text-2) pt-1">{statusText}</p>
-        )}
-      </div>
-
-      {/* Grid Display (Original Canvas + Masking vs Result Canvas) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Card: Original + Masking Canvas */}
-        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3) flex items-center gap-1.5">
-              <Paintbrush size={14} className="text-(--color-brand)" /> {carveStage === 0 ? 'Foto Asli + Kuas Masking' : `Tahap ${carveStage + 1} — Hasil Sebelumnya + Kuas Masking`}
-            </span>
-            <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
-              Draw Mask
-            </span>
-          </div>
-
-          {/* Mask Tools Sub-Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-(--color-surface-2) p-2.5 text-xs border border-(--color-border)">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-(--color-text-2)">Ukuran Kuas:</span>
-              <input
-                type="range"
-                min="4"
-                max="40"
-                value={brushSize}
-                disabled={isCarving}
-                onChange={(e) => setBrushSize(Number(e.target.value))}
-                className="w-20 accent-(--color-brand) cursor-pointer"
-              />
-              <span className="font-mono text-[11px] text-(--color-text-3) w-6">{brushSize}px</span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="maskMode"
-                  checked={maskMode === 'remove'}
-                  disabled={isCarving}
-                  onChange={() => setMaskMode('remove')}
-                  className="accent-red-500 cursor-pointer"
-                />
-                <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" /> Hapus (Low Energy)
-                </span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="maskMode"
-                  checked={maskMode === 'protect'}
-                  disabled={isCarving}
-                  onChange={() => setMaskMode('protect')}
-                  className="accent-emerald-500 cursor-pointer"
-                />
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> Lindungi (High Energy)
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="relative flex justify-center items-center overflow-auto rounded border border-(--color-border) bg-black/90 p-2 min-h-[260px] max-h-[500px]">
-            {origImageDataRef.current ? (
-              <canvas
-                ref={origCanvasRef}
-                onMouseDown={startDraw}
-                onMouseMove={moveDraw}
-                onMouseUp={endDraw}
-                onMouseLeave={endDraw}
-                onTouchStart={startDraw}
-                onTouchMove={moveDraw}
-                onTouchEnd={endDraw}
-                className="block max-w-full max-h-[460px] w-auto h-auto cursor-crosshair rounded select-none touch-none"
-              />
+        {(isCarving || statusText) && (
+          <div className="space-y-2 border-t border-(--color-border) pt-3">
+            {isCarving ? (
+              <>
+                <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
+                  <span className="flex items-center gap-1.5">
+                    <Activity size={14} className="animate-pulse" /> {statusText}
+                  </span>
+                  <span>{progress}%</span>
+                </div>
+                <ProgressBar value={progress} />
+              </>
             ) : (
-              <p className="text-xs text-gray-400 text-center p-8">
-                Unggah foto terlebih dahulu untuk mulai melukis mask.
-              </p>
+              statusText && <p className="text-xs text-(--color-text-2)">{statusText}</p>
             )}
           </div>
-        </div>
-
-        {/* Right Card: Result Canvas */}
-        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3) flex items-center gap-1.5">
-              <Sparkles size={14} className="text-(--color-brand)" /> Hasil Carving
-            </span>
-            <div className="flex items-center gap-3 text-[11px] text-(--color-text-3)">
-              <span>Dimensi: <strong className="text-(--color-text)">{resultSizeText}</strong></span>
-              <span>Terpotong: <strong className="text-(--color-brand)">{seamsRemovedText} seams</strong></span>
-            </div>
-          </div>
-
-          <div className="relative flex justify-center items-center overflow-auto rounded border border-(--color-border) bg-black/90 p-2 min-h-[260px] max-h-[500px]">
-            <canvas
-              ref={resCanvasRef}
-              className="block max-w-full max-h-[460px] w-auto h-auto rounded select-none"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Result Card for final PNG Download */}
+      {/* Result download */}
       {resultBlob && (
         <ResultCard
           fileName={`${baseName}_carved.png`}
