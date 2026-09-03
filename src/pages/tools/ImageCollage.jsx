@@ -337,9 +337,16 @@ export default function ImageCollage() {
     setColWidths(colW)
     setRowHeights(rowH)
     setCellMap(map)
-  // Only on preset switch, not on image change (to preserve manual edits)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCustom])
+
+  // Redistribute grid sizes when canvas dimensions change
+  useEffect(() => {
+    if (!isCustom) return
+    setColWidths(redistribute(colWidths.length, canvasW, colWidths.length - 1))
+    setRowHeights(redistribute(rowHeights.length, canvasH, rowHeights.length - 1))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasW, canvasH, isCustom])
 
   const handleFiles = async (fileList) => {
     const newImgs = []
