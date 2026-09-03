@@ -1,182 +1,246 @@
-import { useState, useRef, useEffect } from 'react'
-import { Grid, Loader2, Download, Trash2, X, Upload } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Grid, Loader2, Download, X, Upload, Plus, Minus } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 
 /* ──────────────────────────────────────────────────────────────────────────
-   CollageCustomPreview – Interactive drag & resize collage editor
+   CollageGridEditor – Grid editor with draggable borders + image drag-drop
    ────────────────────────────────────────────────────────────────────────── */
-function CollageCustomPreview({ images, canvasWidth, canvasHeight, items, setItems }) {
+function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWidths, setColWidths, rowHeights, setRowHeights, cellMap, setCellMap }) {
   const containerRef = useRef(null)
   const wrapperRef = useRef(null)
   const [previewScale, setPreviewScale] = useState(1)
-  const [dragging, setDragging] = useState(null)
-  const [resizing, setResizing] = useState(null)
-  const [activeItem, setActiveItem] = useState(null)
+  const [dragLine, setDragLine] = useState(null) // { type:'col'|'row', index, startX, startY, origSizes[] }
+  const [swapDrag, setSwapDrag] = useState(null) // { fromRow, fromCol, imgIndex }
+  const [swapOver, setSwapOver] = useState(null) // { row, col }
+  const [activeCell, setActiveCell] = useState(null) // { row, col }
 
   useEffect(() => {
-    const calcScale = () => {
-      const parent = wrapperRef.current?.parentElement
-      if (!parent) return
-      const availW = parent.clientWidth - 32
-      const availH = Math.max(400, window.innerHeight * 0.55)
-      setPreviewScale(Math.min(availW / canvasWidth, availH / canvasHeight, 1))
+    const calc = () => {
+      const p = wrapperRef.current?.parentElement
+      if (!p) return
+      const aw = p.clientWidth - 32
+      const ah = Math.max(350, window.innerHeight * 0.5)
+      setPreviewScale(Math.min(aw / canvasW, ah / canvasH, 1))
     }
-    calcScale()
-    window.addEventListener('resize', calcScale)
-    return () => window.removeEventListener('resize', calcScale)
-  }, [canvasWidth, canvasHeight])
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [canvasW, canvasH])
 
-  useEffect(() => {
-    if (items.length === 0 && images.length > 0) {
-      const cols = Math.ceil(Math.sqrt(images.length))
-      const rows = Math.ceil(images.length / cols)
-      const cellW = Math.floor(canvasWidth / cols)
-      const cellH = Math.floor(canvasHeight / rows)
-      setItems(images.map((_, i) => ({
-        imageIndex: i,
-        x: (i % cols) * cellW,
-        y: Math.floor(i / cols) * cellH,
-        width: cellW,
-        height: cellH,
-      })))
-    }
-  }, [images, canvasWidth, canvasHeight, items.length, setItems])
+  const toCanvas = useCallback((cx, cy) => {
+    const r = containerRef.current.getBoundingClientRect()
+    return { x: (cx - r.left) / previewScale, y: (cy - r.top) / previewScale }
+  }, [previewScale])
 
-  const toCanvas = (clientX, clientY) => {
-    const rect = containerRef.current.getBoundingClientRect()
-    return {
-      x: Math.round((clientX - rect.left) / previewScale),
-      y: Math.round((clientY - rect.top) / previewScale),
-    }
-  }
+  // Compute cell rect from colWidths / rowHeights
+  const getCellRect = useCallback((row, col) => {
+    let x = 0
+    for (let c = 0; c < col; c++) x += colWidths[c]
+    let y = 0
+    for (let r = 0; r < row; r++) y += rowHeights[r]
+    return { x, y, w: colWidths[col], h: rowHeights[row] }
+  }, [colWidths, rowHeights])
 
-  const handleMouseDown = (e, index, handle) => {
+  // ── Column / Row border drag ──
+  const handleBorderMouseDown = (e, type, index) => {
     e.preventDefault()
     e.stopPropagation()
-    setActiveItem(index)
     const pos = toCanvas(e.clientX, e.clientY)
-    const item = items[index]
     document.body.style.userSelect = 'none'
-    document.body.style.cursor = handle ? `${handle}-resize` : 'move'
-    if (handle) {
-      setResizing({ index, startX: pos.x, startY: pos.y, origW: item.width, origH: item.height, origX: item.x, origY: item.y, handle })
-    } else {
-      setDragging({ index, startX: pos.x, startY: pos.y, origX: item.x, origY: item.y })
-    }
+    document.body.style.cursor = type === 'col' ? 'ew-resize' : 'ns-resize'
+    setDragLine({ type, index, startX: pos.x, startY: pos.y, origSizes: type === 'col' ? [...colWidths] : [...rowHeights] })
   }
 
   useEffect(() => {
-    if (!dragging && !resizing) return
-    const handleMouseMove = (e) => {
+    if (!dragLine) return
+    const onMove = (e) => {
       const pos = toCanvas(e.clientX, e.clientY)
-      if (dragging) {
-        const dx = pos.x - dragging.startX
-        const dy = pos.y - dragging.startY
-        setItems((prev) => prev.map((item, i) => {
-          if (i !== dragging.index) return item
-          return { ...item, x: Math.max(0, Math.min(canvasWidth - item.width, dragging.origX + dx)), y: Math.max(0, Math.min(canvasHeight - item.height, dragging.origY + dy)) }
-        }))
-      }
-      if (resizing) {
-        const dx = pos.x - resizing.startX
-        const dy = pos.y - resizing.startY
-        const h = resizing.handle
-        setItems((prev) => prev.map((item, i) => {
-          if (i !== resizing.index) return item
-          let newX = resizing.origX, newY = resizing.origY, newW = resizing.origW, newH = resizing.origH
-          if (h.includes('e')) newW = Math.max(40, resizing.origW + dx)
-          if (h.includes('w')) { newW = Math.max(40, resizing.origW - dx); newX = resizing.origX + (resizing.origW - newW) }
-          if (h.includes('s')) newH = Math.max(40, resizing.origH + dy)
-          if (h.includes('n')) { newH = Math.max(40, resizing.origH - dy); newY = resizing.origY + (resizing.origH - newH) }
-          newX = Math.max(0, Math.min(canvasWidth - newW, newX))
-          newY = Math.max(0, Math.min(canvasHeight - newH, newY))
-          return { ...item, x: newX, y: newY, width: newW, height: newH }
-        }))
+      if (dragLine.type === 'col') {
+        const dx = pos.x - dragLine.startX
+        const newSizes = [...dragLine.origSizes]
+        const minSize = 40
+        newSizes[dragLine.index] = Math.max(minSize, dragLine.origSizes[dragLine.index] + dx)
+        newSizes[dragLine.index + 1] = Math.max(minSize, dragLine.origSizes[dragLine.index + 1] - dx)
+        setColWidths(newSizes)
+      } else {
+        const dy = pos.y - dragLine.startY
+        const newSizes = [...dragLine.origSizes]
+        const minSize = 40
+        newSizes[dragLine.index] = Math.max(minSize, dragLine.origSizes[dragLine.index] + dy)
+        newSizes[dragLine.index + 1] = Math.max(minSize, dragLine.origSizes[dragLine.index + 1] - dy)
+        setRowHeights(newSizes)
       }
     }
-    const handleMouseUp = () => {
-      setDragging(null)
-      setResizing(null)
+    const onUp = () => {
+      setDragLine(null)
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
     }
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp) }
-  }, [dragging, resizing, canvasWidth, canvasHeight, setItems])
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [dragLine, toCanvas, setColWidths, setRowHeights])
 
-  const pw = Math.round(canvasWidth * previewScale)
-  const ph = Math.round(canvasHeight * previewScale)
-  const cursors = { nw: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', se: 'nwse-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' }
+  // ── Image swap drag ──
+  const handleImageMouseDown = (e, row, col, imgIndex) => {
+    e.preventDefault()
+    e.stopPropagation()
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'grabbing'
+    setSwapDrag({ fromRow: row, fromCol: col, imgIndex })
+  }
+
+  useEffect(() => {
+    if (!swapDrag) return
+    const onMove = (e) => {
+      const pos = toCanvas(e.clientX, e.clientY)
+      // Find which cell the cursor is over
+      let cumX = 0
+      let hitCol = -1
+      for (let c = 0; c < colWidths.length; c++) {
+        if (pos.x >= cumX && pos.x < cumX + colWidths[c]) { hitCol = c; break }
+        cumX += colWidths[c]
+      }
+      let cumY = 0
+      let hitRow = -1
+      for (let r = 0; r < rowHeights.length; r++) {
+        if (pos.y >= cumY && pos.y < cumY + rowHeights[r]) { hitRow = r; break }
+        cumY += rowHeights[r]
+      }
+      if (hitRow >= 0 && hitCol >= 0) setSwapOver({ row: hitRow, col: hitCol })
+      else setSwapOver(null)
+    }
+    const onUp = () => {
+      if (swapOver && (swapOver.row !== swapDrag.fromRow || swapOver.col !== swapDrag.fromCol)) {
+        setCellMap((prev) => {
+          const next = prev.map((r) => [...r])
+          const temp = next[swapOver.row][swapOver.col]
+          next[swapOver.row][swapOver.col] = next[swapDrag.fromRow][swapDrag.fromCol]
+          next[swapDrag.fromRow][swapDrag.fromCol] = temp
+          return next
+        })
+      }
+      setSwapDrag(null)
+      setSwapOver(null)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [swapDrag, swapOver, toCanvas, colWidths, rowHeights, setCellMap])
+
+  const pw = Math.round(canvasW * previewScale)
+  const ph = Math.round(canvasH * previewScale)
 
   return (
     <div ref={wrapperRef} className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-[--color-text-2]">Preview Kolase</span>
-        <span className="text-[10px] text-[--color-text-3]">{canvasWidth} × {canvasHeight} px &middot; {items.length} gambar</span>
+        <span className="text-xs font-semibold text-[--color-text-2]">Preview Grid Custom</span>
+        <span className="text-[10px] text-[--color-text-3]">{canvasW}×{canvasH} px &middot; {gridCols}×{gridRows} grid</span>
       </div>
-      <div className="text-[10px] text-[--color-text-3]">Geser gambar untuk posisi &middot; Tarik tepi/pojok untuk resize</div>
+      <div className="text-[10px] text-[--color-text-3]">Tarik garis grid untuk resize kolom/baris &middot; Seret gambar untuk tukar posisi</div>
+
       <div
         ref={containerRef}
-        className="relative border-2 border-dashed border-[--color-border-strong] rounded-lg bg-gray-100 mx-auto"
+        className="relative border-2 border-[--color-border-strong] rounded-lg bg-gray-50 mx-auto overflow-hidden"
         style={{ width: pw, height: ph, touchAction: 'none' }}
-        onMouseDown={() => setActiveItem(null)}
       >
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="collage-dots" x="0" y="0" width={20 * previewScale} height={20 * previewScale} patternUnits="userSpaceOnUse">
-              <circle cx={1} cy={1} r={0.8} fill="#999" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#collage-dots)" />
-        </svg>
-
-        {items.map((item, i) => {
-          const img = images[item.imageIndex]
-          const isActive = activeItem === i
-          const isDraggingActive = dragging?.index === i
-          return (
-            <div
-              key={i}
-              className={`absolute group select-none ${isDraggingActive ? 'z-20' : 'z-10'}`}
-              style={{
-                left: item.x * previewScale,
-                top: item.y * previewScale,
-                width: item.width * previewScale,
-                height: item.height * previewScale,
-                cursor: isDraggingActive ? 'grabbing' : 'grab',
-              }}
-              onMouseDown={(e) => handleMouseDown(e, i, null)}
-            >
-              <div className={`w-full h-full border-2 overflow-hidden ${isActive ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-emerald-500'} rounded-sm transition-shadow`}>
-                {img ? (
-                  <img src={img.url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-xs text-gray-500">#{i + 1}</div>
+        {/* Cell backgrounds + images */}
+        {Array.from({ length: gridRows }).map((_, r) =>
+          Array.from({ length: gridCols }).map((_, c) => {
+            const rect = getCellRect(r, c)
+            const imgIdx = cellMap[r]?.[c]
+            const img = imgIdx != null ? images[imgIdx] : null
+            const isSwapTarget = swapOver?.row === r && swapOver?.col === c
+            const isSwapSource = swapDrag?.fromRow === r && swapDrag?.fromCol === c
+            return (
+              <div
+                key={`${r}-${c}`}
+                className={`absolute border transition-colors ${isSwapTarget ? 'border-blue-500 bg-blue-100/60 z-30' : 'border-gray-300 bg-white z-10'}`}
+                style={{
+                  left: rect.x * previewScale,
+                  top: rect.y * previewScale,
+                  width: rect.w * previewScale,
+                  height: rect.h * previewScale,
+                }}
+                onMouseDown={(e) => {
+                  if (img != null && !swapDrag) handleImageMouseDown(e, r, c, imgIdx)
+                }}
+                onMouseEnter={() => { if (swapDrag) setSwapOver({ row: r, col: c }) }}
+              >
+                {img && (
+                  <img
+                    src={img.url}
+                    alt=""
+                    className="w-full h-full object-cover pointer-events-none"
+                    draggable={false}
+                    style={{ opacity: isSwapSource ? 0.4 : 1 }}
+                  />
+                )}
+                {img && (
+                  <span className="absolute top-0.5 left-0.5 rounded bg-black/60 px-1 py-0.5 text-[8px] font-bold text-white pointer-events-none">
+                    #{imgIdx + 1}
+                  </span>
+                )}
+                {!img && !swapDrag && (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-300 pointer-events-none">
+                    {r * gridCols + c + 1}
+                  </div>
                 )}
               </div>
-              <div className="absolute top-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm pointer-events-none">
-                #{i + 1}
+            )
+          })
+        )}
+
+        {/* Draggable column borders */}
+        {Array.from({ length: gridCols - 1 }).map((_, i) => {
+          let xPos = 0
+          for (let c = 0; c <= i; c++) xPos += colWidths[c]
+          const isDragging = dragLine?.type === 'col' && dragLine.index === i
+          return (
+            <div
+              key={`col-${i}`}
+              className={`absolute z-40 ${isDragging ? 'bg-blue-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+              style={{
+                left: (xPos - 3) * previewScale,
+                top: 0,
+                width: 6 * previewScale,
+                height: ph,
+                cursor: 'ew-resize',
+                opacity: 0.7,
+              }}
+              onMouseDown={(e) => handleBorderMouseDown(e, 'col', i)}
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 text-[8px] text-white font-bold bg-emerald-600 rounded px-1 py-0.5 pointer-events-none whitespace-nowrap" style={{ fontSize: 7 * previewScale }}>
+                {Math.round(colWidths[i])}px
               </div>
-              {isActive && (
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-blue-600/90 px-1.5 py-0.5 text-[8px] font-mono font-bold text-white pointer-events-none whitespace-nowrap">
-                  {Math.round(item.width)}×{Math.round(item.height)}
-                </div>
-              )}
-              {['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'].map((h) => (
-                <div
-                  key={h}
-                  className={`absolute bg-white border-2 border-emerald-600 rounded-sm transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                  style={{
-                    width: h === 'n' || h === 's' ? 20 : 10,
-                    height: h === 'e' || h === 'w' ? 20 : 10,
-                    ...(h.includes('n') ? { top: -5 } : h.includes('s') ? { bottom: -5 } : { top: 'calc(50% - 5px)' }),
-                    ...(h.includes('w') ? { left: -5 } : h.includes('e') ? { right: -5 } : { left: 'calc(50% - 5px)' }),
-                    cursor: cursors[h],
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, i, h)}
-                />
-              ))}
+            </div>
+          )
+        })}
+
+        {/* Draggable row borders */}
+        {Array.from({ length: gridRows - 1 }).map((_, i) => {
+          let yPos = 0
+          for (let r = 0; r <= i; r++) yPos += rowHeights[r]
+          const isDragging = dragLine?.type === 'row' && dragLine.index === i
+          return (
+            <div
+              key={`row-${i}`}
+              className={`absolute z-40 ${isDragging ? 'bg-blue-500' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+              style={{
+                top: (yPos - 3) * previewScale,
+                left: 0,
+                height: 6 * previewScale,
+                width: pw,
+                cursor: 'ns-resize',
+                opacity: 0.7,
+              }}
+              onMouseDown={(e) => handleBorderMouseDown(e, 'row', i)}
+            >
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[8px] text-white font-bold bg-emerald-600 rounded px-1 py-0.5 pointer-events-none whitespace-nowrap" style={{ fontSize: 7 * previewScale }}>
+                {Math.round(rowHeights[i])}px
+              </div>
             </div>
           )
         })}
@@ -193,8 +257,24 @@ const PRESETS = [
   { id: 'grid-3x3', label: '3 × 3', desc: '9 gambar', cols: 3, rows: 3 },
   { id: 'grid-1x2', label: '1 × 2', desc: '2 vertikal', cols: 1, rows: 2 },
   { id: 'grid-2x1', label: '2 × 1', desc: '2 horizontal', cols: 2, rows: 1 },
-  { id: 'custom', label: 'Custom', desc: 'Drag & resize', cols: 0, rows: 0 },
+  { id: 'custom', label: 'Custom', desc: 'Grid editor', cols: 0, rows: 0 },
 ]
+
+function initGrid(cols, rows, cw, ch, imgCount) {
+  const colW = Array(cols).fill(Math.floor(cw / cols))
+  const rowH = Array(rows).fill(Math.floor(ch / rows))
+  // distribute remaining pixels
+  const remW = cw - colW.reduce((a, b) => a + b, 0)
+  for (let i = 0; i < remW; i++) colW[i % cols]++
+  const remH = ch - rowH.reduce((a, b) => a + b, 0)
+  for (let i = 0; i < remH; i++) rowH[i % rows]++
+
+  const map = Array.from({ length: rows }, () => Array(cols).fill(null))
+  for (let i = 0; i < Math.min(imgCount, rows * cols); i++) {
+    map[Math.floor(i / cols)][i % cols] = i
+  }
+  return { colW, rowH, map }
+}
 
 export default function ImageCollage() {
   const [images, setImages] = useState([])
@@ -204,11 +284,31 @@ export default function ImageCollage() {
   const [gap, setGap] = useState(0)
   const [bgColor, setBgColor] = useState('white')
   const [exportFormat, setExportFormat] = useState('png')
-  const [items, setItems] = useState([])
+
+  const pr = PRESETS.find((p) => p.id === preset) || PRESETS[0]
+  const isCustom = preset === 'custom'
+  const gCols = isCustom ? Math.max(1, Math.min(6, Math.ceil(Math.sqrt(images.length)))) : pr.cols
+  const gRows = isCustom ? Math.max(1, Math.min(6, Math.ceil(images.length / gCols))) : pr.rows
+
+  const [colWidths, setColWidths] = useState(() => Array(gCols).fill(Math.floor(canvasW / gCols)))
+  const [rowHeights, setRowHeights] = useState(() => Array(gRows).fill(Math.floor(canvasH / gRows)))
+  const [cellMap, setCellMap] = useState(() => Array.from({ length: gRows }, () => Array(gCols).fill(null)))
+
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
+
+  // Re-init grid when preset or image count changes
+  useEffect(() => {
+    if (!isCustom) return
+    const cols = Math.max(1, Math.min(6, Math.ceil(Math.sqrt(images.length))))
+    const rows = Math.max(1, Math.min(6, Math.ceil(images.length / cols)))
+    const { colW, rowH, map } = initGrid(cols, rows, canvasW, canvasH, images.length)
+    setColWidths(colW)
+    setRowHeights(rowH)
+    setCellMap(map)
+  }, [isCustom, images.length, canvasW, canvasH])
 
   const handleFiles = async (fileList) => {
     const newImgs = []
@@ -217,14 +317,11 @@ export default function ImageCollage() {
       const url = URL.createObjectURL(file)
       let w = 800, h = 600
       try {
-        const bmp = await createImageBitmap(file)
-        w = bmp.width; h = bmp.height
-        bmp.close()
+        const bmp = await createImageBitmap(file); w = bmp.width; h = bmp.height; bmp.close()
       } catch {}
       newImgs.push({ id: crypto.randomUUID(), file, url, width: w, height: h, name: file.name })
     }
     setImages((prev) => [...prev, ...newImgs])
-    setItems([])
     setResult(null)
   }
 
@@ -234,14 +331,36 @@ export default function ImageCollage() {
       if (removed) URL.revokeObjectURL(removed.url)
       return prev.filter((i) => i.id !== id)
     })
-    setItems([])
+    setResult(null)
   }
 
   const clearAll = () => {
     images.forEach((i) => URL.revokeObjectURL(i.url))
     setImages([])
-    setItems([])
     setResult(null)
+  }
+
+  const addCol = () => {
+    if (colWidths.length >= 6) return
+    const avg = Math.floor(canvasW / (colWidths.length + 1))
+    setColWidths((p) => [...p, avg])
+    setCellMap((p) => p.map((r) => [...r, null]))
+  }
+  const removeCol = () => {
+    if (colWidths.length <= 1) return
+    setColWidths((p) => p.slice(0, -1))
+    setCellMap((p) => p.map((r) => r.slice(0, -1)))
+  }
+  const addRow = () => {
+    if (rowHeights.length >= 6) return
+    const avg = Math.floor(canvasH / (rowHeights.length + 1))
+    setRowHeights((p) => [...p, avg])
+    setCellMap((p) => [...p, Array(colWidths.length).fill(null)])
+  }
+  const removeRow = () => {
+    if (rowHeights.length <= 1) return
+    setRowHeights((p) => p.slice(0, -1))
+    setCellMap((p) => p.slice(0, -1))
   }
 
   const handleRender = async () => {
@@ -249,28 +368,38 @@ export default function ImageCollage() {
     setProcessing(true)
     setError('')
     try {
-      const pScale = Math.min(500 / canvasW, 400 / canvasH, 1)
       const masterCanvas = document.createElement('canvas')
       masterCanvas.width = canvasW
       masterCanvas.height = canvasH
       const ctx = masterCanvas.getContext('2d')
-
       if (bgColor !== 'transparent') {
         ctx.fillStyle = bgColor === 'black' ? '#000' : '#fff'
         ctx.fillRect(0, 0, canvasW, canvasH)
       }
 
-      const isCustom = preset === 'custom'
-      if (isCustom && items.length > 0) {
-        for (let i = 0; i < Math.min(images.length, items.length); i++) {
-          const ci = items[i]
-          const img = images[ci.imageIndex]
-          if (!img) continue
-          const imgEl = await loadImage(img.url)
-          ctx.drawImage(imgEl, ci.x, ci.y, ci.width, ci.height)
+      if (isCustom) {
+        // Use grid layout
+        let cumY = 0
+        for (let r = 0; r < rowHeights.length; r++) {
+          let cumX = 0
+          for (let c = 0; c < colWidths.length; c++) {
+            const imgIdx = cellMap[r]?.[c]
+            if (imgIdx != null && images[imgIdx]) {
+              const imgEl = await loadImage(images[imgIdx].url)
+              const cellW = colWidths[c] - gap
+              const cellH = rowHeights[r] - gap
+              if (cellW > 0 && cellH > 0) {
+                const scale = Math.min(cellW / imgEl.naturalWidth, cellH / imgEl.naturalHeight)
+                const dw = Math.floor(imgEl.naturalWidth * scale)
+                const dh = Math.floor(imgEl.naturalHeight * scale)
+                ctx.drawImage(imgEl, cumX + Math.floor((colWidths[c] - dw) / 2), cumY + Math.floor((rowHeights[r] - dh) / 2), dw, dh)
+              }
+            }
+            cumX += colWidths[c]
+          }
+          cumY += rowHeights[r]
         }
       } else {
-        const pr = PRESETS.find((p) => p.id === preset) || PRESETS[0]
         const cellW = Math.floor((canvasW - (pr.cols - 1) * gap) / pr.cols)
         const cellH = Math.floor((canvasH - (pr.rows - 1) * gap) / pr.rows)
         for (let i = 0; i < Math.min(images.length, pr.cols * pr.rows); i++) {
@@ -302,8 +431,7 @@ export default function ImageCollage() {
   const downloadResult = () => {
     if (!result) return
     const url = URL.createObjectURL(result.blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = result.fileName; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = result.fileName; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -311,10 +439,11 @@ export default function ImageCollage() {
     <ToolShell
       title="Kolase Gambar"
       icon={Grid}
-      description="Susun beberapa gambar menjadi kolase dengan preset grid atau posisi custom (drag & resize). Ekspor ke PNG atau JPG."
+      description="Susun gambar jadi kolase dengan preset grid atau custom grid editor. Tarik garis grid untuk resize, seret gambar untuk tukar posisi."
     >
-      {/* Upload area */}
-      <div className="rounded-xl border border-dashed border-[--color-border-strong] bg-[--color-surface] p-6 text-center cursor-pointer hover:border-[--color-brand] transition-colors"
+      {/* Upload */}
+      <div
+        className="rounded-xl border-2 border-dashed border-[--color-border-strong] bg-[--color-surface] p-6 text-center cursor-pointer hover:border-[--color-brand] transition-colors"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleFiles(Array.from(e.dataTransfer.files)) }}
@@ -325,11 +454,11 @@ export default function ImageCollage() {
         <p className="text-[11px] text-[--color-text-3] mt-1">JPG, PNG, WebP &middot; Bebas jumlah</p>
       </div>
 
-      {/* Loaded images strip */}
+      {/* Images strip */}
       {images.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[--color-text]">{images.length} gambar dimuat</span>
+            <span className="text-xs font-semibold text-[--color-text]">{images.length} gambar</span>
             <button onClick={clearAll} className="text-[11px] text-[--color-danger] hover:underline cursor-pointer">Hapus Semua</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
@@ -350,12 +479,12 @@ export default function ImageCollage() {
       {/* Settings */}
       {images.length > 0 && (
         <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 space-y-4">
-          {/* Preset grid */}
+          {/* Presets */}
           <div>
             <div className="text-xs font-semibold text-[--color-text-2] mb-2">Tata Letak:</div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {PRESETS.map((p) => (
-                <button key={p.id} type="button" onClick={() => { setPreset(p.id); setItems([]) }}
+                <button key={p.id} type="button" onClick={() => setPreset(p.id)}
                   className={`flex flex-col items-center justify-center rounded-lg border-2 p-2.5 text-xs text-center transition-all min-h-[56px] cursor-pointer ${
                     preset === p.id
                       ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
@@ -409,20 +538,48 @@ export default function ImageCollage() {
               </select>
             </div>
           </div>
+
+          {/* Grid controls for custom */}
+          {isCustom && (
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[--color-border]/60">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[--color-text-2]">Kolom:</span>
+                <button onClick={removeCol} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Minus size={14} /></button>
+                <span className="text-xs font-bold text-[--color-text] w-4 text-center">{colWidths.length}</span>
+                <button onClick={addCol} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Plus size={14} /></button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[--color-text-2]">Baris:</span>
+                <button onClick={removeRow} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Minus size={14} /></button>
+                <span className="text-xs font-bold text-[--color-text] w-4 text-center">{rowHeights.length}</span>
+                <button onClick={addRow} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Plus size={14} /></button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Custom preview */}
-      {images.length > 0 && preset === 'custom' && (
+      {/* Custom grid editor */}
+      {images.length > 0 && isCustom && (
         <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5">
-          <CollageCustomPreview images={images} canvasWidth={canvasW} canvasHeight={canvasH} items={items} setItems={setItems} />
+          <CollageGridEditor
+            images={images}
+            canvasW={canvasW}
+            canvasH={canvasH}
+            gridCols={colWidths.length}
+            gridRows={rowHeights.length}
+            colWidths={colWidths}
+            setColWidths={setColWidths}
+            rowHeights={rowHeights}
+            setRowHeights={setRowHeights}
+            cellMap={cellMap}
+            setCellMap={setCellMap}
+          />
         </div>
       )}
 
-      {/* Error */}
       {error && <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      {/* Render button */}
       {images.length > 0 && !result && (
         <button onClick={handleRender} disabled={processing}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors cursor-pointer shadow-md">
@@ -431,7 +588,6 @@ export default function ImageCollage() {
         </button>
       )}
 
-      {/* Result */}
       {result && (
         <div className="space-y-3">
           <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-4 flex flex-col items-center gap-3">
