@@ -5,7 +5,7 @@ import ToolShell from '../../components/ToolShell'
 /* ──────────────────────────────────────────────────────────────────────────
    CollageGridEditor – Grid editor with draggable borders + image drag-drop
    ────────────────────────────────────────────────────────────────────────── */
-function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWidths, setColWidths, rowHeights, setRowHeights, cellMap, setCellMap }) {
+function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWidths, setColWidths, rowHeights, setRowHeights, cellMap, setCellMap, onDropImage }) {
   const containerRef = useRef(null)
   const wrapperRef = useRef(null)
   const [previewScale, setPreviewScale] = useState(1)
@@ -32,14 +32,14 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
     return { x: (cx - r.left) / previewScale, y: (cy - r.top) / previewScale }
   }, [previewScale])
 
-  // Compute cell rect from colWidths / rowHeights
+  // Compute cell rect from colWidths / rowHeights (with gap)
   const getCellRect = useCallback((row, col) => {
     let x = 0
-    for (let c = 0; c < col; c++) x += colWidths[c]
+    for (let c = 0; c < col; c++) x += colWidths[c] + gap
     let y = 0
-    for (let r = 0; r < row; r++) y += rowHeights[r]
+    for (let r = 0; r < row; r++) y += rowHeights[r] + gap
     return { x, y, w: colWidths[col], h: rowHeights[row] }
-  }, [colWidths, rowHeights])
+  }, [colWidths, rowHeights, gap])
 
   // ── Column / Row border drag ──
   const handleBorderMouseDown = (e, type, index) => {
@@ -168,6 +168,14 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
                   if (img != null && !swapDrag) handleImageMouseDown(e, r, c, imgIdx)
                 }}
                 onMouseEnter={() => { if (swapDrag) setSwapOver({ row: r, col: c }) }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setSwapOver({ row: r, col: c }) }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const imgIndex = parseInt(e.dataTransfer.getData('text/plain'), 10)
+                  if (!isNaN(imgIndex) && onDropImage) onDropImage(r, c, imgIndex)
+                  setSwapOver(null)
+                }}
+                onDragLeave={() => setSwapOver((prev) => prev?.row === r && prev?.col === c ? null : prev)}
               >
                 {img && (
                   <img
@@ -195,8 +203,10 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
 
         {/* Draggable column borders */}
         {Array.from({ length: gridCols - 1 }).map((_, i) => {
+          // Border is at the boundary between col i and col i+1
           let xPos = 0
           for (let c = 0; c <= i; c++) xPos += colWidths[c]
+          xPos += (i + 1) * gap // gaps before and between columns up to this boundary
           const isDragging = dragLine?.type === 'col' && dragLine.index === i
           return (
             <div
@@ -223,6 +233,7 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
         {Array.from({ length: gridRows - 1 }).map((_, i) => {
           let yPos = 0
           for (let r = 0; r <= i; r++) yPos += rowHeights[r]
+          yPos += (i + 1) * gap
           const isDragging = dragLine?.type === 'row' && dragLine.index === i
           return (
             <div
@@ -260,18 +271,27 @@ const PRESETS = [
   { id: 'custom', label: 'Custom', desc: 'Grid editor', cols: 0, rows: 0 },
 ]
 
-function initGrid(cols, rows, cw, ch, imgCount) {
+function initGrid(cols, rows, cw, ch, imgCount, existingMap) {
   const colW = Array(cols).fill(Math.floor(cw / cols))
   const rowH = Array(rows).fill(Math.floor(ch / rows))
-  // distribute remaining pixels
   const remW = cw - colW.reduce((a, b) => a + b, 0)
   for (let i = 0; i < remW; i++) colW[i % cols]++
   const remH = ch - rowH.reduce((a, b) => a + b, 0)
   for (let i = 0; i < remH; i++) rowH[i % rows]++
 
-  const map = Array.from({ length: rows }, () => Array(cols).fill(null))
-  for (let i = 0; i < Math.min(imgCount, rows * cols); i++) {
-    map[Math.floor(i / cols)][i % cols] = i
+  // Build map: keep existing assignments if possible, fill remaining with sequential indices
+  const map = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => existingMap?.[r]?.[c] ?? null))
+  let nextIdx = 0
+  const usedIndices = new Set()
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const v = map[r][c]
+    if (v != null) usedIndices.add(v)
+  }
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (map[r][c] == null) {
+      while (usedIndices.has(nextIdx) && nextIdx < imgCount) nextIdx++
+      if (nextIdx < imgCount) { map[r][c] = nextIdx; usedIndices.add(nextIdx) }
+    }
   }
   return { colW, rowH, map }
 }
@@ -287,28 +307,27 @@ export default function ImageCollage() {
 
   const pr = PRESETS.find((p) => p.id === preset) || PRESETS[0]
   const isCustom = preset === 'custom'
-  const gCols = isCustom ? Math.max(1, Math.min(6, Math.ceil(Math.sqrt(images.length)))) : pr.cols
-  const gRows = isCustom ? Math.max(1, Math.min(6, Math.ceil(images.length / gCols))) : pr.rows
 
-  const [colWidths, setColWidths] = useState(() => Array(gCols).fill(Math.floor(canvasW / gCols)))
-  const [rowHeights, setRowHeights] = useState(() => Array(gRows).fill(Math.floor(canvasH / gRows)))
-  const [cellMap, setCellMap] = useState(() => Array.from({ length: gRows }, () => Array(gCols).fill(null)))
+  // Grid always has at least 2 cols / 2 rows in custom mode
+  const [colWidths, setColWidths] = useState(() => Array(2).fill(600))
+  const [rowHeights, setRowHeights] = useState(() => Array(2).fill(800))
+  const [cellMap, setCellMap] = useState(() => [[null, null], [null, null]])
 
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
 
-  // Re-init grid when preset or image count changes
+  // Re-init grid when switching to custom
   useEffect(() => {
     if (!isCustom) return
-    const cols = Math.max(1, Math.min(6, Math.ceil(Math.sqrt(images.length))))
-    const rows = Math.max(1, Math.min(6, Math.ceil(images.length / cols)))
-    const { colW, rowH, map } = initGrid(cols, rows, canvasW, canvasH, images.length)
+    const { colW, rowH, map } = initGrid(colWidths.length, rowHeights.length, canvasW, canvasH, images.length, cellMap)
     setColWidths(colW)
     setRowHeights(rowH)
     setCellMap(map)
-  }, [isCustom, images.length, canvasW, canvasH])
+  // Only on preset switch, not on image change (to preserve manual edits)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCustom])
 
   const handleFiles = async (fileList) => {
     const newImgs = []
@@ -363,6 +382,19 @@ export default function ImageCollage() {
     setCellMap((p) => p.slice(0, -1))
   }
 
+  // Drop image from strip into empty cell
+  const handleCellDrop = (row, col, imgIndex) => {
+    setCellMap((prev) => {
+      const next = prev.map((r) => [...r])
+      // If this image is already in another cell, clear it
+      for (let r = 0; r < next.length; r++) for (let c = 0; c < next[r].length; c++) {
+        if (next[r][c] === imgIndex) next[r][c] = null
+      }
+      next[row][col] = imgIndex
+      return next
+    })
+  }
+
   const handleRender = async () => {
     if (images.length === 0) return
     setProcessing(true)
@@ -378,7 +410,7 @@ export default function ImageCollage() {
       }
 
       if (isCustom) {
-        // Use grid layout
+        // Use grid layout with gap between cells
         let cumY = 0
         for (let r = 0; r < rowHeights.length; r++) {
           let cumX = 0
@@ -395,9 +427,9 @@ export default function ImageCollage() {
                 ctx.drawImage(imgEl, cumX + Math.floor((colWidths[c] - dw) / 2), cumY + Math.floor((rowHeights[r] - dh) / 2), dw, dh)
               }
             }
-            cumX += colWidths[c]
+            cumX += colWidths[c] + gap
           }
-          cumY += rowHeights[r]
+          cumY += rowHeights[r] + gap
         }
       } else {
         const cellW = Math.floor((canvasW - (pr.cols - 1) * gap) / pr.cols)
@@ -463,8 +495,10 @@ export default function ImageCollage() {
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {images.map((img, i) => (
-              <div key={img.id} className="relative shrink-0 w-16 h-20 rounded-lg overflow-hidden border border-[--color-border] group">
-                <img src={img.url} alt="" className="w-full h-full object-cover" />
+              <div key={img.id} className="relative shrink-0 w-16 h-20 rounded-lg overflow-hidden border border-[--color-border] group cursor-grab active:cursor-grabbing"
+                draggable
+                onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}>
+                <img src={img.url} alt="" className="w-full h-full object-cover pointer-events-none" />
                 <span className="absolute top-0.5 left-0.5 rounded bg-black/70 px-1 py-0.5 text-[8px] font-bold text-white">#{i + 1}</span>
                 <button onClick={(e) => { e.stopPropagation(); removeImage(img.id) }}
                   className="absolute top-0.5 right-0.5 rounded bg-black/60 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
@@ -476,9 +510,8 @@ export default function ImageCollage() {
         </div>
       )}
 
-      {/* Settings */}
-      {images.length > 0 && (
-        <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 space-y-4">
+      {/* Settings — always show so custom grid can be set up without images */}
+      <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 space-y-4">
           {/* Presets */}
           <div>
             <div className="text-xs font-semibold text-[--color-text-2] mb-2">Tata Letak:</div>
@@ -557,10 +590,9 @@ export default function ImageCollage() {
             </div>
           )}
         </div>
-      )}
 
-      {/* Custom grid editor */}
-      {images.length > 0 && isCustom && (
+      {/* Custom grid editor — always show when custom, even without images */}
+      {isCustom && (
         <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5">
           <CollageGridEditor
             images={images}
@@ -574,6 +606,7 @@ export default function ImageCollage() {
             setRowHeights={setRowHeights}
             cellMap={cellMap}
             setCellMap={setCellMap}
+            onDropImage={handleCellDrop}
           />
         </div>
       )}
