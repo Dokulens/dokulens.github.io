@@ -9,6 +9,7 @@ const EditPDF = lazy(() => import('./pages/tools/EditPDF'))
 const AddPageNumber = lazy(() => import('./pages/tools/AddPageNumber'))
 const MergePDF = lazy(() => import('./pages/tools/MergePDF'))
 const SplitPDF = lazy(() => import('./pages/tools/SplitPDF'))
+const DocToMarkdown = lazy(() => import('./pages/tools/DocToMarkdown'))
 const CompressPDF = lazy(() => import('./pages/tools/CompressPDF'))
 // hidden: PDFToDocx, DocxToPDF — restore by uncommenting imports + routes below
 const WatermarkRemover = lazy(() => import('./pages/tools/WatermarkRemover'))
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="add-page-number" element={<AddPageNumber />} />
               <Route path="merge-pdf" element={<MergePDF />} />
               <Route path="split-pdf" element={<SplitPDF />} />
+              <Route path="doc-to-markdown" element={<DocToMarkdown />} />
               <Route path="compress-pdf" element={<CompressPDF />} />
               {/* hidden: pdf-to-docx, docx-to-pdf */}
               <Route path="watermark-remover" element={<WatermarkRemover />} />
