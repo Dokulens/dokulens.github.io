@@ -105,16 +105,31 @@ const Y_TOL = 5
 async function pdfToMd(file) {
   const buf = await readAsArrayBuffer(file)
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise
+  const total = doc.numPages
   const parts = []
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i)
-    const tc = await page.getTextContent()
+  for (let i = 1; i <= total; i++) {
+    let page
+    try {
+      page = await doc.getPage(i)
+    } catch {
+      parts.push(`<!-- halaman ${i}: gagal dibaca -->`)
+      continue
+    }
+    let tc
+    try {
+      tc = await page.getTextContent()
+    } catch {
+      parts.push(`<!-- halaman ${i}: tidak dapat diekstrak (kemungkinan hasil scan/gambar) -->`)
+      continue
+    }
     const items = tc.items
       .filter((t) => t.str?.trim())
       .map((t) => ({ text: t.str, x: t.transform[4], y: t.transform[5], w: t.width || 0 }))
-    if (!items.length) continue
+    if (!items.length) {
+      parts.push(`<!-- halaman ${i}: tanpa teks (gambar/scan) -->`)
+      continue
+    }
     const sorted = items.sort((a, b) => b.y - a.y || a.x - b.x)
-    // group baris Y-tolerance
     const lines = []
     let cur = []
     let curY = null
@@ -123,7 +138,6 @@ async function pdfToMd(file) {
       else { lines.push([...cur].sort((a, b) => a.x - b.x)); cur = [it]; curY = it.y }
     }
     if (cur.length) lines.push(cur)
-    // gabung spasi; gap besar → tab/spasi banyak
     let pageMd = ''
     for (const line of lines) {
       let s = ''
@@ -141,7 +155,7 @@ async function pdfToMd(file) {
     }
     parts.push(pageMd.trim())
   }
-  return { md: parts.join('\n\n---\n\n'), ext: 'md', name: 'md' }
+  return { md: parts.join('\n\n---\n\n'), ext: 'md', name: 'md', pages: total }
 }
 
 async function txtToMd(file) {
