@@ -29,7 +29,7 @@ const About = lazy(() => import('./pages/About'))
 function PageFallback() {
   return (
     <div className="flex h-64 items-center justify-center">
-      <Loader2 size={24} className="animate-spin text-[--color-brand]" />
+      <Loader2 size={24} className="animate-spin text-(--color-brand)" />
     </div>
   )
 }

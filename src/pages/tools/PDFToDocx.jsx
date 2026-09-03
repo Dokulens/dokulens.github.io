@@ -315,29 +315,29 @@ export default function PDFToDocx() {
       <DropZone accept=".pdf,application/pdf" onFiles={handleFile} label="Pilih file PDF untuk diubah ke Word" />
       {file && <FilePreview file={file} />}
       {/* Token + mode */}
-      <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+      <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setUseCloud(true)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${useCloud ? 'bg-[--color-brand] text-white border-[--color-brand]' : 'bg-[--color-surface] text-[--color-text-2] border-[--color-border]'}`}><Cloud size={14} /> Cloud 1:1 (ConvertAPI)</button>
-          <button type="button" onClick={() => setUseCloud(false)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${!useCloud ? 'bg-[--color-brand] text-white border-[--color-brand]' : 'bg-[--color-surface] text-[--color-text-2] border-[--color-border]'}`}><Cpu size={14} /> Offline (koordinat)</button>
-          <a href="https://www.convertapi.com/pdf-to-docx/javascript" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-[11px] text-[--color-brand] hover:underline">Docs ConvertAPI <ExternalLink size={11} /></a>
+          <button type="button" onClick={() => setUseCloud(true)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${useCloud ? 'bg-(--color-brand) text-white border-(--color-brand)' : 'bg-(--color-surface) text-(--color-text-2) border-(--color-border)'}`}><Cloud size={14} /> Cloud 1:1 (ConvertAPI)</button>
+          <button type="button" onClick={() => setUseCloud(false)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${!useCloud ? 'bg-(--color-brand) text-white border-(--color-brand)' : 'bg-(--color-surface) text-(--color-text-2) border-(--color-border)'}`}><Cpu size={14} /> Offline (koordinat)</button>
+          <a href="https://www.convertapi.com/pdf-to-docx/javascript" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-[11px] text-(--color-brand) hover:underline">Docs ConvertAPI <ExternalLink size={11} /></a>
         </div>
         {useCloud && (
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-[--color-text]">ConvertAPI Secret / Token</label>
-            <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="paste token dari convertapi.com/a/authentication" className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs font-mono text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20" />
-            <p className="text-[11px] text-[--color-text-3]">Token disimpan lokal di browser. Daftar gratis 250 konversi. Tanpa token, pakai mode Offline.</p>
+            <label className="block text-xs font-semibold text-(--color-text)">ConvertAPI Secret / Token</label>
+            <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="paste token dari convertapi.com/a/authentication" className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-mono text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20" />
+            <p className="text-[11px] text-(--color-text-3)">Token disimpan lokal di browser. Daftar gratis 250 konversi. Tanpa token, pakai mode Offline.</p>
           </div>
         )}
         {!useCloud && (
-          <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer select-none"><input type="checkbox" checked={preserveImages} onChange={(e) => setPreserveImages(e.target.checked)} className="accent-[--color-brand]" />Sertakan gambar (raster per halaman) — offline</label>
+          <label className="flex items-center gap-2 text-xs text-(--color-text-2) cursor-pointer select-none"><input type="checkbox" checked={preserveImages} onChange={(e) => setPreserveImages(e.target.checked)} className="accent-(--color-brand)" />Sertakan gambar (raster per halaman) — offline</label>
         )}
-        <div className="flex items-start gap-2 rounded-lg border border-[--color-border] bg-[--color-surface-2] p-2.5 text-xs text-[--color-text-2]"><FileText size={16} className="shrink-0 text-[--color-brand] mt-0.5" /><span>{useCloud ? (<>Cloud 1:1 via <code className="font-mono">convertapi-js</code> <code>pdf→docx</code> — layout, font, gambar, tabel editable seperti <a href="https://tools.pdf24.org/en/pdf-converter" target="_blank" rel="noreferrer" className="text-[--color-brand] underline">pdf24</a>.</>) : (<>Offline koordinat — <code className="font-mono">transform[4]=X,[5]=Y</code> Y-Tolerance 5px + X-Gap 28px→TabStop, per-page Sections twip, font map.</>)}</span></div>
+        <div className="flex items-start gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2.5 text-xs text-(--color-text-2)"><FileText size={16} className="shrink-0 text-(--color-brand) mt-0.5" /><span>{useCloud ? (<>Cloud 1:1 via <code className="font-mono">convertapi-js</code> <code>pdf→docx</code> — layout, font, gambar, tabel editable seperti <a href="https://tools.pdf24.org/en/pdf-converter" target="_blank" rel="noreferrer" className="text-(--color-brand) underline">pdf24</a>.</>) : (<>Offline koordinat — <code className="font-mono">transform[4]=X,[5]=Y</code> Y-Tolerance 5px + X-Gap 28px→TabStop, per-page Sections twip, font map.</>)}</span></div>
       </div>
       {file && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3 flex items-center justify-between text-xs"><span className="font-medium text-[--color-text] truncate">{file.name}</span><span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span></div>
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3 flex items-center justify-between text-xs"><span className="font-medium text-(--color-text) truncate">{file.name}</span><span className="shrink-0 text-(--color-text-3) ml-2">{fmtBytes(file.size)}</span></div>
       )}
-      {processing && (<div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in"><ProgressBar value={progress} label={progressText} /></div>)}
-      {error && <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">{error}</p>}
+      {processing && (<div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2 animate-fade-in"><ProgressBar value={progress} label={progressText} /></div>)}
+      {error && <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger) animate-fade-in">{error}</p>}
       {file && !result && (<button onClick={convert} disabled={processing} className={`flex w-full items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-medium transition-all active:scale-[0.99] disabled:opacity-60 ${processing ? BTN_CARD_INACTIVE : BTN_CARD_ACTIVE}`}>{processing && <Loader2 size={16} className="animate-spin" />}{processing ? 'Mengonversi…' : useCloud ? 'Konversi Cloud 1:1 (ConvertAPI)' : 'Konversi Offline'}</button>)}
       {result && (<ResultCard fileName={`${base}.docx`} blob={result} extraInfo={fmtBytes(result.size)} outputMimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" sourceRoute="pdf-to-docx" onReset={() => { setResult(null); setFile(null); setProgress(0) }} />)}
     </ToolShell>

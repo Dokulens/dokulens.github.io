@@ -20,12 +20,12 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
   const { isDark, toggleTheme } = useTheme()
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-[--color-border] bg-[--color-surface] px-4 lg:px-6 select-none">
+    <header className="flex h-14 items-center justify-between border-b border-(--color-border) bg-(--color-surface) px-4 lg:px-6 select-none">
       <div className="flex items-center gap-3">
         {/* Mobile menu toggle */}
         <button
           onClick={onMenuClick}
-          className="flex h-9 w-9 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text) lg:hidden"
           title="Buka Menu"
         >
           <Menu size={18} />
@@ -34,7 +34,7 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
         {/* Desktop sidebar collapse/expand toggle */}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex h-8 w-8 items-center justify-center rounded border border-[--color-border] text-[--color-text-3] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
+          className="hidden lg:flex h-8 w-8 items-center justify-center rounded border border-(--color-border) text-(--color-text-3) hover:bg-(--color-surface-3) hover:text-(--color-text) transition-colors"
           title={isCollapsed ? 'Expand Sidebar' : 'Minimize Sidebar'}
         >
           {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
@@ -45,26 +45,26 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
             <>
               <Link
                 to="/"
-                className="text-[--color-text-3] hover:text-[--color-text] no-underline transition-colors hidden sm:inline"
+                className="text-(--color-text-3) hover:text-(--color-text) no-underline transition-colors hidden sm:inline"
               >
                 Tools
               </Link>
-              <span className="text-[--color-text-3] hidden sm:inline">/</span>
-              <span className="text-[--color-text-3] text-xs font-semibold uppercase tracking-wider hidden sm:inline">
+              <span className="text-(--color-text-3) hidden sm:inline">/</span>
+              <span className="text-(--color-text-3) text-xs font-semibold uppercase tracking-wider hidden sm:inline">
                 {group}
               </span>
-              <span className="text-[--color-text-3] hidden sm:inline">/</span>
-              <span className="font-semibold text-[--color-text]">{label}</span>
+              <span className="text-(--color-text-3) hidden sm:inline">/</span>
+              <span className="font-semibold text-(--color-text)">{label}</span>
             </>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-[--color-text]">DokuLens</span>
-              <span className="text-xs text-[--color-text-3]">by</span>
+              <span className="font-bold text-(--color-text)">DokuLens</span>
+              <span className="text-xs text-(--color-text-3)">by</span>
               <a
                 href="https://github.com/naufal-backup"
                 target="_blank"
                 rel="noreferrer"
-                className="font-bold text-[--color-text] hover:underline no-underline"
+                className="font-bold text-(--color-text) hover:underline no-underline"
               >
                 Naufal Alamsyah
               </a>
@@ -79,7 +79,7 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
           href="https://saweria.co/Naufal453"
           target="_blank"
           rel="noreferrer"
-          className="flex h-9 items-center gap-1.5 rounded border border-[--color-border] bg-[--color-surface] px-2.5 text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors no-underline"
+          className="flex h-9 items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-2.5 text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text) transition-colors no-underline"
           title="Support!"
         >
           <svg viewBox="0 0 314.17 224.5" className="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg">
@@ -117,7 +117,7 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
         {/* Dark mode switch */}
         <button
           onClick={toggleTheme}
-          className="flex h-9 w-9 items-center justify-center rounded border border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded border border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text) transition-colors"
           title={isDark ? 'Beralih ke Light Mode' : 'Beralih ke Dark Mode'}
         >
           {isDark ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}

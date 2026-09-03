@@ -52,7 +52,7 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
     <div className="space-y-2">
       <div
         ref={containerRef}
-        className="relative rounded-lg border border-[--color-border] overflow-hidden cursor-ew-resize select-none bg-[--color-surface-2]"
+        className="relative rounded-lg border border-(--color-border) overflow-hidden cursor-ew-resize select-none bg-(--color-surface-2)"
         onMouseDown={(e) => { isDragging.current = true; updatePos(e) }}
         onTouchStart={(e) => { isDragging.current = true; updatePos(e) }}
       >
@@ -70,8 +70,8 @@ function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel, afterLabel }) {
           className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg z-10"
           style={{ left: `${pos}%`, transform: 'translateX(-50%)' }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border-2 border-[--color-brand] shadow-lg flex items-center justify-center">
-            <GripVertical size={14} className="text-[--color-brand]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border-2 border-(--color-brand) shadow-lg flex items-center justify-center">
+            <GripVertical size={14} className="text-(--color-brand)" />
           </div>
         </div>
         <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider z-20">
@@ -198,18 +198,18 @@ export default function ImageUpscaler() {
       {file && <FilePreview file={file} />}
 
       {file && !result && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
           {originalDims && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-[--color-text] truncate">{file.name}</span>
-              <span className="shrink-0 text-[--color-text-3] ml-2 font-mono text-xs">
+              <span className="font-medium text-(--color-text) truncate">{file.name}</span>
+              <span className="shrink-0 text-(--color-text-3) ml-2 font-mono text-xs">
                 {originalDims.w}×{originalDims.h} → {originalDims.w * scale}×{originalDims.h * scale}
               </span>
             </div>
           )}
 
           <div>
-            <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
               Upscale Factor
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -230,7 +230,7 @@ export default function ImageUpscaler() {
           </div>
 
           <div>
-            <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
               Format Output
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -248,19 +248,19 @@ export default function ImageUpscaler() {
 
           {outputFormat !== 'png' && (
             <div>
-              <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                 Kualitas: {quality}%
               </label>
               <input type="range" min="50" max="100" value={quality}
                 onChange={(e) => setQuality(Number(e.target.value))}
-                className="w-full accent-[--color-brand]" />
+                className="w-full accent-(--color-brand)" />
             </div>
           )}
         </div>
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">
           {error}
         </p>
       )}
@@ -269,7 +269,7 @@ export default function ImageUpscaler() {
         <button
           onClick={upscale}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? progressText : `Upscale ${scale}× dengan AI`}

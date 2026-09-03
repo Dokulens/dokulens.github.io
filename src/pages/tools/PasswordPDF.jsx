@@ -126,7 +126,7 @@ export default function PasswordPDF() {
       title="Password & Keamanan PDF"
       description="Kunci PDF dengan enkripsi standar (wajib password saat dibuka) atau buka kunci PDF yang terproteksi."
     >
-      <div className="flex border-b border-[--color-border]">
+      <div className="flex border-b border-(--color-border)">
         <button
           onClick={() => { setActiveTab('protect'); setResult(null); setError(''); setSuccessMsg('') }}
           className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'protect' ? BTN_TAB_ACTIVE : BTN_TAB_INACTIVE}`}
@@ -147,13 +147,13 @@ export default function PasswordPDF() {
       {file && <FilePreview file={file} />}
 
       {file && activeTab === 'protect' && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-[--color-text] truncate">{file.name}</span>
-            <span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span>
+            <span className="font-medium text-(--color-text) truncate">{file.name}</span>
+            <span className="shrink-0 text-(--color-text-3) ml-2">{fmtBytes(file.size)}</span>
           </div>
 
-          <div className="rounded border border-[--color-brand-light] bg-[--color-brand-light] p-3 text-xs text-[--color-brand-text] flex gap-2">
+          <div className="rounded border border-(--color-brand-light) bg-(--color-brand-light) p-3 text-xs text-(--color-brand-text) flex gap-2">
             <KeyRound size={16} className="shrink-0 mt-0.5" />
             <span>
               File akan dienkripsi dengan standar PDF Security. Saat file dibuka di browser (Chrome, Edge, Safari), Adobe Acrobat, atau HP, aplikasi akan langsung meminta password ini.
@@ -161,7 +161,7 @@ export default function PasswordPDF() {
           </div>
 
           <div>
-            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
               Password Pembuka (User Password) *
             </label>
             <input
@@ -169,12 +169,12 @@ export default function PasswordPDF() {
               value={userPassword}
               onChange={(e) => setUserPassword(e.target.value)}
               placeholder="Masukkan password untuk membuka PDF"
-              className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+              className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
             />
           </div>
 
           <div>
-            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
               Konfirmasi Password *
             </label>
             <input
@@ -182,12 +182,12 @@ export default function PasswordPDF() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Ulangi password di atas"
-              className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+              className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
             />
           </div>
 
           <div>
-            <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-(--color-text-2) cursor-pointer">
               <input
                 type="checkbox"
                 checked={restrictPermissions}
@@ -200,13 +200,13 @@ export default function PasswordPDF() {
       )}
 
       {file && activeTab === 'remove' && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-[--color-text] truncate">{file.name}</span>
-            <span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span>
+            <span className="font-medium text-(--color-text) truncate">{file.name}</span>
+            <span className="shrink-0 text-(--color-text-3) ml-2">{fmtBytes(file.size)}</span>
           </div>
 
-          <div className="rounded border border-[--color-border] bg-[--color-surface-2] p-3 text-xs text-[--color-text-2] flex gap-2">
+          <div className="rounded border border-(--color-border) bg-(--color-surface-2) p-3 text-xs text-(--color-text-2) flex gap-2">
             <ShieldAlert size={16} className="shrink-0 mt-0.5 text-amber-500" />
             <span>
               Masukkan password yang saat ini digunakan untuk membuka file. Dokumen baru akan disimpan tanpa proteksi password apapun.
@@ -214,7 +214,7 @@ export default function PasswordPDF() {
           </div>
 
           <div>
-            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
               Password Dokumen Saat Ini
             </label>
             <input
@@ -222,20 +222,20 @@ export default function PasswordPDF() {
               value={unlockPassword}
               onChange={(e) => setUnlockPassword(e.target.value)}
               placeholder="Ketik password untuk membuka kunci..."
-              className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+              className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
             />
           </div>
         </div>
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger) animate-fade-in">
           {error}
         </p>
       )}
 
       {successMsg && !result && (
-        <p className="rounded border border-[--color-success-light] bg-[--color-success-light] px-3 py-2 text-sm text-[--color-success] flex items-center gap-1.5 animate-fade-in">
+        <p className="rounded border border-(--color-success-light) bg-(--color-success-light) px-3 py-2 text-sm text-(--color-success) flex items-center gap-1.5 animate-fade-in">
           <CheckCircle2 size={16} />
           {successMsg}
         </p>
@@ -245,7 +245,7 @@ export default function PasswordPDF() {
         <button
           onClick={activeTab === 'protect' ? handleProtect : handleRemove}
           disabled={processing || (activeTab === 'protect' && !userPassword)}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Memproses Enkripsi…' : activeTab === 'protect' ? 'Enkripsi & Kunci PDF' : 'Buka Kunci Dokumen'}

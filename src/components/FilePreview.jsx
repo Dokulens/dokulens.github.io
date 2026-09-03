@@ -33,13 +33,13 @@ export default function FilePreview({ file }) {
   const isDocx = DOCX_TYPES.includes(file.type)
 
   return (
-    <div className="rounded-lg border border-[--color-border] bg-[--color-surface] overflow-hidden animate-fade-in">
+    <div className="rounded-lg border border-(--color-border) bg-(--color-surface) overflow-hidden animate-fade-in">
       {isImage && url ? (
         <div className="relative">
           <img
             src={url}
             alt={file.name}
-            className="block max-h-48 w-full object-contain bg-[--color-surface-2]"
+            className="block max-h-48 w-full object-contain bg-(--color-surface-2)"
           />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
             <p className="text-xs text-white truncate">{file.name}</p>
@@ -58,8 +58,8 @@ export default function FilePreview({ file }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[--color-text] truncate">{file.name}</p>
-            <p className="text-xs text-[--color-text-3]">{fmtBytes(file.size)}</p>
+            <p className="text-sm font-medium text-(--color-text) truncate">{file.name}</p>
+            <p className="text-xs text-(--color-text-3)">{fmtBytes(file.size)}</p>
           </div>
         </div>
       )}

@@ -94,21 +94,21 @@ export default function PDFToImage() {
       {file && <FilePreview file={file} />}
 
       {file && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-[--color-text] truncate">{file.name}</span>
-            <span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span>
+            <span className="font-medium text-(--color-text) truncate">{file.name}</span>
+            <span className="shrink-0 text-(--color-text-3) ml-2">{fmtBytes(file.size)}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                 Format Gambar
               </label>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
               >
                 {FORMATS.map((f) => (
                   <option key={f.ext} value={f.ext}>{f.label}</option>
@@ -116,13 +116,13 @@ export default function PDFToImage() {
               </select>
             </div>
             <div>
-              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                 Resolusi: {dpi} DPI
               </label>
               <select
                 value={dpi}
                 onChange={(e) => setDpi(Number(e.target.value))}
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
               >
                 <option value={72}>72 DPI (Standard Web)</option>
                 <option value={150}>150 DPI (Sedang / Seimbang)</option>
@@ -134,13 +134,13 @@ export default function PDFToImage() {
       )}
 
       {processing && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2">
           <ProgressBar value={progress} label={progressText} />
         </div>
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">
           {error}
         </p>
       )}
@@ -149,7 +149,7 @@ export default function PDFToImage() {
         <button
           onClick={convert}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Mengekstrak…' : 'Ekspor Halaman ke Gambar'}

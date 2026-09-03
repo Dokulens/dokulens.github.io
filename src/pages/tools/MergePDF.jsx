@@ -94,23 +94,23 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative flex flex-col items-center rounded-lg border border-[--color-border] bg-[--color-surface] p-2 select-none transition-all duration-300 ${
-        isDragging ? 'shadow-xl ring-2 ring-[--color-brand]' : 'hover:border-[--color-brand-light]'
+      className={`group relative flex flex-col items-center rounded-lg border border-(--color-border) bg-(--color-surface) p-2 select-none transition-all duration-300 ${
+        isDragging ? 'shadow-xl ring-2 ring-(--color-brand)' : 'hover:border-(--color-brand-light)'
       }`}
     >
-      <div className="flex w-full items-center justify-between px-1 mb-1 text-xs text-[--color-text-3]">
-        <button {...attributes} {...listeners} className="cursor-grab text-[--color-text-3] hover:text-[--color-text] p-0.5">
+      <div className="flex w-full items-center justify-between px-1 mb-1 text-xs text-(--color-text-3)">
+        <button {...attributes} {...listeners} className="cursor-grab text-(--color-text-3) hover:text-(--color-text) p-0.5">
           <GripVertical size={14} />
         </button>
         <span className="font-semibold text-[11px] truncate max-w-[90px]" title={page.fileName}>
           {page.fileName}
         </span>
-        <button onClick={() => onRemove(id)} className="text-[--color-text-3] hover:text-[--color-danger] p-0.5" title="Hapus Halaman">
+        <button onClick={() => onRemove(id)} className="text-(--color-text-3) hover:text-(--color-danger) p-0.5" title="Hapus Halaman">
           <X size={14} />
         </button>
       </div>
 
-      <div className={`relative w-full overflow-hidden rounded bg-[--color-surface-3] flex items-center justify-center border border-[--color-border] transition-all duration-300 ${
+      <div className={`relative w-full overflow-hidden rounded bg-(--color-surface-3) flex items-center justify-center border border-(--color-border) transition-all duration-300 ${
         isLandscape ? 'aspect-[4/3]' : 'aspect-[3/4]'
       }`}>
         {page.preview ? (
@@ -124,8 +124,8 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
           />
         ) : (
           <div className="flex flex-col items-center gap-1">
-            <Loader2 size={16} className="animate-spin text-[--color-brand]" />
-            <span className="text-[10px] text-[--color-text-3]">Hal {page.pdfPageNumber}</span>
+            <Loader2 size={16} className="animate-spin text-(--color-brand)" />
+            <span className="text-[10px] text-(--color-text-3)">Hal {page.pdfPageNumber}</span>
           </div>
         )}
 
@@ -133,19 +133,19 @@ function SortablePageCard({ id, page, index, onRotate, onRemove }) {
           #{index + 1}
         </span>
         <span className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[9px] font-bold text-white shadow ${
-          isImg ? 'bg-emerald-600' : 'bg-[--color-brand]'
+          isImg ? 'bg-emerald-600' : 'bg-(--color-brand)'
         }`}>
           {isImg ? 'GAMBAR' : `p.${page.pdfPageNumber}`}
         </span>
       </div>
 
       <div className="mt-2 flex w-full items-center justify-between px-1">
-        <span className="text-[10px] font-mono font-bold text-[--color-brand]">
+        <span className="text-[10px] font-mono font-bold text-(--color-brand)">
           {page.rotation > 0 ? `${page.rotation}°` : '0°'}
         </span>
         <button
           onClick={() => onRotate(id)}
-          className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface-2] px-2 py-1 text-[11px] font-medium text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-1 rounded border border-(--color-border) bg-(--color-surface-2) px-2 py-1 text-[11px] font-medium text-(--color-brand) hover:bg-(--color-brand) hover:text-white transition-colors cursor-pointer"
         >
           <RotateCw size={11} /> Putar
         </button>
@@ -164,61 +164,61 @@ function SortableFileItem({ id, fileData, index, onRemove, onRangeChange, onRota
     <div
       ref={setNodeRef}
       style={style}
-      className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-3"
+      className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3.5 space-y-3"
     >
       <div className="flex items-center gap-2">
-        <button {...attributes} {...listeners} className="cursor-grab text-[--color-text-3] hover:text-[--color-text]">
+        <button {...attributes} {...listeners} className="cursor-grab text-(--color-text-3) hover:text-(--color-text)">
           <GripVertical size={16} />
         </button>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[--color-surface-3] text-xs font-bold text-[--color-text-2]">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-(--color-surface-3) text-xs font-bold text-(--color-text-2)">
           {index + 1}
         </span>
-        {isImg ? <ImageIcon size={16} className="shrink-0 text-emerald-500" /> : <FileText size={16} className="shrink-0 text-[--color-brand]" />}
+        {isImg ? <ImageIcon size={16} className="shrink-0 text-emerald-500" /> : <FileText size={16} className="shrink-0 text-(--color-brand)" />}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-[--color-text]">{fileData.file.name}</p>
-          <p className="text-xs text-[--color-text-3]">
+          <p className="truncate text-sm font-semibold text-(--color-text)">{fileData.file.name}</p>
+          <p className="text-xs text-(--color-text-3)">
             {fmtBytes(fileData.file.size)} • {fileData.totalPages} Halaman • Lebar ~{Math.round(fileData.firstPageWidth || 595)}pt
           </p>
         </div>
-        <button onClick={() => onRemove(id)} className="text-[--color-text-3] hover:text-[--color-danger] p-1">
+        <button onClick={() => onRemove(id)} className="text-(--color-text-3) hover:text-(--color-danger) p-1">
           <X size={16} />
         </button>
       </div>
 
       {!isImg && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[--color-surface-2] p-2.5 text-xs border border-[--color-border]">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-(--color-surface-2) p-2.5 text-xs border border-(--color-border)">
           <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-            <span className="font-semibold text-[--color-text-2] shrink-0">Halaman:</span>
+            <span className="font-semibold text-(--color-text-2) shrink-0">Halaman:</span>
             <input
               type="text"
               value={fileData.pageRangeInput}
               onChange={(e) => onRangeChange(id, e.target.value)}
               placeholder="misal: 1-3, 5 atau ganjil"
-              className="w-full rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1 text-xs text-[--color-text] focus:border-[--color-brand] focus:outline-none"
+              className="w-full rounded border border-(--color-border) bg-(--color-surface) px-2.5 py-1 text-xs text-(--color-text) focus:border-(--color-brand) focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => onSelectPreset(id, 'all')}
-              className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand]"
+              className="rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand)"
             >
               Semua
             </button>
             <button
               onClick={() => onSelectPreset(id, 'ganjil')}
-              className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand]"
+              className="rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand)"
             >
               Ganjil
             </button>
             <button
               onClick={() => onSelectPreset(id, 'genap')}
-              className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand]"
+              className="rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand)"
             >
               Genap
             </button>
             <button
               onClick={() => onRotateAll(id)}
-              className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-[11px] font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors"
+              className="flex items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-[11px] font-semibold text-(--color-brand) hover:bg-(--color-brand) hover:text-white transition-colors"
             >
               <RotateCw size={11} /> Putar +90°
             </button>
@@ -365,15 +365,15 @@ function CollageCustomPreview({ pages, canvasWidth, canvasHeight, items, setItem
   const cursors = { nw: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', se: 'nwse-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' }
 
   return (
-    <div ref={wrapperRef} className="space-y-2 pt-3 border-t border-[--color-border]/60">
+    <div ref={wrapperRef} className="space-y-2 pt-3 border-t border-(--color-border)/60">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-[--color-text-2]">Preview Kolase Custom</span>
-        <span className="text-[10px] text-[--color-text-3]">{canvasWidth} × {canvasHeight} px &middot; {items.length} gambar</span>
+        <span className="text-xs font-semibold text-(--color-text-2)">Preview Kolase Custom</span>
+        <span className="text-[10px] text-(--color-text-3)">{canvasWidth} × {canvasHeight} px &middot; {items.length} gambar</span>
       </div>
-      <div className="text-[10px] text-[--color-text-3]">Geser gambar untuk posisi &middot; Tarik tepi/pojok untuk resize</div>
+      <div className="text-[10px] text-(--color-text-3)">Geser gambar untuk posisi &middot; Tarik tepi/pojok untuk resize</div>
       <div
         ref={containerRef}
-        className="relative border-2 border-dashed border-[--color-border-strong] rounded-lg bg-gray-100 mx-auto"
+        className="relative border-2 border-dashed border-(--color-border-strong) rounded-lg bg-gray-100 mx-auto"
         style={{ width: pw, height: ph, touchAction: 'none' }}
         onMouseDown={() => { setActiveItem(null) }}
       >
@@ -1047,8 +1047,8 @@ export default function MergePDF() {
       />
 
       {loading && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-[--color-brand]">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
             <span className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" /> Memuat dokumen & membuat pratinjau halaman...
             </span>
@@ -1061,13 +1061,13 @@ export default function MergePDF() {
       {files.length > 0 && (
         <div className="space-y-4">
           {/* Controls Header Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-3 text-xs">
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-[--color-text]">
+              <span className="font-semibold text-(--color-text)">
                 {files.length} File • {activePages.length} Halaman Aktif
               </span>
-              <div className="h-4 w-px bg-[--color-border]" />
-              <div className="flex items-center gap-1 rounded bg-[--color-surface-2] p-1 border border-[--color-border]">
+              <div className="h-4 w-px bg-(--color-border)" />
+              <div className="flex items-center gap-1 rounded bg-(--color-surface-2) p-1 border border-(--color-border)">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors ${
@@ -1103,13 +1103,13 @@ export default function MergePDF() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 text-xs font-semibold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 rounded border border-(--color-brand) bg-(--color-brand-light) px-3 py-1.5 text-xs font-semibold text-(--color-brand) hover:bg-(--color-brand) hover:text-white transition-colors cursor-pointer"
               >
                 <Plus size={13} /> Tambah PDF / Gambar
               </button>
               <button
                 onClick={() => rotateAllPagesGlobal(90)}
-                className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface-2] px-2 py-1 text-xs font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand]"
+                className="flex items-center gap-1 rounded border border-(--color-border) bg-(--color-surface-2) px-2 py-1 text-xs font-medium text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand)"
               >
                 <RotateCw size={12} /> Putar Semua (+90°)
               </button>
@@ -1123,12 +1123,12 @@ export default function MergePDF() {
           </div>
 
           {/* Export Format Option */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
-            <div className="flex items-center gap-2 font-semibold text-[--color-text]">
-              <Sparkles size={14} className="text-[--color-brand]" />
+          <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3.5 space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-semibold text-(--color-text)">
+              <Sparkles size={14} className="text-(--color-brand)" />
               <span>Format Hasil Output (Export Format):</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-(--color-text-2)">
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="radio"
@@ -1136,9 +1136,9 @@ export default function MergePDF() {
                   value="pdf"
                   checked={exportFormat === 'pdf'}
                   onChange={() => setExportFormat('pdf')}
-                  className="accent-[--color-brand]"
+                  className="accent-(--color-brand)"
                 />
-                <span className="font-medium">Dokumen PDF <span className="text-[--color-text-3]">(.pdf)</span></span>
+                <span className="font-medium">Dokumen PDF <span className="text-(--color-text-3)">(.pdf)</span></span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -1147,9 +1147,9 @@ export default function MergePDF() {
                   value="png"
                   checked={exportFormat === 'png'}
                   onChange={() => setExportFormat('png')}
-                  className="accent-[--color-brand]"
+                  className="accent-(--color-brand)"
                 />
-                <span className="font-medium">Gambar PNG <span className="text-[--color-text-3]">(.png)</span></span>
+                <span className="font-medium">Gambar PNG <span className="text-(--color-text-3)">(.png)</span></span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
@@ -1158,21 +1158,21 @@ export default function MergePDF() {
                   value="jpg"
                   checked={exportFormat === 'jpg'}
                   onChange={() => setExportFormat('jpg')}
-                  className="accent-[--color-brand]"
+                  className="accent-(--color-brand)"
                 />
-                <span className="font-medium">Gambar JPG <span className="text-[--color-text-3]">(.jpg)</span></span>
+                <span className="font-medium">Gambar JPG <span className="text-(--color-text-3)">(.jpg)</span></span>
               </label>
             </div>
           </div>
 
           {/* Image Layout & Gap Options (Visible when Export Format is PNG or JPG) */}
           {(exportFormat === 'png' || exportFormat === 'jpg') && activePages.length > 1 && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-3 text-xs">
-              <div className="flex items-center gap-2 font-semibold text-[--color-text]">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3.5 space-y-3 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-(--color-text)">
                 <ImageIcon size={14} className="text-emerald-500" />
                 <span>Susunan & Penggabungan Gambar:</span>
               </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-(--color-text-2)">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -1183,7 +1183,7 @@ export default function MergePDF() {
                     className="accent-emerald-600"
                   />
                   <span className="font-medium flex items-center gap-1">
-                    <ArrowDown size={13} className="text-emerald-500" /> Memanjang ke Bawah <span className="text-[--color-text-3]">(1 Gambar Vertikal)</span>
+                    <ArrowDown size={13} className="text-emerald-500" /> Memanjang ke Bawah <span className="text-(--color-text-3)">(1 Gambar Vertikal)</span>
                   </span>
                 </label>
 
@@ -1197,7 +1197,7 @@ export default function MergePDF() {
                     className="accent-emerald-600"
                   />
                   <span className="font-medium flex items-center gap-1">
-                    <ArrowRight size={13} className="text-emerald-500" /> Memanjang Menyamping <span className="text-[--color-text-3]">(1 Gambar Horisontal)</span>
+                    <ArrowRight size={13} className="text-emerald-500" /> Memanjang Menyamping <span className="text-(--color-text-3)">(1 Gambar Horisontal)</span>
                   </span>
                 </label>
 
@@ -1211,7 +1211,7 @@ export default function MergePDF() {
                     className="accent-emerald-600"
                   />
                   <span className="font-medium flex items-center gap-1">
-                    <FolderArchive size={13} className="text-emerald-500" /> File Terpisah per Halaman <span className="text-[--color-text-3] font-mono">(.ZIP)</span>
+                    <FolderArchive size={13} className="text-emerald-500" /> File Terpisah per Halaman <span className="text-(--color-text-3) font-mono">(.ZIP)</span>
                   </span>
                 </label>
 
@@ -1225,16 +1225,16 @@ export default function MergePDF() {
                     className="accent-emerald-600"
                   />
                   <span className="font-medium flex items-center gap-1">
-                    <Grid size={13} className="text-emerald-500" /> Kolase / Grid <span className="text-[--color-text-3]">(Susun Berpetak)</span>
+                    <Grid size={13} className="text-emerald-500" /> Kolase / Grid <span className="text-(--color-text-3)">(Susun Berpetak)</span>
                   </span>
                 </label>
               </div>
 
               {/* Range / Gap spacing control between images */}
               {imageLayout !== 'zip' && imageLayout !== 'collage' && (
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 border-t border-[--color-border]/60">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 border-t border-(--color-border)/60">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-[--color-text-2]">Jarak / Range Antar Gambar:</span>
+                    <span className="font-medium text-(--color-text-2)">Jarak / Range Antar Gambar:</span>
                     <input
                       type="range"
                       min="0"
@@ -1249,11 +1249,11 @@ export default function MergePDF() {
 
                   {imageGap > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-[--color-text-2]">Warna Jarak:</span>
+                      <span className="font-medium text-(--color-text-2)">Warna Jarak:</span>
                       <select
                         value={gapBgColor}
                         onChange={(e) => setGapBgColor(e.target.value)}
-                        className="rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                        className="rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs text-(--color-text) outline-none"
                       >
                         <option value="white" className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Putih</option>
                         <option value="black" className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Hitam</option>
@@ -1268,8 +1268,8 @@ export default function MergePDF() {
 
               {/* Collage / Grid Presets */}
               {imageLayout === 'collage' && (
-                <div className="space-y-3 pt-2 border-t border-[--color-border]/60">
-                  <div className="text-xs font-semibold text-[--color-text-2]">Pilih Tata Letak Kolase:</div>
+                <div className="space-y-3 pt-2 border-t border-(--color-border)/60">
+                  <div className="text-xs font-semibold text-(--color-text-2)">Pilih Tata Letak Kolase:</div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
                       { id: 'grid-2x2', label: '2 × 2', desc: '4 gambar' },
@@ -1285,7 +1285,7 @@ export default function MergePDF() {
                         className={`flex flex-col items-center justify-center rounded-lg border-2 p-2.5 text-xs text-center transition-all min-h-[60px] ${
                           collagePreset === preset.id
                             ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
-                            : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:border-[--color-border-strong]'
+                            : 'border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:border-(--color-border-strong)'
                         }`}
                       >
                         <span className="font-bold text-sm">{preset.label}</span>
@@ -1296,7 +1296,7 @@ export default function MergePDF() {
                   
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[--color-text-2]">Lebar:</span>
+                      <span className="text-xs font-medium text-(--color-text-2)">Lebar:</span>
                       <input
                         type="number"
                         min="200"
@@ -1304,12 +1304,12 @@ export default function MergePDF() {
                         step="100"
                         value={collageWidth}
                         onChange={(e) => setCollageWidth(Math.max(200, Math.min(4000, Number(e.target.value) || 1200)))}
-                        className="w-20 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                        className="w-20 rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs text-(--color-text) outline-none"
                       />
-                      <span className="text-[10px] text-[--color-text-3]">px</span>
+                      <span className="text-[10px] text-(--color-text-3)">px</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[--color-text-2]">Tinggi:</span>
+                      <span className="text-xs font-medium text-(--color-text-2)">Tinggi:</span>
                       <input
                         type="number"
                         min="200"
@@ -1317,12 +1317,12 @@ export default function MergePDF() {
                         step="100"
                         value={collageHeight}
                         onChange={(e) => setCollageHeight(Math.max(200, Math.min(4000, Number(e.target.value) || 1600)))}
-                        className="w-20 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                        className="w-20 rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs text-(--color-text) outline-none"
                       />
-                      <span className="text-[10px] text-[--color-text-3]">px</span>
+                      <span className="text-[10px] text-(--color-text-3)">px</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[--color-text-2]">Jarak:</span>
+                      <span className="text-xs font-medium text-(--color-text-2)">Jarak:</span>
                       <input
                         type="range"
                         min="0"
@@ -1353,12 +1353,12 @@ export default function MergePDF() {
 
           {/* Page Width Option Selector (Visible when >1 files uploaded) */}
           {files.length > 1 && (exportFormat === 'pdf' || exportFormat === 'png' || exportFormat === 'jpg') && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3.5 space-y-2 text-xs">
-              <div className="flex items-center gap-2 font-semibold text-[--color-text]">
-                <SlidersHorizontal size={14} className="text-[--color-brand]" />
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3.5 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-(--color-text)">
+                <SlidersHorizontal size={14} className="text-(--color-brand)" />
                 <span>Opsi Ukuran / Lebar Halaman Hasil Merge:</span>
               </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[--color-text-2]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-(--color-text-2)">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -1366,9 +1366,9 @@ export default function MergePDF() {
                     value="original"
                     checked={widthOption === 'original'}
                     onChange={() => setWidthOption('original')}
-                    className="accent-[--color-brand]"
+                    className="accent-(--color-brand)"
                   />
-                  <span className="font-medium">Asli <span className="text-[--color-text-3]">(Proporsi masing-masing file)</span></span>
+                  <span className="font-medium">Asli <span className="text-(--color-text-3)">(Proporsi masing-masing file)</span></span>
                 </label>
 
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1378,9 +1378,9 @@ export default function MergePDF() {
                     value="a4"
                     checked={widthOption === 'a4'}
                     onChange={() => setWidthOption('a4')}
-                    className="accent-[--color-brand]"
+                    className="accent-(--color-brand)"
                   />
-                  <span className="font-medium">Standar A4 <span className="text-[--color-text-3]">(595pt / 210mm)</span></span>
+                  <span className="font-medium">Standar A4 <span className="text-(--color-text-3)">(595pt / 210mm)</span></span>
                 </label>
 
                 {files.map((f, idx) => {
@@ -1394,11 +1394,11 @@ export default function MergePDF() {
                         value={`file-${idx}`}
                         checked={widthOption === `file-${idx}`}
                         onChange={() => setWidthOption(`file-${idx}`)}
-                        className="accent-[--color-brand]"
+                        className="accent-(--color-brand)"
                       />
                       <span>
                         Ikuti Lebar File {idx + 1}{' '}
-                        <span className="text-[--color-text-3]">
+                        <span className="text-(--color-text-3)">
                           ({isImg ? 'Gambar' : 'PDF'}: {f.file.name.length > 15 ? f.file.name.substring(0, 12) + '...' : f.file.name}
                           {fileW ? ` • ${fileW}pt` : ''})
                         </span>
@@ -1454,14 +1454,14 @@ export default function MergePDF() {
         </div>
       )}
 
-      {error && <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">{error}</p>}
+      {error && <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">{error}</p>}
 
       {/* Action Button */}
       {files.length > 0 && !result && (
         <button
           onClick={merge}
           disabled={processing || activePages.length === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[--color-brand] px-4 py-3 text-sm font-bold text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors cursor-pointer shadow-md"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-(--color-brand) px-4 py-3 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors cursor-pointer shadow-md"
         >
           {processing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           {processing
@@ -1476,23 +1476,23 @@ export default function MergePDF() {
 
       {/* Result Section */}
       {result && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-[--color-text]">Hasil</span>
-              <p className="text-xs text-[--color-text-3]">{result.fileName || 'output'} — {fmtBytes(result.blob.size)}</p>
+              <span className="text-sm font-bold text-(--color-text)">Hasil</span>
+              <p className="text-xs text-(--color-text-3)">{result.fileName || 'output'} — {fmtBytes(result.blob.size)}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setResult(null); setResultPages([]); setResultCurrentPage(1) }}
-                className="flex h-7 items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 text-xs text-[--color-text-2] hover:bg-[--color-surface-3] transition-colors"
+                className="flex h-7 items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 text-xs text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors"
               >
                 <X size={12} /> Tutup
               </button>
               <a
                 href={URL.createObjectURL(result.blob)}
                 download={result.fileName || 'output'}
-                className="flex h-7 items-center gap-1 rounded bg-[--color-brand] px-3 text-xs font-bold text-white hover:bg-[--color-brand-hover] transition-colors no-underline"
+                className="flex h-7 items-center gap-1 rounded bg-(--color-brand) px-3 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors no-underline"
               >
                 <ArrowDown size={12} /> Unduh
               </a>
@@ -1501,30 +1501,30 @@ export default function MergePDF() {
 
           {/* Result Preview */}
           {renderingResult && (
-            <div className="rounded border border-[--color-border] bg-[--color-surface] p-6 space-y-3">
+            <div className="rounded border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 size={28} className="animate-spin text-[--color-brand]" />
-                <span className="text-xs font-medium text-[--color-text-3]">Merender preview hasil…</span>
+                <Loader2 size={28} className="animate-spin text-(--color-brand)" />
+                <span className="text-xs font-medium text-(--color-text-3)">Merender preview hasil…</span>
               </div>
             </div>
           )}
           {!renderingResult && resultPages.length > 0 && (
-            <div className="rounded border border-[--color-border] bg-[--color-surface] p-3 space-y-2">
+            <div className="rounded border border-(--color-border) bg-(--color-surface) p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[--color-text-2]">Preview Hasil</span>
+                <span className="font-semibold text-(--color-text-2)">Preview Hasil</span>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setResultCurrentPage(Math.max(1, resultCurrentPage - 1))} disabled={resultCurrentPage <= 1}
-                    className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                    className="flex h-6 w-6 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40">
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="font-bold text-[--color-text]">{resultCurrentPage} / {resultPages.length}</span>
+                  <span className="font-bold text-(--color-text)">{resultCurrentPage} / {resultPages.length}</span>
                   <button onClick={() => setResultCurrentPage(Math.min(resultPages.length, resultCurrentPage + 1))} disabled={resultCurrentPage >= resultPages.length}
-                    className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                    className="flex h-6 w-6 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40">
                     <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
-              <div className="flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-3 overflow-auto max-h-[600px]">
+              <div className="flex justify-center rounded border border-(--color-border) bg-(--color-surface-2) p-3 overflow-auto max-h-[600px]">
                 {resultPages[resultCurrentPage - 1] && (
                   <img src={resultPages[resultCurrentPage - 1].dataUrl} alt={`Page ${resultCurrentPage}`}
                     className="block max-h-[550px] w-auto shadow-sm" />

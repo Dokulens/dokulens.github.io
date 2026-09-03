@@ -60,23 +60,23 @@ export default function PWAInstallBanner() {
 
       {/* PWA Install Button Prompt */}
       {deferredPrompt && !isInstalled && !dismissed && (
-        <div className="flex items-center justify-between gap-2 rounded border border-[--color-brand] bg-[--color-brand-light] p-2 text-xs animate-fade-in">
+        <div className="flex items-center justify-between gap-2 rounded border border-(--color-brand) bg-(--color-brand-light) p-2 text-xs animate-fade-in">
           <div className="flex items-center gap-1.5 min-w-0">
-            <Download size={14} className="shrink-0 text-[--color-brand]" />
-            <span className="font-medium text-[--color-brand-text] truncate">
+            <Download size={14} className="shrink-0 text-(--color-brand)" />
+            <span className="font-medium text-(--color-brand-text) truncate">
               Install DokuLens ke Desktop / HP
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={handleInstallClick}
-              className="rounded bg-[--color-brand] px-2 py-0.5 font-bold text-white hover:bg-[--color-brand-hover] transition-colors"
+              className="rounded bg-(--color-brand) px-2 py-0.5 font-bold text-white hover:bg-(--color-brand-hover) transition-colors"
             >
               Install
             </button>
             <button
               onClick={() => setDismissed(true)}
-              className="p-0.5 text-[--color-text-3] hover:text-[--color-text]"
+              className="p-0.5 text-(--color-text-3) hover:text-(--color-text)"
             >
               <X size={13} />
             </button>

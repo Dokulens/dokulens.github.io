@@ -150,29 +150,29 @@ export default function ImageConvert() {
       />
 
       {files.length > 0 && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4 animate-fade-in">
           {/* File list */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
-                {files.length} File Dipilih {files.length > 1 && <span className="text-[--color-brand]">(hasil jadi ZIP)</span>}
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
+                {files.length} File Dipilih {files.length > 1 && <span className="text-(--color-brand)">(hasil jadi ZIP)</span>}
               </span>
-              <span className="text-[10px] text-[--color-text-3]">
+              <span className="text-[10px] text-(--color-text-3)">
                 Total: {fmtBytes(files.reduce((acc, f) => acc + f.size, 0))}
               </span>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1">
               {files.map((f, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 rounded bg-[--color-surface-3] px-2.5 py-1.5 text-xs">
+                <div key={i} className="flex items-center justify-between gap-2 rounded bg-(--color-surface-3) px-2.5 py-1.5 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[--color-text-3] font-mono w-5 text-right shrink-0">{i + 1}.</span>
-                    <span className="truncate text-[--color-text-2]">{f.name}</span>
+                    <span className="text-(--color-text-3) font-mono w-5 text-right shrink-0">{i + 1}.</span>
+                    <span className="truncate text-(--color-text-2)">{f.name}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[--color-text-3]">{fmtBytes(f.size)}</span>
+                    <span className="text-(--color-text-3)">{fmtBytes(f.size)}</span>
                     <button
                       onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}
-                      className="text-[--color-text-3] hover:text-[--color-danger] transition-colors font-bold"
+                      className="text-(--color-text-3) hover:text-(--color-danger) transition-colors font-bold"
                       title="Hapus"
                     >
                       ×
@@ -185,13 +185,13 @@ export default function ImageConvert() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                 Format Tujuan
               </label>
               <select
                 value={targetFormat}
                 onChange={(e) => setTargetFormat(e.target.value)}
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand] transition-colors"
+                className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand) transition-colors"
               >
                 {TARGET_FORMATS.map((f) => (
                   <option key={f.ext} value={f.ext}>{f.label}</option>
@@ -202,10 +202,10 @@ export default function ImageConvert() {
             {targetFormat !== 'png' && targetFormat !== 'bmp' && (
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                     Kualitas Kompresi
                   </label>
-                  <span className="text-xs font-bold text-[--color-brand]">{quality}%</span>
+                  <span className="text-xs font-bold text-(--color-brand)">{quality}%</span>
                 </div>
                 <input
                   type="range"
@@ -216,7 +216,7 @@ export default function ImageConvert() {
                   onChange={(e) => setQuality(Number(e.target.value))}
                   className="w-full mt-1.5"
                 />
-                <div className="flex justify-between text-[10px] text-[--color-text-3] mt-1">
+                <div className="flex justify-between text-[10px] text-(--color-text-3) mt-1">
                   <span>Ukuran Kecil (10%)</span>
                   <span>Seimbang (80%)</span>
                   <span>Maksimum (100%)</span>
@@ -226,7 +226,7 @@ export default function ImageConvert() {
           </div>
 
           <div>
-            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
               Pengaturan Ukuran (Resize)
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -249,9 +249,9 @@ export default function ImageConvert() {
 
             {resizeMode === 'percent' && (
               <div className="mt-3 animate-fade-in">
-                <div className="flex justify-between text-xs text-[--color-text-2] mb-1">
+                <div className="flex justify-between text-xs text-(--color-text-2) mb-1">
                   <span>Persentase Skala</span>
-                  <span className="font-bold text-[--color-brand]">{scalePercent}%</span>
+                  <span className="font-bold text-(--color-brand)">{scalePercent}%</span>
                 </div>
                 <input
                   type="range"
@@ -274,35 +274,35 @@ export default function ImageConvert() {
                   step="100"
                   value={targetWidth}
                   onChange={(e) => setTargetWidth(Number(e.target.value))}
-                  className="w-32 rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-sm outline-none focus:border-[--color-brand]"
+                  className="w-32 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-sm outline-none focus:border-(--color-brand)"
                 />
-                <span className="text-xs text-[--color-text-3]">pixel (tinggi otomatis proporsional)</span>
+                <span className="text-xs text-(--color-text-3)">pixel (tinggi otomatis proporsional)</span>
               </div>
             )}
 
             {resizeMode === 'custom' && (
               <div className="mt-3 flex items-center gap-2 animate-fade-in">
                 <div>
-                  <label className="block text-[10px] text-[--color-text-3] mb-0.5">Lebar (px)</label>
+                  <label className="block text-[10px] text-(--color-text-3) mb-0.5">Lebar (px)</label>
                   <input
                     type="number"
                     min="10"
                     max="8000"
                     value={targetWidth}
                     onChange={(e) => setTargetWidth(Number(e.target.value))}
-                    className="w-28 rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-sm outline-none focus:border-[--color-brand]"
+                    className="w-28 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-sm outline-none focus:border-(--color-brand)"
                   />
                 </div>
-                <span className="text-xs text-[--color-text-3] mt-3">x</span>
+                <span className="text-xs text-(--color-text-3) mt-3">x</span>
                 <div>
-                  <label className="block text-[10px] text-[--color-text-3] mb-0.5">Tinggi (px)</label>
+                  <label className="block text-[10px] text-(--color-text-3) mb-0.5">Tinggi (px)</label>
                   <input
                     type="number"
                     min="10"
                     max="8000"
                     value={targetHeight}
                     onChange={(e) => setTargetHeight(Number(e.target.value))}
-                    className="w-28 rounded border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-sm outline-none focus:border-[--color-brand]"
+                    className="w-28 rounded border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-sm outline-none focus:border-(--color-brand)"
                   />
                 </div>
               </div>
@@ -312,13 +312,13 @@ export default function ImageConvert() {
       )}
 
       {processing && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2 animate-fade-in">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2 animate-fade-in">
           <ProgressBar value={progress} label={`Memproses gambar… ${progress}%`} />
         </div>
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger) animate-fade-in">
           {error}
         </p>
       )}
@@ -327,7 +327,7 @@ export default function ImageConvert() {
         <button
           onClick={convert}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-all active:scale-[0.99]"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Memproses…' : `Konversi & Kompresi ${files.length} Gambar`}

@@ -99,14 +99,14 @@ export default function CompressPDF() {
       {file && <FilePreview file={file} />}
 
       {file && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-[--color-text] truncate">{file.name}</span>
-            <span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span>
+            <span className="font-medium text-(--color-text) truncate">{file.name}</span>
+            <span className="shrink-0 text-(--color-text-3) ml-2">{fmtBytes(file.size)}</span>
           </div>
 
           <div>
-            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+            <label className="block mb-2 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
               Tingkat Kompresi
             </label>
             <div className="space-y-2">
@@ -123,8 +123,8 @@ export default function CompressPDF() {
                     className="mt-0.5"
                   />
                   <div>
-                    <p className="text-sm font-medium text-[--color-text]">{lvl.label}</p>
-                    <p className="text-xs text-[--color-text-2] mt-0.5">{lvl.desc}</p>
+                    <p className="text-sm font-medium text-(--color-text)">{lvl.label}</p>
+                    <p className="text-xs text-(--color-text-2) mt-0.5">{lvl.desc}</p>
                   </div>
                 </label>
               ))}
@@ -134,13 +134,13 @@ export default function CompressPDF() {
       )}
 
       {processing && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2">
           <ProgressBar value={progress} label={progressText} />
         </div>
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">
           {error}
         </p>
       )}
@@ -149,7 +149,7 @@ export default function CompressPDF() {
         <button
           onClick={compress}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Mengompresi…' : 'Kompresi PDF'}

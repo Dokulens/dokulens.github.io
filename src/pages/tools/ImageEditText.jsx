@@ -235,12 +235,12 @@ export default function ImageEditText() {
               <ProgressBar value={ocrProgress} label="OCR sedang memproses..." />
             )}
             {status && (
-              <p className="text-xs text-[--color-text-3] text-center">{status}</p>
+              <p className="text-xs text-(--color-text-3) text-center">{status}</p>
             )}
 
             <div
               ref={previewRef}
-              className="relative rounded-lg border border-[--color-border] bg-[--color-surface] overflow-hidden inline-block max-w-full"
+              className="relative rounded-lg border border-(--color-border) bg-(--color-surface) overflow-hidden inline-block max-w-full"
             >
               <img
                 ref={imgRef}
@@ -297,7 +297,7 @@ export default function ImageEditText() {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="flex items-center gap-2 rounded border border-[--color-brand] bg-[--color-brand] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                  className="flex items-center gap-2 rounded border border-(--color-brand) bg-(--color-brand) px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                 >
                   <Download size={16} />
                   Download Hasil
@@ -305,7 +305,7 @@ export default function ImageEditText() {
                 <button
                   type="button"
                   onClick={handleUndo}
-                  className="flex items-center gap-2 rounded border border-[--color-border] bg-[--color-surface] px-4 py-2 text-sm text-[--color-text-2] hover:bg-[--color-surface-3]"
+                  className="flex items-center gap-2 rounded border border-(--color-border) bg-(--color-surface) px-4 py-2 text-sm text-(--color-text-2) hover:bg-(--color-surface-3)"
                 >
                   <Undo2 size={16} />
                   Undo
@@ -327,38 +327,38 @@ export default function ImageEditText() {
           {/* Sidebar — Edit Controls */}
           <div className="space-y-4">
             {/* Selected word info */}
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
               <h3 className="text-sm font-bold flex items-center gap-2">
                 <MousePointer size={14} />
                 Pilih Teks
               </h3>
               {selectedWord ? (
                 <div className="space-y-2">
-                  <div className="rounded bg-[--color-surface-3] p-2 text-xs">
-                    <span className="text-[--color-text-3]">Teks lama:</span>
-                    <p className="font-mono text-[--color-text] mt-1 break-all">"{selectedWord.text}"</p>
-                    <span className="text-[10px] text-[--color-text-3]">
+                  <div className="rounded bg-(--color-surface-3) p-2 text-xs">
+                    <span className="text-(--color-text-3)">Teks lama:</span>
+                    <p className="font-mono text-(--color-text) mt-1 break-all">"{selectedWord.text}"</p>
+                    <span className="text-[10px] text-(--color-text-3)">
                       Confidence: {Math.round(selectedWord.confidence)}%
                     </span>
                   </div>
 
                   <div>
-                    <label className="block text-xs text-[--color-text-3] mb-1">Teks baru:</label>
+                    <label className="block text-xs text-(--color-text-3) mb-1">Teks baru:</label>
                     <input
                       type="text"
                       value={newText}
                       onChange={(e) => setNewText(e.target.value)}
-                      className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm text-[--color-text] focus:border-[--color-brand] focus:outline-none"
+                      className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm text-(--color-text) focus:border-(--color-brand) focus:outline-none"
                       placeholder="Ketik teks pengganti..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-[--color-text-3] mb-1">Font:</label>
+                    <label className="block text-xs text-(--color-text-3) mb-1">Font:</label>
                     <select
                       value={fontFamily}
                       onChange={(e) => setFontFamily(e.target.value)}
-                      className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm text-[--color-text] focus:border-[--color-brand] focus:outline-none"
+                      className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm text-(--color-text) focus:border-(--color-brand) focus:outline-none"
                     >
                       {FONT_FAMILIES.map((f) => (
                         <option key={f.id} value={f.id}>{f.label}</option>
@@ -367,19 +367,19 @@ export default function ImageEditText() {
                   </div>
 
                   <div>
-                    <label className="block text-xs text-[--color-text-3] mb-1">Ukuran: {fontSize}px</label>
+                    <label className="block text-xs text-(--color-text-3) mb-1">Ukuran: {fontSize}px</label>
                     <input
                       type="range"
                       min={12}
                       max={72}
                       value={fontSize}
                       onChange={(e) => setFontSize(Number(e.target.value))}
-                      className="w-full accent-[--color-brand]"
+                      className="w-full accent-(--color-brand)"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-[--color-text-3] mb-1">Warna:</label>
+                    <label className="block text-xs text-(--color-text-3) mb-1">Warna:</label>
                     <div className="flex flex-wrap gap-1.5">
                       {FONT_COLORS.map((c, i) => (
                         <button
@@ -398,7 +398,7 @@ export default function ImageEditText() {
                     type="button"
                     onClick={applyEdit}
                     disabled={isProcessing || !newText.trim()}
-                    className="w-full flex items-center justify-center gap-2 rounded border border-[--color-brand] bg-[--color-brand] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 rounded border border-(--color-brand) bg-(--color-brand) px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {isProcessing ? (
                       <>
@@ -414,7 +414,7 @@ export default function ImageEditText() {
                   </button>
                 </div>
               ) : (
-                <p className="text-xs text-[--color-text-3] text-center py-4">
+                <p className="text-xs text-(--color-text-3) text-center py-4">
                   Klik kotak hijau pada teks di gambar untuk mulai mengedit
                 </p>
               )}
@@ -422,12 +422,12 @@ export default function ImageEditText() {
 
             {/* Edit history */}
             {editHistory.length > 0 && (
-              <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+              <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2">
                 <h3 className="text-sm font-bold">Riwayat Edit</h3>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {editHistory.map((e, i) => (
-                    <div key={i} className="text-xs rounded bg-[--color-surface-3] p-2">
-                      <span className="text-[--color-text-3]">"{e.word.text}"</span>
+                    <div key={i} className="text-xs rounded bg-(--color-surface-3) p-2">
+                      <span className="text-(--color-text-3)">"{e.word.text}"</span>
                       <span className="mx-1">→</span>
                       <span className="font-semibold">"{e.newText}"</span>
                     </div>
@@ -437,7 +437,7 @@ export default function ImageEditText() {
             )}
 
             {/* Word count */}
-            <div className="text-center text-xs text-[--color-text-3]">
+            <div className="text-center text-xs text-(--color-text-3)">
               {ocrWords.length} kata terdeteksi — klik untuk edit
             </div>
           </div>

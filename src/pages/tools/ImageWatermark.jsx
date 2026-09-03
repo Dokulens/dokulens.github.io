@@ -242,7 +242,7 @@ export default function ImageWatermark() {
       {imageSrc && (
         <div className="flex flex-col gap-3">
           {/* Canvas - full width */}
-          <div className="relative rounded-lg border border-dashed border-[--color-border] overflow-hidden bg-[--color-surface-2]">
+          <div className="relative rounded-lg border border-dashed border-(--color-border) overflow-hidden bg-(--color-surface-2)">
             <canvas
               ref={canvasRef}
               className="block w-full h-auto cursor-crosshair"
@@ -277,20 +277,20 @@ export default function ImageWatermark() {
             {watermarkType === 'text' && (
               <>
                 <div className="col-span-2 sm:col-span-3 lg:col-span-2">
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Teks</label>
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Teks</label>
                   <input
                     type="text"
                     value={watermarkText}
                     onChange={(e) => setWatermarkText(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs font-mono rounded-lg border border-[--color-border] bg-[--color-surface-3] text-[--color-text-2]"
+                    className="w-full px-2 py-1.5 text-xs font-mono rounded-lg border border-(--color-border) bg-(--color-surface-3) text-(--color-text-2)"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Font</label>
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Font</label>
                   <select
                     value={fontFamily}
                     onChange={(e) => setFontFamily(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs rounded-lg border border-[--color-border] bg-[--color-surface-3] text-[--color-text-2]"
+                    className="w-full px-2 py-1.5 text-xs rounded-lg border border-(--color-border) bg-(--color-surface-3) text-(--color-text-2)"
                   >
                     {FONT_FAMILIES.map(f => (
                       <option key={f.value} value={f.value}>{f.label}</option>
@@ -298,7 +298,7 @@ export default function ImageWatermark() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Ukuran</label>
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Ukuran</label>
                   <div className="flex flex-wrap gap-0.5">
                     {[12, 16, 20, 24, 32, 48, 60, 72, 96].map(s => (
                       <button
@@ -310,7 +310,7 @@ export default function ImageWatermark() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Warna</label>
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Warna</label>
                   <div className="flex flex-wrap gap-1">
                     {FONT_COLORS.map((c, i) => (
                       <button
@@ -318,7 +318,7 @@ export default function ImageWatermark() {
                         onClick={() => setFontColor(i)}
                         className={[
                           'w-5 h-5 rounded-sm border transition-all',
-                          fontColor === i ? 'ring-2 ring-[--color-brand] ring-offset-1 ring-offset-[--color-surface]' : ''
+                          fontColor === i ? 'ring-2 ring-(--color-brand) ring-offset-1 ring-offset-(--color-surface)' : ''
                         ].join(' ')}
                         style={{ backgroundColor: c, borderColor: c === '#ffffff' ? '#666' : c }}
                       />
@@ -326,7 +326,7 @@ export default function ImageWatermark() {
                   </div>
                 </div>
                 <div className="col-span-2 sm:col-span-3 lg:col-span-1">
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 flex items-center gap-1">
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 flex items-center gap-1">
                     <Eye size={10} /> Opasitas ({opacity}%)
                   </label>
                   <input
@@ -345,7 +345,7 @@ export default function ImageWatermark() {
             {watermarkType === 'icon' && (
               <>
                 <div className="col-span-2 sm:col-span-3 lg:col-span-2">
-                  <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Upload Ikon</label>
+                  <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Upload Ikon</label>
                   <DropZone
                     accept="image/*"
                     onFiles={handleIconFile}
@@ -364,17 +364,17 @@ export default function ImageWatermark() {
                 {iconSrc && (
                   <>
                     <div>
-                      <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Ukuran ({iconSize}%)</label>
+                      <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Ukuran ({iconSize}%)</label>
                       <input type="range" min="5" max="50" value={iconSize}
                         onChange={(e) => setIconSize(Number(e.target.value))} className="w-full h-1" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-[--color-text-3] mb-1 block">Rotasi ({iconRotation}°)</label>
+                      <label className="text-[10px] font-bold text-(--color-text-3) mb-1 block">Rotasi ({iconRotation}°)</label>
                       <input type="range" min="0" max="360" value={iconRotation}
                         onChange={(e) => setIconRotation(Number(e.target.value))} className="w-full h-1" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-[--color-text-3] mb-1 flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-(--color-text-3) mb-1 flex items-center gap-1">
                         <Eye size={10} /> Opasitas ({iconOpacity}%)
                       </label>
                       <input type="range" min="10" max="100" value={iconOpacity}
@@ -390,13 +390,13 @@ export default function ImageWatermark() {
           <div className="flex gap-2">
             <button
               onClick={downloadResult}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-[--color-brand] bg-[--color-brand] px-4 py-2.5 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-(--color-brand) bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
             >
               <Download size={16} /> Download Hasil
             </button>
             <button
               onClick={resetAll}
-              className="flex items-center justify-center gap-2 rounded-lg border border-[--color-border] bg-[--color-surface] px-4 py-2.5 text-sm font-bold text-[--color-text-3] hover:bg-[--color-surface-2] transition-all"
+              className="flex items-center justify-center gap-2 rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-2.5 text-sm font-bold text-(--color-text-3) hover:bg-(--color-surface-2) transition-all"
             >
               <RefreshCw size={16} /> Reset
             </button>

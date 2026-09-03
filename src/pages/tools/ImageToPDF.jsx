@@ -117,15 +117,15 @@ export default function ImageToPDF() {
 
       {file && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                 Ukuran Halaman
               </label>
               <select
                 value={pageSize}
                 onChange={(e) => setPageSize(e.target.value)}
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm text-[--color-text] outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm text-(--color-text) outline-none focus:border-(--color-brand)"
               >
                 {Object.entries(PAGE_SIZES).map(([k, v]) => (
                   <option key={k} value={k} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
@@ -135,7 +135,7 @@ export default function ImageToPDF() {
               </select>
             </div>
             <div>
-              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-semibold uppercase tracking-wider text-(--color-text-3)">
                 Margin: {margin} pt
               </label>
               <input
@@ -145,20 +145,20 @@ export default function ImageToPDF() {
                 step="5"
                 value={margin}
                 onChange={(e) => setMargin(Number(e.target.value))}
-                className="w-full mt-2 accent-[--color-brand]"
+                className="w-full mt-2 accent-(--color-brand)"
               />
             </div>
           </div>
         </div>
       )}
 
-      {error && <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">{error}</p>}
+      {error && <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">{error}</p>}
 
       {file && !result && (
         <button
           onClick={convert}
           disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors cursor-pointer"
+          className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors cursor-pointer"
         >
           {processing && <Loader2 size={16} className="animate-spin" />}
           {processing ? 'Memproses…' : 'Konversi Gambar ke PDF'}

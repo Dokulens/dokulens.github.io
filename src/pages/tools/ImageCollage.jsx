@@ -148,14 +148,14 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
   return (
     <div ref={wrapperRef} className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-[--color-text-2]">Preview Grid Custom</span>
-        <span className="text-[10px] text-[--color-text-3]">{canvasW}×{canvasH} px &middot; {gridCols}×{gridRows} grid</span>
+        <span className="text-xs font-semibold text-(--color-text-2)">Preview Grid Custom</span>
+        <span className="text-[10px] text-(--color-text-3)">{canvasW}×{canvasH} px &middot; {gridCols}×{gridRows} grid</span>
       </div>
-      <div className="text-[10px] text-[--color-text-3]">Tarik garis grid untuk resize kolom/baris &middot; Seret gambar untuk tukar posisi</div>
+      <div className="text-[10px] text-(--color-text-3)">Tarik garis grid untuk resize kolom/baris &middot; Seret gambar untuk tukar posisi</div>
 
       <div
         ref={containerRef}
-        className="relative border-2 border-[--color-border-strong] rounded-lg bg-gray-50 mx-auto overflow-hidden"
+        className="relative border-2 border-(--color-border-strong) rounded-lg bg-gray-50 mx-auto overflow-hidden"
         style={{ width: pw, height: ph, touchAction: 'none' }}
       >
         {/* Cell backgrounds + images */}
@@ -557,27 +557,27 @@ export default function ImageCollage() {
     >
       {/* Upload */}
       <div
-        className="rounded-xl border-2 border-dashed border-[--color-border-strong] bg-[--color-surface] p-6 text-center cursor-pointer hover:border-[--color-brand] transition-colors"
+        className="rounded-xl border-2 border-dashed border-(--color-border-strong) bg-(--color-surface) p-6 text-center cursor-pointer hover:border-(--color-brand) transition-colors"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleFiles(Array.from(e.dataTransfer.files)) }}
       >
         <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFiles(Array.from(e.target.files))} />
-        <Upload size={32} className="mx-auto mb-2 text-[--color-text-3]" />
-        <p className="text-sm font-semibold text-[--color-text]">Klik atau seret gambar ke sini</p>
-        <p className="text-[11px] text-[--color-text-3] mt-1">JPG, PNG, WebP &middot; Bebas jumlah</p>
+        <Upload size={32} className="mx-auto mb-2 text-(--color-text-3)" />
+        <p className="text-sm font-semibold text-(--color-text)">Klik atau seret gambar ke sini</p>
+        <p className="text-[11px] text-(--color-text-3) mt-1">JPG, PNG, WebP &middot; Bebas jumlah</p>
       </div>
 
       {/* Images strip */}
       {images.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[--color-text]">{images.length} gambar</span>
-            <button onClick={clearAll} className="text-[11px] text-[--color-danger] hover:underline cursor-pointer">Hapus Semua</button>
+            <span className="text-xs font-semibold text-(--color-text)">{images.length} gambar</span>
+            <button onClick={clearAll} className="text-[11px] text-(--color-danger) hover:underline cursor-pointer">Hapus Semua</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {images.map((img, i) => (
-              <div key={img.id} className="relative shrink-0 w-16 h-20 rounded-lg overflow-hidden border border-[--color-border] group cursor-grab active:cursor-grabbing"
+              <div key={img.id} className="relative shrink-0 w-16 h-20 rounded-lg overflow-hidden border border-(--color-border) group cursor-grab active:cursor-grabbing"
                 draggable
                 onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}>
                 <img src={img.url} alt="" className="w-full h-full object-cover pointer-events-none" />
@@ -593,17 +593,17 @@ export default function ImageCollage() {
       )}
 
       {/* Settings — always show so custom grid can be set up without images */}
-      <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 space-y-4">
+      <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5 space-y-4">
           {/* Presets */}
           <div>
-            <div className="text-xs font-semibold text-[--color-text-2] mb-2">Tata Letak:</div>
+            <div className="text-xs font-semibold text-(--color-text-2) mb-2">Tata Letak:</div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {PRESETS.map((p) => (
                 <button key={p.id} type="button" onClick={() => setPreset(p.id)}
                   className={`flex flex-col items-center justify-center rounded-lg border-2 p-2.5 text-xs text-center transition-all min-h-[56px] cursor-pointer ${
                     preset === p.id
                       ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
-                      : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:border-[--color-border-strong]'
+                      : 'border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:border-(--color-border-strong)'
                   }`}>
                   <span className="font-bold text-sm">{p.label}</span>
                   <span className="text-[10px] opacity-70">{p.desc}</span>
@@ -615,21 +615,21 @@ export default function ImageCollage() {
           {/* Canvas size + gap + bg + format */}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-2]">Lebar:</span>
+              <span className="text-xs font-medium text-(--color-text-2)">Lebar:</span>
               <input type="number" min="200" max="4000" step="100" value={canvasW}
                 onChange={(e) => setCanvasW(Math.max(200, Math.min(4000, Number(e.target.value) || 1200)))}
-                className="w-20 rounded-lg border border-[--color-border] bg-[--color-surface] px-2 py-1.5 text-xs text-[--color-text] outline-none focus:ring-2 focus:ring-emerald-500" />
-              <span className="text-[10px] text-[--color-text-3]">px</span>
+                className="w-20 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-xs text-(--color-text) outline-none focus:ring-2 focus:ring-emerald-500" />
+              <span className="text-[10px] text-(--color-text-3)">px</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-2]">Tinggi:</span>
+              <span className="text-xs font-medium text-(--color-text-2)">Tinggi:</span>
               <input type="number" min="200" max="4000" step="100" value={canvasH}
                 onChange={(e) => setCanvasH(Math.max(200, Math.min(4000, Number(e.target.value) || 1600)))}
-                className="w-20 rounded-lg border border-[--color-border] bg-[--color-surface] px-2 py-1.5 text-xs text-[--color-text] outline-none focus:ring-2 focus:ring-emerald-500" />
-              <span className="text-[10px] text-[--color-text-3]">px</span>
+                className="w-20 rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-xs text-(--color-text) outline-none focus:ring-2 focus:ring-emerald-500" />
+              <span className="text-[10px] text-(--color-text-3)">px</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-medium text-[--color-text-3] mr-0.5">Rasio:</span>
+              <span className="text-[10px] font-medium text-(--color-text-3) mr-0.5">Rasio:</span>
               {[
                 { label: '1:1', w: 1000, h: 1000 },
                 { label: '4:3', w: 1200, h: 900 },
@@ -643,32 +643,32 @@ export default function ImageCollage() {
                   className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
                     canvasW === r.w && canvasH === r.h
                       ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                      : 'border-[--color-border] text-[--color-text-3] hover:border-[--color-border-strong] hover:text-[--color-text-2]'
+                      : 'border-(--color-border) text-(--color-text-3) hover:border-(--color-border-strong) hover:text-(--color-text-2)'
                   }`}>
                   {r.label}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-2]">Jarak:</span>
+              <span className="text-xs font-medium text-(--color-text-2)">Jarak:</span>
               <input type="range" min="0" max="50" step="5" value={gap}
                 onChange={(e) => setGap(Number(e.target.value))}
                 className="w-24 accent-emerald-600 cursor-pointer" />
               <span className="font-mono text-emerald-500 font-bold text-[11px] w-8">{gap}px</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-2]">Background:</span>
+              <span className="text-xs font-medium text-(--color-text-2)">Background:</span>
               <select value={bgColor} onChange={(e) => setBgColor(e.target.value)}
-                className="rounded-lg border border-[--color-border] bg-[--color-surface] px-2 py-1.5 text-xs text-[--color-text] outline-none focus:ring-2 focus:ring-emerald-500">
+                className="rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-xs text-(--color-text) outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="white">Putih</option>
                 <option value="black">Hitam</option>
                 <option value="transparent">Transparan</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-2]">Format:</span>
+              <span className="text-xs font-medium text-(--color-text-2)">Format:</span>
               <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}
-                className="rounded-lg border border-[--color-border] bg-[--color-surface] px-2 py-1.5 text-xs text-[--color-text] outline-none focus:ring-2 focus:ring-emerald-500">
+                className="rounded-lg border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-xs text-(--color-text) outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="png">PNG</option>
                 <option value="jpg">JPG</option>
               </select>
@@ -677,18 +677,18 @@ export default function ImageCollage() {
 
           {/* Grid controls for custom */}
           {isCustom && (
-            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[--color-border]/60">
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-(--color-border)/60">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-[--color-text-2]">Kolom:</span>
-                <button onClick={removeCol} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Minus size={14} /></button>
-                <span className="text-xs font-bold text-[--color-text] w-4 text-center">{colWidths.length}</span>
-                <button onClick={addCol} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Plus size={14} /></button>
+                <span className="text-xs font-medium text-(--color-text-2)">Kolom:</span>
+                <button onClick={removeCol} className="rounded-lg border border-(--color-border) bg-(--color-surface) p-1 hover:bg-(--color-surface-3) cursor-pointer"><Minus size={14} /></button>
+                <span className="text-xs font-bold text-(--color-text) w-4 text-center">{colWidths.length}</span>
+                <button onClick={addCol} className="rounded-lg border border-(--color-border) bg-(--color-surface) p-1 hover:bg-(--color-surface-3) cursor-pointer"><Plus size={14} /></button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-[--color-text-2]">Baris:</span>
-                <button onClick={removeRow} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Minus size={14} /></button>
-                <span className="text-xs font-bold text-[--color-text] w-4 text-center">{rowHeights.length}</span>
-                <button onClick={addRow} className="rounded-lg border border-[--color-border] bg-[--color-surface] p-1 hover:bg-[--color-surface-3] cursor-pointer"><Plus size={14} /></button>
+                <span className="text-xs font-medium text-(--color-text-2)">Baris:</span>
+                <button onClick={removeRow} className="rounded-lg border border-(--color-border) bg-(--color-surface) p-1 hover:bg-(--color-surface-3) cursor-pointer"><Minus size={14} /></button>
+                <span className="text-xs font-bold text-(--color-text) w-4 text-center">{rowHeights.length}</span>
+                <button onClick={addRow} className="rounded-lg border border-(--color-border) bg-(--color-surface) p-1 hover:bg-(--color-surface-3) cursor-pointer"><Plus size={14} /></button>
               </div>
             </div>
           )}
@@ -696,7 +696,7 @@ export default function ImageCollage() {
 
       {/* Custom grid editor — always show when custom, even without images */}
       {isCustom && (
-        <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5">
+        <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5">
           <CollageGridEditor
             images={images}
             canvasW={canvasW}
@@ -727,7 +727,7 @@ export default function ImageCollage() {
 
       {result && (
         <div className="space-y-3">
-          <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-4 flex flex-col items-center gap-3">
+          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
             <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg shadow-lg" />
           </div>
           <div className="flex gap-2">
@@ -736,7 +736,7 @@ export default function ImageCollage() {
               <Download size={18} /> Unduh {result.ext.toUpperCase()}
             </button>
             <button onClick={() => setResult(null)}
-              className="rounded-lg border border-[--color-border] bg-[--color-surface] px-4 py-3 text-sm font-semibold text-[--color-text-2] hover:bg-[--color-surface-3] transition-colors cursor-pointer">
+              className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
               Kembali
             </button>
           </div>

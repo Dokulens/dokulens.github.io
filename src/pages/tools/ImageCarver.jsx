@@ -745,7 +745,7 @@ export default function ImageCarver() {
       description="Hapus objek bertarget dengan masking warna merah (Low Energy) atau lindungi objek penting (Protect High Energy), serta kecilkan resolusi gambar tanpa merusak proporsi objek."
     >
       {/* Top File Input & Action Controls */}
-      <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+      <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <DropZone
@@ -759,7 +759,7 @@ export default function ImageCarver() {
             <button
               onClick={handleReset}
               disabled={isCarving || !sourceImage}
-              className="flex items-center gap-1.5 rounded border border-[--color-border] bg-[--color-surface-2] px-3 py-2 text-xs font-semibold text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-50 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-50 transition-colors cursor-pointer"
             >
               <RotateCcw size={14} /> Reset
             </button>
@@ -772,9 +772,9 @@ export default function ImageCarver() {
             </button>
           </div>
 
-          <div className="text-xs text-[--color-text-3]">
+          <div className="text-xs text-(--color-text-3)">
             {origW && origH ? (
-              <span className="font-semibold text-[--color-text]">{origW} × {origH} px</span>
+              <span className="font-semibold text-(--color-text)">{origW} × {origH} px</span>
             ) : (
               'Belum ada gambar'
             )}
@@ -782,9 +782,9 @@ export default function ImageCarver() {
         </div>
 
         {/* Dimension Sliders & Keep Ratio Options */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 border-t border-[--color-border] text-xs">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 border-t border-(--color-border) text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-[--color-text-2]">Lebar:</span>
+            <span className="font-medium text-(--color-text-2)">Lebar:</span>
             <input
               type="range"
               min="10"
@@ -792,7 +792,7 @@ export default function ImageCarver() {
               value={widthPct}
               disabled={isCarving}
               onChange={(e) => handleWidthChange(Number(e.target.value))}
-              className="w-24 accent-[--color-brand] cursor-pointer"
+              className="w-24 accent-(--color-brand) cursor-pointer"
             />
             <input
               type="number"
@@ -801,13 +801,13 @@ export default function ImageCarver() {
               value={widthPct}
               disabled={isCarving}
               onChange={(e) => handleWidthChange(Number(e.target.value))}
-              className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-xs text-[--color-text]"
+              className="w-14 text-center rounded border border-(--color-border) bg-(--color-surface-2) px-1 py-0.5 text-xs text-(--color-text)"
             />
-            <span className="text-[--color-text-3]">%</span>
+            <span className="text-(--color-text-3)">%</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-medium text-[--color-text-2]">Tinggi:</span>
+            <span className="font-medium text-(--color-text-2)">Tinggi:</span>
             <input
               type="range"
               min="10"
@@ -815,7 +815,7 @@ export default function ImageCarver() {
               value={heightPct}
               disabled={isCarving}
               onChange={(e) => handleHeightChange(Number(e.target.value))}
-              className="w-24 accent-[--color-brand] cursor-pointer"
+              className="w-24 accent-(--color-brand) cursor-pointer"
             />
             <input
               type="number"
@@ -824,12 +824,12 @@ export default function ImageCarver() {
               value={heightPct}
               disabled={isCarving}
               onChange={(e) => handleHeightChange(Number(e.target.value))}
-              className="w-14 text-center rounded border border-[--color-border] bg-[--color-surface-2] px-1 py-0.5 text-xs text-[--color-text]"
+              className="w-14 text-center rounded border border-(--color-border) bg-(--color-surface-2) px-1 py-0.5 text-xs text-(--color-text)"
             />
-            <span className="text-[--color-text-3]">%</span>
+            <span className="text-(--color-text-3)">%</span>
           </div>
 
-          <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-[--color-text]">
+          <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-(--color-text)">
             <input
               type="checkbox"
               checked={keepRatio}
@@ -838,19 +838,19 @@ export default function ImageCarver() {
                 setKeepRatio(e.target.checked)
                 if (e.target.checked) updateKeepRatio('width', widthPct, heightPct)
               }}
-              className="accent-[--color-brand] cursor-pointer"
+              className="accent-(--color-brand) cursor-pointer"
             />
-            {keepRatio ? <Lock size={13} className="text-[--color-brand]" /> : <Unlock size={13} className="text-[--color-text-3]" />}
+            {keepRatio ? <Lock size={13} className="text-(--color-brand)" /> : <Unlock size={13} className="text-(--color-text-3)" />}
             <span>Jaga Rasio (Keep Ratio)</span>
           </label>
 
-          <label className="flex items-center gap-1.5 cursor-pointer font-medium text-[--color-text-2]">
+          <label className="flex items-center gap-1.5 cursor-pointer font-medium text-(--color-text-2)">
             <input
               type="checkbox"
               checked={livePreview}
               disabled={isCarving}
               onChange={(e) => setLivePreview(e.target.checked)}
-              className="accent-[--color-brand] cursor-pointer"
+              className="accent-(--color-brand) cursor-pointer"
             />
             <span>Pratinjau Langsung (Live Preview)</span>
           </label>
@@ -860,7 +860,7 @@ export default function ImageCarver() {
               <button
                 onClick={runCarve}
                 disabled={!sourceImage}
-                className="flex items-center gap-1.5 rounded-lg bg-[--color-brand] px-4 py-2 text-xs font-bold text-white hover:bg-[--color-brand-hover] disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 rounded-lg bg-(--color-brand) px-4 py-2 text-xs font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
               >
                 <Shrink size={14} /> Mulai Carving (Carve)
               </button>
@@ -877,8 +877,8 @@ export default function ImageCarver() {
 
         {/* Progress & Status */}
         {isCarving && (
-          <div className="space-y-2 pt-2 border-t border-[--color-border]">
-            <div className="flex items-center justify-between text-xs font-semibold text-[--color-brand]">
+          <div className="space-y-2 pt-2 border-t border-(--color-border)">
+            <div className="flex items-center justify-between text-xs font-semibold text-(--color-brand)">
               <span className="flex items-center gap-1.5">
                 <Activity size={14} className="animate-pulse" /> {statusText}
               </span>
@@ -888,27 +888,27 @@ export default function ImageCarver() {
           </div>
         )}
         {!isCarving && statusText && (
-          <p className="text-xs text-[--color-text-2] pt-1">{statusText}</p>
+          <p className="text-xs text-(--color-text-2) pt-1">{statusText}</p>
         )}
       </div>
 
       {/* Grid Display (Original Canvas + Masking vs Result Canvas) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Left Card: Original + Masking Canvas */}
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
-              <Paintbrush size={14} className="text-[--color-brand]" /> Foto Asli + Kuas Masking
+            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3) flex items-center gap-1.5">
+              <Paintbrush size={14} className="text-(--color-brand)" /> Foto Asli + Kuas Masking
             </span>
-            <span className="rounded bg-[--color-surface-3] px-2 py-0.5 text-[10px] font-semibold text-[--color-text-2]">
+            <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
               Draw Mask
             </span>
           </div>
 
           {/* Mask Tools Sub-Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-[--color-surface-2] p-2.5 text-xs border border-[--color-border]">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-(--color-surface-2) p-2.5 text-xs border border-(--color-border)">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-[--color-text-2]">Ukuran Kuas:</span>
+              <span className="font-semibold text-(--color-text-2)">Ukuran Kuas:</span>
               <input
                 type="range"
                 min="4"
@@ -916,9 +916,9 @@ export default function ImageCarver() {
                 value={brushSize}
                 disabled={isCarving}
                 onChange={(e) => setBrushSize(Number(e.target.value))}
-                className="w-20 accent-[--color-brand] cursor-pointer"
+                className="w-20 accent-(--color-brand) cursor-pointer"
               />
-              <span className="font-mono text-[11px] text-[--color-text-3] w-6">{brushSize}px</span>
+              <span className="font-mono text-[11px] text-(--color-text-3) w-6">{brushSize}px</span>
             </div>
 
             <div className="flex items-center gap-4">
@@ -952,7 +952,7 @@ export default function ImageCarver() {
             </div>
           </div>
 
-          <div className="relative flex justify-center items-center overflow-auto rounded border border-[--color-border] bg-black/90 p-2 min-h-[260px] max-h-[500px]">
+          <div className="relative flex justify-center items-center overflow-auto rounded border border-(--color-border) bg-black/90 p-2 min-h-[260px] max-h-[500px]">
             {sourceImage ? (
               <canvas
                 ref={origCanvasRef}
@@ -974,18 +974,18 @@ export default function ImageCarver() {
         </div>
 
         {/* Right Card: Result Canvas */}
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3] flex items-center gap-1.5">
-              <Sparkles size={14} className="text-[--color-brand]" /> Hasil Carving
+            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3) flex items-center gap-1.5">
+              <Sparkles size={14} className="text-(--color-brand)" /> Hasil Carving
             </span>
-            <div className="flex items-center gap-3 text-[11px] text-[--color-text-3]">
-              <span>Dimensi: <strong className="text-[--color-text]">{resultSizeText}</strong></span>
-              <span>Terpotong: <strong className="text-[--color-brand]">{seamsRemovedText} seams</strong></span>
+            <div className="flex items-center gap-3 text-[11px] text-(--color-text-3)">
+              <span>Dimensi: <strong className="text-(--color-text)">{resultSizeText}</strong></span>
+              <span>Terpotong: <strong className="text-(--color-brand)">{seamsRemovedText} seams</strong></span>
             </div>
           </div>
 
-          <div className="relative flex justify-center items-center overflow-auto rounded border border-[--color-border] bg-black/90 p-2 min-h-[260px] max-h-[500px]">
+          <div className="relative flex justify-center items-center overflow-auto rounded border border-(--color-border) bg-black/90 p-2 min-h-[260px] max-h-[500px]">
             <canvas
               ref={resCanvasRef}
               className="block max-w-full max-h-[460px] w-auto h-auto rounded select-none"

@@ -285,19 +285,19 @@ export default function ObjectRemover() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
           {/* ── LEFT: Preview ────────────────────────────────────── */}
           <div className="space-y-3">
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-2">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                   Gambar & Area Masking
                 </span>
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="flex items-center gap-1.5 rounded-md border border-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 text-xs font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-all"
+                  className="flex items-center gap-1.5 rounded-md border border-(--color-brand) bg-(--color-brand-light) px-3 py-1.5 text-xs font-bold text-(--color-brand) hover:bg-(--color-brand) hover:text-white transition-all"
                 >
                   <Paintbrush size={12} /> {hasMask ? 'Ubah Masking' : 'Beri Masking Objek'}
                 </button>
               </div>
-              <div className="relative inline-block overflow-hidden rounded border border-[--color-border] bg-[--color-surface-2]">
+              <div className="relative inline-block overflow-hidden rounded border border-(--color-border) bg-(--color-surface-2)">
                 <img
                   ref={imgRef}
                   src={imageSrc}
@@ -317,7 +317,7 @@ export default function ObjectRemover() {
                   </span>
                   <button
                     onClick={() => { clearModalMask(); renderOverlay() }}
-                    className="text-[--color-text-3] hover:text-red-500 text-xs font-semibold"
+                    className="text-(--color-text-3) hover:text-red-500 text-xs font-semibold"
                   >
                     (Hapus)
                   </button>
@@ -330,7 +330,7 @@ export default function ObjectRemover() {
           <div className="space-y-3">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[--color-brand] bg-[--color-brand-light] px-4 py-3 text-sm font-bold text-[--color-brand] hover:bg-[--color-brand] hover:text-white transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-(--color-brand) bg-(--color-brand-light) px-4 py-3 text-sm font-bold text-(--color-brand) hover:bg-(--color-brand) hover:text-white transition-all"
             >
               <Maximize2 size={16} />
               {hasMask ? 'Ubah Masking (Pop-up)' : 'Buka Kanvas Masking (Pop-up)'}
@@ -339,7 +339,7 @@ export default function ObjectRemover() {
             <button
               onClick={processImage}
               disabled={processing || !imageSrc}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[--color-brand] bg-[--color-brand] px-4 py-3 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-(--color-brand) bg-(--color-brand) px-4 py-3 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? (
                 <><Loader2 size={18} className="animate-spin" /> Memproses…</>
@@ -349,20 +349,20 @@ export default function ObjectRemover() {
             </button>
 
             {processing && loadStage && (
-              <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3 space-y-2 animate-fade-in">
-                <div className="flex items-center gap-2 text-xs font-semibold text-[--color-text]">
-                  <Cpu size={14} className="animate-pulse text-[--color-brand]" />
+              <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3 space-y-2 animate-fade-in">
+                <div className="flex items-center gap-2 text-xs font-semibold text-(--color-text)">
+                  <Cpu size={14} className="animate-pulse text-(--color-brand)" />
                   {loadStage}
                 </div>
                 {loadProgress.total > 0 && (
                   <div className="space-y-1">
-                    <div className="h-2 w-full rounded-full bg-[--color-surface-3] overflow-hidden">
+                    <div className="h-2 w-full rounded-full bg-(--color-surface-3) overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-[--color-brand] transition-all duration-300"
+                        className="h-full rounded-full bg-(--color-brand) transition-all duration-300"
                         style={{ width: `${Math.min(100, (loadProgress.loaded / loadProgress.total) * 100)}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[10px] text-[--color-text-3] font-mono">
+                    <div className="flex justify-between text-[10px] text-(--color-text-3) font-mono">
                       <span>{(loadProgress.loaded / 1024 / 1024).toFixed(1)} MB</span>
                       <span>{(loadProgress.total / 1024 / 1024).toFixed(1)} MB</span>
                     </div>
@@ -382,7 +382,7 @@ export default function ObjectRemover() {
                 <div className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1.5">
                   <Check size={14} /> Selesai! Objek berhasil dihapus.
                 </div>
-                <img src={resultUrl} alt="Result" className="w-full rounded-lg border border-[--color-border]" />
+                <img src={resultUrl} alt="Result" className="w-full rounded-lg border border-(--color-border)" />
                 <div className="flex gap-2">
                   <button
                     onClick={downloadResult}
@@ -392,7 +392,7 @@ export default function ObjectRemover() {
                   </button>
                   <button
                     onClick={() => { setResultUrl(null); setResultBlob(null) }}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-[--color-border] bg-[--color-surface-3] px-3 py-2 text-xs font-bold text-[--color-text-2] hover:bg-[--color-surface-2] transition-all"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-(--color-border) bg-(--color-surface-3) px-3 py-2 text-xs font-bold text-(--color-text-2) hover:bg-(--color-surface-2) transition-all"
                   >
                     <RefreshCw size={14} />
                   </button>
@@ -402,20 +402,20 @@ export default function ObjectRemover() {
 
             <button
               onClick={clearCache}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-[11px] font-semibold text-[--color-text-3] hover:bg-[--color-surface-2] hover:text-[--color-text-2] transition-all"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-[11px] font-semibold text-(--color-text-3) hover:bg-(--color-surface-2) hover:text-(--color-text-2) transition-all"
             >
               <Trash2 size={12} /> Bersihkan Dependensi AI
             </button>
 
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3">
               <div className="flex items-start gap-2">
-                <Info size={14} className="shrink-0 mt-0.5 text-[--color-text-3]" />
-                <div className="text-[10px] leading-relaxed text-[--color-text-3] space-y-1">
-                  <p className="font-semibold text-[--color-text-2]">Info Spesifikasi Minimum</p>
+                <Info size={14} className="shrink-0 mt-0.5 text-(--color-text-3)" />
+                <div className="text-[10px] leading-relaxed text-(--color-text-3) space-y-1">
+                  <p className="font-semibold text-(--color-text-2)">Info Spesifikasi Minimum</p>
                   <p>Browser Chrome/Edge v113+ / Safari 17.4+ (WebGPU)</p>
                   <p>RAM minimal 4GB</p>
                   <p>Kuota ~1.3GB unduhan pertama (setelah itu Offline)</p>
-                  <p className="text-[--color-brand] font-semibold">Model: Moebius 0.2B Inpainting (ONNX)</p>
+                  <p className="text-(--color-brand) font-semibold">Model: Moebius 0.2B Inpainting (ONNX)</p>
                 </div>
               </div>
             </div>

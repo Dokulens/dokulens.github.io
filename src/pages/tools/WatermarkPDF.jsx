@@ -240,7 +240,7 @@ export default function WatermarkPDF() {
           {/* Preview */}
           {pageImages.length > 0 && (
             <div className="space-y-2">
-              <div className="relative rounded-lg border border-dashed border-[--color-border] overflow-hidden bg-[--color-surface-2]">
+              <div className="relative rounded-lg border border-dashed border-(--color-border) overflow-hidden bg-(--color-surface-2)">
                 <canvas
                   ref={previewCanvasRef}
                   className="block max-h-[500px] w-full object-contain cursor-crosshair"
@@ -259,17 +259,17 @@ export default function WatermarkPDF() {
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
-                    className="rounded p-1 hover:bg-[--color-surface-3] disabled:opacity-30"
+                    className="rounded p-1 hover:bg-(--color-surface-3) disabled:opacity-30"
                   >
                     <ChevronLeft size={18} />
                   </button>
-                  <span className="text-xs text-[--color-text-2] font-mono">
+                  <span className="text-xs text-(--color-text-2) font-mono">
                     {currentPage} / {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage >= totalPages}
-                    className="rounded p-1 hover:bg-[--color-surface-3] disabled:opacity-30"
+                    className="rounded p-1 hover:bg-(--color-surface-3) disabled:opacity-30"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -279,10 +279,10 @@ export default function WatermarkPDF() {
           )}
 
           {/* Controls */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4">
+          <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4">
             {/* Text */}
             <div>
-              <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                 Teks Watermark
               </label>
               <input
@@ -290,39 +290,39 @@ export default function WatermarkPDF() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="CONFIDENTIAL / DRAFT / RAHASIA"
-                className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
               />
             </div>
 
             {/* Size + Opacity */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                   Ukuran: {fontSize}pt
                 </label>
                 <input type="range" min="12" max="96" step="2" value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))} className="w-full accent-[--color-brand]" />
+                  onChange={(e) => setFontSize(Number(e.target.value))} className="w-full accent-(--color-brand)" />
               </div>
               <div>
-                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                   Transparansi: {opacity}%
                 </label>
                 <input type="range" min="5" max="100" step="5" value={opacity}
-                  onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-[--color-brand]" />
+                  onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-(--color-brand)" />
               </div>
             </div>
 
             {/* Rotation + Bold + Color */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                   Rotasi: {rotation}°
                 </label>
                 <input type="range" min="0" max="360" step="5" value={rotation}
-                  onChange={(e) => setRotation(Number(e.target.value))} className="w-full accent-[--color-brand]" />
+                  onChange={(e) => setRotation(Number(e.target.value))} className="w-full accent-(--color-brand)" />
               </div>
               <div>
-                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+                <label className="block mb-1 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                   Warna
                 </label>
                 <div className="flex flex-wrap gap-1 mt-1">
@@ -331,7 +331,7 @@ export default function WatermarkPDF() {
                       key={c}
                       onClick={() => setColor(c)}
                       className={`w-5 h-5 rounded-sm border-2 transition-all ${
-                        color === c ? 'ring-2 ring-[--color-brand] ring-offset-1 ring-offset-[--color-surface] scale-110' : ''
+                        color === c ? 'ring-2 ring-(--color-brand) ring-offset-1 ring-offset-(--color-surface) scale-110' : ''
                       }`}
                       style={{ backgroundColor: c, borderColor: c === '#ffffff' ? '#666' : c }}
                     />
@@ -349,14 +349,14 @@ export default function WatermarkPDF() {
             </div>
 
             {/* Position indicator */}
-            <div className="flex items-center gap-3 text-xs text-[--color-text-3]">
-              <span>Posisi: <strong className="text-[--color-text-2]">{Math.round(position.x)}%, {Math.round(position.y)}%</strong></span>
+            <div className="flex items-center gap-3 text-xs text-(--color-text-3)">
+              <span>Posisi: <strong className="text-(--color-text-2)">{Math.round(position.x)}%, {Math.round(position.y)}%</strong></span>
               <span className="opacity-50">— drag pada preview untuk geser</span>
             </div>
 
             {/* Apply mode */}
             <div>
-              <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+              <label className="block mb-2 text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                 Terapkan ke
               </label>
               <div className="flex gap-2 mb-3">
@@ -378,7 +378,7 @@ export default function WatermarkPDF() {
                 <div className="space-y-2">
                   <button
                     onClick={toggleAll}
-                    className="text-[10px] text-[--color-brand] hover:underline font-semibold"
+                    className="text-[10px] text-(--color-brand) hover:underline font-semibold"
                   >
                     {selectedPages.size === totalPages ? 'Batal Pilih Semua' : 'Pilih Semua'}
                   </button>
@@ -392,14 +392,14 @@ export default function WatermarkPDF() {
                           onClick={() => togglePage(p)}
                           className={`relative rounded overflow-hidden border-2 transition-all aspect-[3/4] ${
                             isSelected
-                              ? 'border-[--color-brand] ring-1 ring-[--color-brand]'
-                              : 'border-[--color-border] opacity-50 hover:opacity-80'
+                              ? 'border-(--color-brand) ring-1 ring-(--color-brand)'
+                              : 'border-(--color-border) opacity-50 hover:opacity-80'
                           }`}
                           onClickCapture={() => togglePage(p)}
                         >
                           <img src={img} alt={`Hal ${p}`} className="w-full h-full object-cover" />
                           {isSelected && (
-                            <div className="absolute top-0.5 right-0.5 bg-[--color-brand] rounded-full p-0.5">
+                            <div className="absolute top-0.5 right-0.5 bg-(--color-brand) rounded-full p-0.5">
                               <Check size={8} className="text-white" />
                             </div>
                           )}
@@ -408,7 +408,7 @@ export default function WatermarkPDF() {
                       )
                     })}
                   </div>
-                  <p className="text-[10px] text-[--color-text-3]">
+                  <p className="text-[10px] text-(--color-text-3)">
                     {selectedPages.size} dari {totalPages} halaman dipilih
                   </p>
                 </div>
@@ -417,7 +417,7 @@ export default function WatermarkPDF() {
           </div>
 
           {error && (
-            <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">
+            <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">
               {error}
             </p>
           )}
@@ -425,7 +425,7 @@ export default function WatermarkPDF() {
           <button
             onClick={applyWatermark}
             disabled={processing || !text.trim() || (applyMode === 'custom' && selectedPages.size === 0)}
-            className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors"
           >
             {processing && <Loader2 size={16} className="animate-spin" />}
             {processing ? 'Menambahkan Watermark…' : `Terapkan ke ${applyMode === 'all' ? 'Semua Halaman' : `${selectedPages.size} Halaman`}`}

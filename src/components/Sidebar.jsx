@@ -13,8 +13,8 @@ function NavIcon({ name, active }) {
       size={18}
       className={
         active
-          ? 'text-[--color-brand] shrink-0 scale-110 transition-transform duration-200'
-          : 'text-[--color-text-2] group-hover:text-[--color-text] shrink-0 transition-colors duration-150'
+          ? 'text-(--color-brand) shrink-0 scale-110 transition-transform duration-200'
+          : 'text-(--color-text-2) group-hover:text-(--color-text) shrink-0 transition-colors duration-150'
       }
     />
   )
@@ -25,29 +25,29 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
   return (
     <div
-      className="flex h-full flex-col bg-[--color-surface] select-none transition-all duration-200 overflow-hidden"
+      className="flex h-full flex-col bg-(--color-surface) select-none transition-all duration-200 overflow-hidden"
       style={{ backgroundColor: 'var(--color-surface)' }}
     >
       {/* Brand Header */}
       <div className={[
-        'flex h-14 items-center border-b border-[--color-border]',
+        'flex h-14 items-center border-b border-(--color-border)',
         isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
       ].join(' ')}>
         <NavLink
           to="/"
           onClick={onClose}
-          className="flex items-center gap-2.5 text-[--color-text] no-underline transition-opacity hover:opacity-85"
+          className="flex items-center gap-2.5 text-(--color-text) no-underline transition-opacity hover:opacity-85"
           title="DokuLens Beranda"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-[--color-brand] shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-(--color-brand) shrink-0">
             <Icons.FileSearch size={18} className="text-white" style={{ color: '#ffffff' }} />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
-              <span className="text-sm font-bold tracking-tight block leading-tight text-[--color-text] truncate">
+              <span className="text-sm font-bold tracking-tight block leading-tight text-(--color-text) truncate">
                 DokuLens
               </span>
-              <span className="text-[10px] text-[--color-text-3] block uppercase tracking-wider font-semibold">
+              <span className="text-[10px] text-(--color-text-3) block uppercase tracking-wider font-semibold">
                 Client-Side Studio
               </span>
             </div>
@@ -57,7 +57,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
         {/* Mobile close button */}
         <button
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] lg:hidden"
+          className="flex h-8 w-8 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) lg:hidden"
         >
           <X size={16} />
         </button>
@@ -81,33 +81,33 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                   ? 'h-9.5 w-9.5 justify-center'
                   : 'w-full justify-between px-3 py-2',
                 isActive
-                  ? 'bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs border border-[--color-brand]/30 ring-1 ring-[--color-brand]/40'
-                  : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
+                  ? 'bg-(--color-brand-light) text-(--color-brand-text) font-bold shadow-xs border border-(--color-brand)/30 ring-1 ring-(--color-brand)/40'
+                  : 'text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text)',
               ].join(' ')
             }
           >
             {({ isActive }) => (
               <>
                 {isActive && !isCollapsed && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[--color-brand] shadow-sm" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-(--color-brand) shadow-sm" />
                 )}
                 <div className="flex items-center gap-2.5">
                   <Home
                     size={18}
                     className={
                       isActive
-                        ? 'text-[--color-brand] scale-110 transition-transform duration-200'
-                        : 'text-[--color-text-2] group-hover:text-[--color-text] transition-colors duration-150'
+                        ? 'text-(--color-brand) scale-110 transition-transform duration-200'
+                        : 'text-(--color-text-2) group-hover:text-(--color-text) transition-colors duration-150'
                     }
                   />
                   {!isCollapsed && (
-                    <span className={isActive ? 'font-bold text-[--color-brand-text]' : 'font-medium'}>
+                    <span className={isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}>
                       Semua Tools
                     </span>
                   )}
                 </div>
                 {isActive && !isCollapsed && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-[--color-brand] shadow-xs animate-pulse" />
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-(--color-brand) shadow-xs animate-pulse" />
                 )}
               </>
             )}
@@ -125,9 +125,9 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
           <div key={group.label} className={isCollapsed ? 'w-full flex flex-col items-center space-y-1' : 'space-y-1'}>
             {/* Divider or Group Label */}
             {isCollapsed ? (
-              <div className="w-6 h-px bg-[--color-border] my-1" />
+              <div className="w-6 h-px bg-(--color-border) my-1" />
             ) : (
-              <p className="px-2.5 text-[11px] font-bold uppercase tracking-wider text-[--color-text-3]">
+              <p className="px-2.5 text-[11px] font-bold uppercase tracking-wider text-(--color-text-3)">
                 {group.label}
               </p>
             )}
@@ -146,28 +146,28 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                           ? 'h-9.5 w-9.5 justify-center'
                           : 'w-full justify-between px-3 py-2',
                         isActive
-                          ? 'bg-[--color-brand-light] text-[--color-brand-text] font-bold shadow-xs border border-[--color-brand]/30 ring-1 ring-[--color-brand]/40'
-                          : 'text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text]',
+                          ? 'bg-(--color-brand-light) text-(--color-brand-text) font-bold shadow-xs border border-(--color-brand)/30 ring-1 ring-(--color-brand)/40'
+                          : 'text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text)',
                       ].join(' ')
                     }
                   >
                     {({ isActive }) => (
                       <>
                         {isActive && !isCollapsed && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[--color-brand] shadow-sm" />
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-(--color-brand) shadow-sm" />
                         )}
 
                         <div className="flex items-center gap-2.5 min-w-0">
                           <NavIcon name={item.icon} active={isActive} />
                           {!isCollapsed && (
-                            <span className={`truncate ${isActive ? 'font-bold text-[--color-brand-text]' : 'font-medium'}`}>
+                            <span className={`truncate ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}>
                               {item.label}
                             </span>
                           )}
                         </div>
 
                         {isActive && !isCollapsed && (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-[--color-brand] shadow-xs animate-pulse" />
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-(--color-brand) shadow-xs animate-pulse" />
                         )}
                       </>
                     )}
@@ -189,11 +189,11 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
       {/* Footer Info & PWA status */}
       {!isCollapsed && (
-        <div className="border-t border-[--color-border] p-3 space-y-2">
+        <div className="border-t border-(--color-border) p-3 space-y-2">
           <PWAInstallBanner />
-          <div className="rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-[11px] text-[--color-text-3]">
-            <p className="font-semibold text-[--color-text-2] flex items-center gap-1 mb-0.5">
-              <ShieldCheck size={13} className="text-[--color-success]" />
+          <div className="rounded border border-(--color-border) bg-(--color-surface-2) p-2.5 text-[11px] text-(--color-text-3)">
+            <p className="font-semibold text-(--color-text-2) flex items-center gap-1 mb-0.5">
+              <ShieldCheck size={13} className="text-(--color-success)" />
               100% Offline & Privat
             </p>
             <p className="leading-snug">Semua file diproses lokal di browser perangkat Anda.</p>

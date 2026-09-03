@@ -620,33 +620,33 @@ export default function AddPageNumber() {
       {file && (
         <div className="space-y-4 animate-fade-in">
           {/* File format indicator */}
-          <div className="flex items-center justify-between rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+          <div className="flex items-center justify-between rounded-lg border border-(--color-border) bg-(--color-surface) p-3 text-xs">
             <div className="flex items-center gap-2">
               {fileType === 'docx' ? (
                 <FileType size={16} className="text-blue-500" />
               ) : (
                 <FileText size={16} className="text-red-500" />
               )}
-              <span className="font-semibold text-[--color-text] truncate">{file.name}</span>
-              <span className="rounded bg-[--color-surface-3] px-2 py-0.5 font-bold uppercase text-[--color-text-3]">
+              <span className="font-semibold text-(--color-text) truncate">{file.name}</span>
+              <span className="rounded bg-(--color-surface-3) px-2 py-0.5 font-bold uppercase text-(--color-text-3)">
                 {fileType}
               </span>
             </div>
-            <span className="text-[--color-text-3] shrink-0">{fmtBytes(file.size)}</span>
+            <span className="text-(--color-text-3) shrink-0">{fmtBytes(file.size)}</span>
           </div>
 
           {/* Detected Position Banner for PDF */}
           {detectedPosition && fileType === 'pdf' && (
-            <div className="flex items-center justify-between rounded-lg border border-[--color-brand] bg-[--color-brand-light] p-3 text-xs animate-fade-in">
+            <div className="flex items-center justify-between rounded-lg border border-(--color-brand) bg-(--color-brand-light) p-3 text-xs animate-fade-in">
               <div className="flex items-center gap-2">
-                <Sparkles size={16} className="shrink-0 text-[--color-brand]" />
-                <span className="text-[--color-brand-text]">
+                <Sparkles size={16} className="shrink-0 text-(--color-brand)" />
+                <span className="text-(--color-brand-text)">
                   <strong>Nomor Halaman Terdeteksi:</strong> Ditemukan pola &quot;{detectedPosition.text}&quot; di posisi <strong>{POSITION_PRESETS.find(p => p.id === detectedPosition.preset)?.label}</strong>.
                 </span>
               </div>
               <button
                 onClick={applyDetectedPosition}
-                className="shrink-0 rounded bg-[--color-brand] px-2.5 py-1 font-bold text-white hover:bg-[--color-brand-hover] transition-colors"
+                className="shrink-0 rounded bg-(--color-brand) px-2.5 py-1 font-bold text-white hover:bg-(--color-brand-hover) transition-colors"
               >
                 Gunakan Posisi Ini
               </button>
@@ -657,20 +657,20 @@ export default function AddPageNumber() {
           <div className="space-y-4">
             
             {/* STEP 1: Position */}
-            <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-brand] text-sm font-bold text-white shrink-0">1</div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-(--color-brand) text-sm font-bold text-white shrink-0">1</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-[--color-text]">Posisi Nomor Halaman</h3>
-                  <p className="text-[11px] text-[--color-text-3]">Pilih letak nomor di halaman</p>
+                  <h3 className="text-sm font-bold text-(--color-text)">Posisi Nomor Halaman</h3>
+                  <p className="text-[11px] text-(--color-text-3)">Pilih letak nomor di halaman</p>
                 </div>
                 {fileType === 'pdf' && (
-                  <label className="flex items-center gap-2 text-xs text-[--color-brand] cursor-pointer bg-[--color-brand-light] px-3 py-1.5 rounded-full shrink-0">
+                  <label className="flex items-center gap-2 text-xs text-(--color-brand) cursor-pointer bg-(--color-brand-light) px-3 py-1.5 rounded-full shrink-0">
                     <input
                       type="checkbox"
                       checked={usePerPagePosition}
                       onChange={(e) => setUsePerPagePosition(e.target.checked)}
-                      className="accent-[--color-brand]"
+                      className="accent-(--color-brand)"
                     />
                     <span className="font-semibold">Beda tiap halaman</span>
                   </label>
@@ -694,12 +694,12 @@ export default function AddPageNumber() {
                       onClick={() => selectPreset(pos.id)}
                       className={`relative flex flex-col items-center justify-center rounded-xl border-2 p-3 text-xs text-center transition-all min-h-[64px] ${
                         isActive
-                          ? 'border-[--color-brand] bg-[--color-brand-light] text-[--color-brand] shadow-md'
-                          : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:border-[--color-border-strong] hover:bg-[--color-surface-3]'
+                          ? 'border-(--color-brand) bg-(--color-brand-light) text-(--color-brand) shadow-md'
+                          : 'border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:border-(--color-border-strong) hover:bg-(--color-surface-3)'
                       }`}
                     >
                       {isActive && (
-                        <div className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-[--color-brand] flex items-center justify-center">
+                        <div className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-(--color-brand) flex items-center justify-center">
                           <Check size={12} className="text-white" />
                         </div>
                       )}
@@ -712,14 +712,14 @@ export default function AddPageNumber() {
             </div>
 
             {/* STEP 2: Which Pages */}
-            <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-brand] text-sm font-bold text-white shrink-0">2</div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-(--color-brand) text-sm font-bold text-white shrink-0">2</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-[--color-text]">Halaman yang Diberi Nomor</h3>
-                  <p className="text-[11px] text-[--color-text-3]">Pilih halaman mana saja yang akan diberi nomor</p>
+                  <h3 className="text-sm font-bold text-(--color-text)">Halaman yang Diberi Nomor</h3>
+                  <p className="text-[11px] text-(--color-text-3)">Pilih halaman mana saja yang akan diberi nomor</p>
                 </div>
-                <div className="text-xs font-bold text-[--color-brand] bg-[--color-brand-light] px-3 py-1.5 rounded-full shrink-0">
+                <div className="text-xs font-bold text-(--color-brand) bg-(--color-brand-light) px-3 py-1.5 rounded-full shrink-0">
                   {getIncludedPagesList().length} / {totalPages}
                 </div>
               </div>
@@ -730,8 +730,8 @@ export default function AddPageNumber() {
                   onClick={() => { setTargetPageMode('all'); setTargetPagesInput('Semua') }}
                   className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                     targetPageMode === 'all'
-                      ? 'bg-[--color-brand] text-white shadow-md'
-                      : 'bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-surface-3] border border-[--color-border]'
+                      ? 'bg-(--color-brand) text-white shadow-md'
+                      : 'bg-(--color-surface-2) text-(--color-text-2) hover:bg-(--color-surface-3) border border-(--color-border)'
                   }`}
                 >
                   Semua Halaman
@@ -741,8 +741,8 @@ export default function AddPageNumber() {
                   onClick={() => setTargetPageMode('specific')}
                   className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                     targetPageMode === 'specific'
-                      ? 'bg-[--color-brand] text-white shadow-md'
-                      : 'bg-[--color-surface-2] text-[--color-text-2] hover:bg-[--color-surface-3] border border-[--color-border]'
+                      ? 'bg-(--color-brand) text-white shadow-md'
+                      : 'bg-(--color-surface-2) text-(--color-text-2) hover:bg-(--color-surface-3) border border-(--color-border)'
                   }`}
                 >
                   Pilih Sendiri
@@ -750,9 +750,9 @@ export default function AddPageNumber() {
               </div>
 
               {targetPageMode === 'specific' && (
-                <div className="rounded-xl bg-[--color-surface-2] p-4 border border-[--color-border] space-y-4">
+                <div className="rounded-xl bg-(--color-surface-2) p-4 border border-(--color-border) space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-[--color-text-2] mb-1.5">
+                    <label className="block text-xs font-semibold text-(--color-text-2) mb-1.5">
                       Rentang Halaman
                     </label>
                     <input
@@ -760,7 +760,7 @@ export default function AddPageNumber() {
                       value={targetPagesInput}
                       onChange={(e) => setTargetPagesInput(e.target.value)}
                       placeholder="Contoh: 2-5, 8, 10-12"
-                      className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                      className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                     />
                   </div>
                   
@@ -768,29 +768,29 @@ export default function AddPageNumber() {
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('2-' + totalPages)}
-                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
+                      className="rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-[11px] font-medium text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand) hover:border-(--color-brand) transition-all cursor-pointer"
                     >
                       Lewati Halaman 1
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('ganjil')}
-                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
+                      className="rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-[11px] font-medium text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand) hover:border-(--color-brand) transition-all cursor-pointer"
                     >
                       Halaman Ganjil
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetPagesInput('genap')}
-                      className="rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-[11px] font-medium text-[--color-text-2] hover:bg-[--color-brand-light] hover:text-[--color-brand] hover:border-[--color-brand] transition-all cursor-pointer"
+                      className="rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-[11px] font-medium text-(--color-text-2) hover:bg-(--color-brand-light) hover:text-(--color-brand) hover:border-(--color-brand) transition-all cursor-pointer"
                     >
                       Halaman Genap
                     </button>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold text-[--color-text-2]">Klik untuk pilih:</div>
-                    <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-40 overflow-y-auto p-2 bg-[--color-surface] rounded-xl border border-[--color-border]">
+                    <div className="text-xs font-semibold text-(--color-text-2)">Klik untuk pilih:</div>
+                    <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-40 overflow-y-auto p-2 bg-(--color-surface) rounded-xl border border-(--color-border)">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
                         const isChecked = getIncludedPagesList().includes(pNum)
                         return (
@@ -800,8 +800,8 @@ export default function AddPageNumber() {
                             onClick={() => togglePageCheck(pNum)}
                             className={`flex items-center justify-center rounded-lg border px-1 py-2 text-xs font-semibold transition-all cursor-pointer min-h-[36px] ${
                               isChecked
-                                ? 'border-[--color-brand] bg-[--color-brand] text-white shadow-sm'
-                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] hover:border-[--color-border-strong] hover:bg-[--color-surface-3]'
+                                ? 'border-(--color-brand) bg-(--color-brand) text-white shadow-sm'
+                                : 'border-(--color-border) bg-(--color-surface) text-(--color-text-3) hover:border-(--color-border-strong) hover:bg-(--color-surface-3)'
                             }`}
                           >
                             {pNum}
@@ -815,24 +815,24 @@ export default function AddPageNumber() {
             </div>
 
             {/* STEP 3: Format & Style */}
-            <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm">
+            <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-brand] text-sm font-bold text-white shrink-0">3</div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-(--color-brand) text-sm font-bold text-white shrink-0">3</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-[--color-text]">Format & Gaya Nomor</h3>
-                  <p className="text-[11px] text-[--color-text-3]">Tampilan dan bentuk nomor halaman</p>
+                  <h3 className="text-sm font-bold text-(--color-text)">Format & Gaya Nomor</h3>
+                  <p className="text-[11px] text-(--color-text-3)">Tampilan dan bentuk nomor halaman</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label className="block mb-1.5 text-xs font-semibold text-[--color-text-2]">
+                  <label className="block mb-1.5 text-xs font-semibold text-(--color-text-2)">
                     Jenis Font
                   </label>
                   <select
                     value={fontFamily}
                     onChange={(e) => setFontFamily(e.target.value)}
-                    className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                    className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                   >
                     {FONT_OPTIONS.map((f) => (
                       <option key={f.id} value={f.id} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
@@ -843,13 +843,13 @@ export default function AddPageNumber() {
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 text-xs font-semibold text-[--color-text-2]">
+                  <label className="block mb-1.5 text-xs font-semibold text-(--color-text-2)">
                     Format Tampilan
                   </label>
                   <select
                     value={formatId}
                     onChange={(e) => setFormatId(e.target.value)}
-                    className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                    className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                   >
                     {FORMAT_TEMPLATES.map((tpl) => (
                       <option key={tpl.id} value={tpl.id} className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">
@@ -860,7 +860,7 @@ export default function AddPageNumber() {
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 text-xs font-semibold text-[--color-text-2]">
+                  <label className="block mb-1.5 text-xs font-semibold text-(--color-text-2)">
                     Ukuran Font (pt)
                   </label>
                   <input
@@ -869,12 +869,12 @@ export default function AddPageNumber() {
                     max="72"
                     value={fontSize}
                     onChange={(e) => setFontSize(Math.max(6, Math.min(72, Number(e.target.value) || 6)))}
-                    className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                    className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1.5 text-xs font-semibold text-[--color-text-2]">
+                  <label className="block mb-1.5 text-xs font-semibold text-(--color-text-2)">
                     Mulai dari Angka
                   </label>
                   <input
@@ -883,49 +883,49 @@ export default function AddPageNumber() {
                     max="1000"
                     value={startNumber}
                     onChange={(e) => setStartNumber(Number(e.target.value))}
-                    className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                    className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 pt-3 mt-3 border-t border-[--color-border]">
+              <div className="flex flex-wrap items-center gap-3 pt-3 mt-3 border-t border-(--color-border)">
                 {fileType === 'pdf' && (
                   <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-[--color-text-2]">Warna:</label>
+                    <label className="text-xs font-semibold text-(--color-text-2)">Warna:</label>
                     <input
                       type="color"
                       value={fontColor}
                       onChange={(e) => setFontColor(e.target.value)}
-                      className="h-8 w-10 cursor-pointer rounded-lg border border-[--color-border]"
+                      className="h-8 w-10 cursor-pointer rounded-lg border border-(--color-border)"
                     />
-                    <span className="font-mono text-[10px] text-[--color-text-3] uppercase">{fontColor}</span>
+                    <span className="font-mono text-[10px] text-(--color-text-3) uppercase">{fontColor}</span>
                   </div>
                 )}
 
-                <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer bg-[--color-surface-2] px-3 py-2 rounded-lg border border-[--color-border]">
+                <label className="flex items-center gap-2 text-xs text-(--color-text-2) cursor-pointer bg-(--color-surface-2) px-3 py-2 rounded-lg border border-(--color-border)">
                   <input
                     type="checkbox"
                     checked={isBold}
                     onChange={(e) => setIsBold(e.target.checked)}
-                    className="accent-[--color-brand]"
+                    className="accent-(--color-brand)"
                   />
                   <span className="font-medium">Tebal (Bold)</span>
                 </label>
 
-                <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer bg-[--color-surface-2] px-3 py-2 rounded-lg border border-[--color-border]">
+                <label className="flex items-center gap-2 text-xs text-(--color-text-2) cursor-pointer bg-(--color-surface-2) px-3 py-2 rounded-lg border border-(--color-border)">
                   <input
                     type="checkbox"
                     checked={skipFirstPage}
                     onChange={(e) => setSkipFirstPage(e.target.checked)}
-                    className="accent-[--color-brand]"
+                    className="accent-(--color-brand)"
                   />
                   <span className="font-medium">Lewati Halaman Pertama</span>
                 </label>
               </div>
 
               {fileType === 'pdf' && (
-                <div className="mt-4 rounded-xl bg-[--color-surface-2] p-4 border border-[--color-border]">
-                  <label className="flex items-center gap-2 text-xs text-[--color-text-2] cursor-pointer mb-3">
+                <div className="mt-4 rounded-xl bg-(--color-surface-2) p-4 border border-(--color-border)">
+                  <label className="flex items-center gap-2 text-xs text-(--color-text-2) cursor-pointer mb-3">
                     <input
                       type="checkbox"
                       checked={Object.keys(perPageFormatOverrides).length > 0}
@@ -940,7 +940,7 @@ export default function AddPageNumber() {
                           setPerPageFormatRange(String(currentPage))
                         }
                       }}
-                      className="accent-[--color-brand]"
+                      className="accent-(--color-brand)"
                     />
                     <span className="font-semibold">Format Berbeda untuk Rentang Halaman Tertentu</span>
                   </label>
@@ -948,7 +948,7 @@ export default function AddPageNumber() {
                   {Object.keys(perPageFormatOverrides).length > 0 && (
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-semibold text-[--color-text-2] mb-1.5">
+                        <label className="block text-xs font-semibold text-(--color-text-2) mb-1.5">
                           Halaman yang pakai format khusus:
                         </label>
                         <input
@@ -966,13 +966,13 @@ export default function AddPageNumber() {
                             setPerPageFormatOverrides(newOverrides)
                           }}
                           placeholder="Contoh: 1-5, 8, 10-12"
-                          className="w-full rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                          className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                         />
                       </div>
                       
                       {Object.keys(perPageFormatOverrides).length > 0 && (
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-semibold text-[--color-text-2] shrink-0">Format khusus:</span>
+                          <span className="text-xs font-semibold text-(--color-text-2) shrink-0">Format khusus:</span>
                           <select
                             value={perPageFormatOverrides[currentPage]?.formatId || formatId}
                             onChange={(e) => {
@@ -992,7 +992,7 @@ export default function AddPageNumber() {
                                 return next
                               })
                             }}
-                            className="flex-1 rounded-lg border border-[--color-border] bg-[--color-surface] px-3 py-2 text-xs text-[--color-text] outline-none focus:border-[--color-brand] focus:ring-2 focus:ring-[--color-brand]/20"
+                            className="flex-1 rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) outline-none focus:border-(--color-brand) focus:ring-2 focus:ring-(--color-brand)/20"
                           >
                             {FORMAT_TEMPLATES.map((tpl) => (
                               <option key={tpl.id} value={tpl.id}>
@@ -1004,7 +1004,7 @@ export default function AddPageNumber() {
                       )}
                       
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="text-[--color-text-3]">Diterapkan di halaman:</span>
+                        <span className="text-(--color-text-3)">Diterapkan di halaman:</span>
                         {Object.keys(perPageFormatOverrides)
                           .sort((a, b) => Number(a) - Number(b))
                           .map(pageNum => (
@@ -1012,8 +1012,8 @@ export default function AddPageNumber() {
                               key={pageNum}
                               className={`inline-flex items-center rounded-lg px-2 py-1 font-mono text-[11px] ${
                                 Number(pageNum) === currentPage 
-                                  ? 'bg-[--color-brand] text-white' 
-                                  : 'bg-[--color-brand-light] text-[--color-brand]'
+                                  ? 'bg-(--color-brand) text-white' 
+                                  : 'bg-(--color-brand-light) text-(--color-brand)'
                               }`}
                             >
                               {pageNum}
@@ -1028,38 +1028,38 @@ export default function AddPageNumber() {
 
             {/* Cover-up / Wite-out Section for PDF */}
             {fileType === 'pdf' && (
-              <div className="rounded-xl border border-[--color-border] bg-[--color-surface] p-5 shadow-sm space-y-3 text-xs">
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-5 shadow-sm space-y-3 text-xs">
                 {/* Main toggle + paper color */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-(--color-text-2) font-semibold cursor-pointer">
                     <input
                       type="checkbox"
                       checked={coverExistingNumber}
                       onChange={(e) => setCoverExistingNumber(e.target.checked)}
-                      className="accent-[--color-brand] cursor-pointer"
+                      className="accent-(--color-brand) cursor-pointer"
                     />
                     <span>Background Font (Warna Kertas)</span>
                   </label>
                   {coverExistingNumber && (
                     <div className="flex items-center gap-2">
                       <input type="color" value={paperColor} onChange={(e) => setPaperColor(e.target.value)}
-                        className="h-6 w-8 cursor-pointer rounded border border-[--color-border]" />
-                      <span className="font-mono text-[11px] text-[--color-text-3] uppercase">{paperColor}</span>
+                        className="h-6 w-8 cursor-pointer rounded border border-(--color-border)" />
+                      <span className="font-mono text-[11px] text-(--color-text-3) uppercase">{paperColor}</span>
                     </div>
                   )}
                 </div>
 
                 {/* White-out Box (independent) */}
-                <div className="rounded-lg bg-[--color-surface-2] p-3 border border-[--color-border] space-y-2">
+                <div className="rounded-lg bg-(--color-surface-2) p-3 border border-(--color-border) space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-center gap-1.5 text-[--color-text-2] font-semibold cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-(--color-text-2) font-semibold cursor-pointer">
                       <input type="checkbox" checked={woEnabled} onChange={(e) => setWoEnabled(e.target.checked)}
                         className="accent-orange-500 cursor-pointer" />
                       <span className="text-orange-600 dark:text-orange-400">Wite-out Independen</span>
-                      <span className="text-[--color-text-3] font-normal">(Kotak Penimpa — posisi bebas, tidak terikat nomor)</span>
+                      <span className="text-(--color-text-3) font-normal">(Kotak Penimpa — posisi bebas, tidak terikat nomor)</span>
                     </label>
                     {woEnabled && (
-                      <label className="flex items-center gap-1.5 text-[--color-text-2] cursor-pointer">
+                      <label className="flex items-center gap-1.5 text-(--color-text-2) cursor-pointer">
                         <input type="checkbox" checked={usePerPageWo} onChange={(e) => setUsePerPageWo(e.target.checked)} />
                         <span className="font-semibold">Custom per Halaman</span>
                       </label>
@@ -1071,7 +1071,7 @@ export default function AddPageNumber() {
                         {usePerPageWo
                           ? `Hal ${currentPage}: ${getWoPosition(currentPage).preset === 'custom' ? `${getWoPosition(currentPage).x}%, ${getWoPosition(currentPage).y}%` : POSITION_PRESETS.find(p => p.id === getWoPosition(currentPage).preset)?.label || 'Custom'}`
                           : `Semua: ${POSITION_PRESETS.find(p => p.id === woPreset)?.label || 'Custom'}`}
-                        <span className="ml-2 text-[--color-text-3]">{woWidth}×{woHeight}pt</span>
+                        <span className="ml-2 text-(--color-text-3)">{woWidth}×{woHeight}pt</span>
                       </div>
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
                         {POSITION_PRESETS.map((pos) => {
@@ -1081,7 +1081,7 @@ export default function AddPageNumber() {
                               className={`flex flex-col items-center justify-center rounded border p-1.5 text-[11px] text-center transition-all ${
                                 active === pos.id
                                   ? `${BTN_CARD_ACTIVE} border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/30`
-                                  : `${BTN_CARD_INACTIVE} hover:border-[--color-border-strong]`
+                                  : `${BTN_CARD_INACTIVE} hover:border-(--color-border-strong)`
                               }`}>
                               <span>{pos.label}</span>
                             </button>
@@ -1089,15 +1089,15 @@ export default function AddPageNumber() {
                         })}
                       </div>
                       <div className="flex items-center gap-4 pt-1">
-                        <label className="flex items-center gap-1.5 text-[--color-text-3]">
+                        <label className="flex items-center gap-1.5 text-(--color-text-3)">
                           Lebar: <input type="number" min="20" max="300" value={woWidth}
                             onChange={(e) => setWoWidth(Math.max(20, Math.min(300, Number(e.target.value) || 20)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> px
+                            className="w-16 rounded border border-(--color-border) bg-(--color-surface) px-1.5 py-0.5 text-[11px] text-(--color-text) outline-none" /> px
                         </label>
-                        <label className="flex items-center gap-1.5 text-[--color-text-3]">
+                        <label className="flex items-center gap-1.5 text-(--color-text-3)">
                           Tinggi: <input type="number" min="8" max="100" value={woHeight}
                             onChange={(e) => setWoHeight(Math.max(8, Math.min(100, Number(e.target.value) || 8)))}
-                            className="w-16 rounded border border-[--color-border] bg-[--color-surface] px-1.5 py-0.5 text-[11px] text-[--color-text] outline-none" /> px
+                            className="w-16 rounded border border-(--color-border) bg-(--color-surface) px-1.5 py-0.5 text-[11px] text-(--color-text) outline-none" /> px
                         </label>
                       </div>
                     </>
@@ -1109,31 +1109,31 @@ export default function AddPageNumber() {
 
           {/* Interactive Document Page Preview (PDF) or Summary Preview (DOCX) */}
           {fileType === 'pdf' ? (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
               {/* Page Navigation Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => changePage(-1)}
                     disabled={currentPage <= 1 || loadingPreview}
-                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
+                    className="flex h-7 w-7 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40"
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  <span className="font-bold text-[--color-text]">
+                  <span className="font-bold text-(--color-text)">
                     Halaman {currentPage} dari {totalPages}
                   </span>
                   <button
                     onClick={() => changePage(1)}
                     disabled={currentPage >= totalPages || loadingPreview}
-                    className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40"
+                    className="flex h-7 w-7 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40"
                   >
                     <ChevronRight size={16} />
                   </button>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-[--color-text-3]">
+                  <span className="text-xs text-(--color-text-3)">
                     Status Halaman Ini:
                   </span>
                   <button
@@ -1152,7 +1152,7 @@ export default function AddPageNumber() {
               </div>
 
               {/* Live Document Preview with Page List Sidebar */}
-              <div className="flex gap-3 rounded border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[380px]">
+              <div className="flex gap-3 rounded border border-(--color-border) bg-(--color-surface-2) p-4 overflow-auto min-h-[380px]">
                 {/* Page List Sidebar */}
                 {totalPages > 1 && (
                   <div className="flex flex-col gap-1 shrink-0 w-16 max-h-[520px] overflow-y-auto pr-1 scrollbar-thin">
@@ -1167,10 +1167,10 @@ export default function AddPageNumber() {
                           className={[
                             'flex items-center justify-center rounded border text-[11px] font-medium transition-all shrink-0 h-7',
                             isCurrent
-                              ? 'border-[--color-brand] bg-[--color-brand] text-white shadow-xs font-bold'
+                              ? 'border-(--color-brand) bg-(--color-brand) text-white shadow-xs font-bold'
                               : included
-                                ? 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:bg-[--color-surface-3] hover:border-[--color-border-strong]'
-                                : 'border-[--color-border] bg-[--color-surface] text-[--color-text-3] opacity-50 line-through',
+                                ? 'border-(--color-border) bg-(--color-surface) text-(--color-text-2) hover:bg-(--color-surface-3) hover:border-(--color-border-strong)'
+                                : 'border-(--color-border) bg-(--color-surface) text-(--color-text-3) opacity-50 line-through',
                           ].join(' ')}
                           title={isCurrent ? `Halaman ${pNum} (aktif)` : included ? `Ke halaman ${pNum}` : `Halaman ${pNum} (dilewati)`}
                         >
@@ -1184,8 +1184,8 @@ export default function AddPageNumber() {
                 {/* Main Preview */}
                 <div className="relative flex-1 flex justify-center">
                   {loadingPreview && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
-                      <Loader2 size={24} className="animate-spin text-[--color-brand]" />
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-(--color-surface)/70 backdrop-blur-xs">
+                      <Loader2 size={24} className="animate-spin text-(--color-brand)" />
                     </div>
                   )}
 
@@ -1193,7 +1193,7 @@ export default function AddPageNumber() {
                     const previewMaxH = 500
                     const containerW = Math.round(previewMaxH * (pageDimensions.width / pageDimensions.height))
                     return (
-                  <div ref={previewContainerRef} className="relative inline-block border border-[--color-border] shadow-xs select-none bg-white overflow-hidden" style={{ height: `${previewMaxH}px`, width: `${containerW}px` }}>
+                  <div ref={previewContainerRef} className="relative inline-block border border-(--color-border) shadow-xs select-none bg-white overflow-hidden" style={{ height: `${previewMaxH}px`, width: `${containerW}px` }}>
                     <img
                       src={pagePreview.dataUrl}
                       alt={`Page ${currentPage}`}
@@ -1258,21 +1258,21 @@ export default function AddPageNumber() {
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[--color-text-3]">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3)">
                 Pratinjau Dokumen Word (.docx)
               </span>
-              <div className="rounded border border-[--color-border] bg-[--color-surface-2] p-3 text-xs text-[--color-text-2] font-mono leading-relaxed max-h-40 overflow-auto">
+              <div className="rounded border border-(--color-border) bg-(--color-surface-2) p-3 text-xs text-(--color-text-2) font-mono leading-relaxed max-h-40 overflow-auto">
                 {docxTextSummary || 'Membaca dokumen…'}
               </div>
-              <p className="text-xs text-[--color-text-3]">
+              <p className="text-xs text-(--color-text-3)">
                 Field code XML penomoran halaman standar Word (<code className="text-blue-500 font-mono">w:fldSimple w:instr=&quot;PAGE&quot;</code>) akan disematkan di {POSITION_PRESETS.find(p => p.id === positionPreset)?.label.toLowerCase()}.
               </p>
             </div>
           )}
 
           {error && (
-            <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">
+            <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger) animate-fade-in">
               {error}
             </p>
           )}
@@ -1282,7 +1282,7 @@ export default function AddPageNumber() {
             <button
               onClick={processPageNumbering}
               disabled={processing}
-              className="flex w-full items-center justify-center gap-2 rounded bg-[--color-brand] px-4 py-2.5 text-sm font-medium text-white hover:bg-[--color-brand-hover] disabled:opacity-60 transition-all active:scale-[0.99]"
+              className="flex w-full items-center justify-center gap-2 rounded bg-(--color-brand) px-4 py-2.5 text-sm font-medium text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-all active:scale-[0.99]"
             >
               {processing && <Loader2 size={16} className="animate-spin" />}
               {processing ? 'Menyematkan Nomor Halaman…' : `Simpan & Terapkan Nomor Halaman (${fileType.toUpperCase()})`}
@@ -1290,23 +1290,23 @@ export default function AddPageNumber() {
           )}
 
           {resultBlob && (
-            <div className="rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4 space-y-3">
+            <div className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-[--color-success]">✓ Selesai diproses</p>
-                  <p className="text-xs text-[--color-text-3]">{base}_numbered.{outExt} — {fmtBytes(resultBlob.size)}</p>
+                  <p className="text-sm font-semibold text-(--color-success)">✓ Selesai diproses</p>
+                  <p className="text-xs text-(--color-text-3)">{base}_numbered.{outExt} — {fmtBytes(resultBlob.size)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <a
                     href={URL.createObjectURL(resultBlob)}
                     download={`${base}_numbered.${outExt}`}
-                    className="flex items-center gap-1.5 rounded bg-[--color-success] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity no-underline"
+                    className="flex items-center gap-1.5 rounded bg-(--color-success) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity no-underline"
                   >
                     <Download size={14} /> Download
                   </a>
                   <button
                     onClick={() => { setResultBlob(null); setResultPages([]) }}
-                    className="rounded p-1.5 text-[--color-text-3] hover:bg-[--color-surface-3]"
+                    className="rounded p-1.5 text-(--color-text-3) hover:bg-(--color-surface-3)"
                     title="Tutup"
                   >
                     <X size={14} />
@@ -1316,30 +1316,30 @@ export default function AddPageNumber() {
 
               {/* Result Preview */}
               {renderingResult && (
-                <div className="rounded border border-[--color-border] bg-[--color-surface] p-6 space-y-3">
+                <div className="rounded border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
                   <div className="flex flex-col items-center gap-3">
-                    <Loader2 size={28} className="animate-spin text-[--color-brand]" />
-                    <span className="text-xs font-medium text-[--color-text-3]">Merender preview hasil…</span>
+                    <Loader2 size={28} className="animate-spin text-(--color-brand)" />
+                    <span className="text-xs font-medium text-(--color-text-3)">Merender preview hasil…</span>
                   </div>
                 </div>
               )}
               {!renderingResult && resultPages.length > 0 && (
-                <div className="rounded border border-[--color-border] bg-[--color-surface] p-3 space-y-2">
+                <div className="rounded border border-(--color-border) bg-(--color-surface) p-3 space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[--color-text-2]">Preview Hasil</span>
+                    <span className="font-semibold text-(--color-text-2)">Preview Hasil</span>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setResultCurrentPage(Math.max(1, resultCurrentPage - 1))} disabled={resultCurrentPage <= 1}
-                        className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                        className="flex h-6 w-6 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40">
                         <ChevronLeft size={14} />
                       </button>
-                      <span className="font-bold text-[--color-text]">{resultCurrentPage} / {resultPages.length}</span>
+                      <span className="font-bold text-(--color-text)">{resultCurrentPage} / {resultPages.length}</span>
                       <button onClick={() => setResultCurrentPage(Math.min(resultPages.length, resultCurrentPage + 1))} disabled={resultCurrentPage >= resultPages.length}
-                        className="flex h-6 w-6 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] disabled:opacity-40">
+                        className="flex h-6 w-6 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) disabled:opacity-40">
                         <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
-                  <div className="flex justify-center rounded border border-[--color-border] bg-[--color-surface-2] p-3 overflow-auto max-h-[600px]">
+                  <div className="flex justify-center rounded border border-(--color-border) bg-(--color-surface-2) p-3 overflow-auto max-h-[600px]">
                     {resultPages[resultCurrentPage - 1] && (
                       <img src={resultPages[resultCurrentPage - 1].dataUrl} alt={`Page ${resultCurrentPage}`}
                         className="block max-h-[550px] w-auto shadow-sm" />

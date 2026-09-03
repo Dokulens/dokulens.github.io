@@ -102,8 +102,8 @@ export default function SplitPDF() {
       {file && <FilePreview file={file} />}
 
       {file && (
-        <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-3">
-          <p className="text-sm font-medium text-[--color-text]">{file.name} — {pageCount} halaman</p>
+        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
+          <p className="text-sm font-medium text-(--color-text)">{file.name} — {pageCount} halaman</p>
 
           <div className="flex gap-3">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -123,15 +123,15 @@ export default function SplitPDF() {
                 value={rangeInput}
                 onChange={(e) => setRangeInput(e.target.value)}
                 placeholder="Contoh: 1-3, 5, 7-9"
-                className="w-full rounded border border-[--color-border] px-3 py-2 text-sm outline-none focus:border-[--color-brand]"
+                className="w-full rounded border border-(--color-border) px-3 py-2 text-sm outline-none focus:border-(--color-brand)"
               />
-              <p className="mt-1 text-xs text-[--color-text-3]">Pisahkan range dengan koma</p>
+              <p className="mt-1 text-xs text-(--color-text-3)">Pisahkan range dengan koma</p>
             </div>
           )}
         </div>
       )}
 
-      {error && <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger]">{error}</p>}
+      {error && <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger)">{error}</p>}
 
       {file && !results.length && (
         <button
@@ -145,13 +145,13 @@ export default function SplitPDF() {
       )}
 
       {results.map((r) => (
-        <div key={r.name} className="rounded-lg border border-[--color-success-light] bg-[--color-success-light] p-4">
-          <p className="text-sm font-semibold text-[--color-success]">✓ Selesai</p>
-          <p className="mt-0.5 text-sm text-[--color-text-2]">{r.name} — {fmtBytes(r.blob.size)}</p>
+        <div key={r.name} className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4">
+          <p className="text-sm font-semibold text-(--color-success)">✓ Selesai</p>
+          <p className="mt-0.5 text-sm text-(--color-text-2)">{r.name} — {fmtBytes(r.blob.size)}</p>
           <a
             href={URL.createObjectURL(r.blob)}
             download={r.name}
-            className="mt-3 flex items-center justify-center gap-2 rounded bg-[--color-success] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
+            className="mt-3 flex items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
           >
             <Download size={16} />Download
           </a>

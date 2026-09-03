@@ -276,23 +276,23 @@ export default function EditPDF() {
       {file && (
         <div className="space-y-4 animate-fade-in">
           {/* Top toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-3 text-xs">
             {/* Page navigation */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => changePage(-1)}
                 disabled={currentPage <= 1 || loadingPage}
-                className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] disabled:opacity-40"
+                className="flex h-7 w-7 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text) disabled:opacity-40"
               >
                 <ChevronLeft size={16} />
               </button>
-              <span className="font-semibold text-[--color-text]">
+              <span className="font-semibold text-(--color-text)">
                 Halaman {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => changePage(1)}
                 disabled={currentPage >= totalPages || loadingPage}
-                className="flex h-7 w-7 items-center justify-center rounded border border-[--color-border] text-[--color-text-2] hover:bg-[--color-surface-3] hover:text-[--color-text] disabled:opacity-40"
+                className="flex h-7 w-7 items-center justify-center rounded border border-(--color-border) text-(--color-text-2) hover:bg-(--color-surface-3) hover:text-(--color-text) disabled:opacity-40"
               >
                 <ChevronRight size={16} />
               </button>
@@ -300,7 +300,7 @@ export default function EditPDF() {
 
             {/* Status & view options */}
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 font-semibold text-[--color-brand-text] bg-[--color-brand-light] px-2.5 py-1 rounded">
+              <span className="flex items-center gap-1 font-semibold text-(--color-brand-text) bg-(--color-brand-light) px-2.5 py-1 rounded">
                 <ScanText size={14} />
                 {currentPageBlocks.length} teks terdeteksi
               </span>
@@ -316,27 +316,27 @@ export default function EditPDF() {
             </div>
           </div>
 
-          <div className="rounded border border-[--color-border] bg-[--color-surface-3] p-2.5 text-xs text-[--color-text-2] flex items-center justify-between">
+          <div className="rounded border border-(--color-border) bg-(--color-surface-3) p-2.5 text-xs text-(--color-text-2) flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles size={15} className="shrink-0 text-[--color-brand]" />
+              <Sparkles size={15} className="shrink-0 text-(--color-brand)" />
               <span>
                 <strong>Klik teks apapun</strong> pada dokumen untuk mengubah isi kata. Ukuran & jenis font asli otomatis terisi.
               </span>
             </div>
             {editedCount > 0 && (
-              <span className="font-bold text-[--color-brand] bg-[--color-brand-light] px-2 py-0.5 rounded shrink-0">
+              <span className="font-bold text-(--color-brand) bg-(--color-brand-light) px-2 py-0.5 rounded shrink-0">
                 {editedCount} diedit
               </span>
             )}
           </div>
 
           {/* Interactive Document Preview */}
-          <div className="relative flex justify-center rounded-lg border border-[--color-border] bg-[--color-surface-2] p-4 overflow-auto min-h-[450px]">
+          <div className="relative flex justify-center rounded-lg border border-(--color-border) bg-(--color-surface-2) p-4 overflow-auto min-h-[450px]">
             {loadingPage && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-[--color-surface]/70 backdrop-blur-xs">
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-(--color-surface)/70 backdrop-blur-xs">
                 <div className="flex flex-col items-center gap-2">
-                  <Loader2 size={26} className="animate-spin text-[--color-brand]" />
-                  <span className="text-xs font-medium text-[--color-text-2]">Menganalisis teks & font dokumen…</span>
+                  <Loader2 size={26} className="animate-spin text-(--color-brand)" />
+                  <span className="text-xs font-medium text-(--color-text-2)">Menganalisis teks & font dokumen…</span>
                 </div>
               </div>
             )}
@@ -345,7 +345,7 @@ export default function EditPDF() {
               <div
                 ref={containerRef}
                 onClick={handleCanvasClick}
-                className="relative inline-block border border-[--color-border] bg-white cursor-text select-none"
+                className="relative inline-block border border-(--color-border) bg-white cursor-text select-none"
                 style={{ maxWidth: '100%' }}
               >
                 <img
@@ -371,13 +371,13 @@ export default function EditPDF() {
                       }}
                       className={[
                         'text-block-item absolute cursor-pointer rounded transition-all duration-100 select-none',
-                        hasChanged ? 'font-semibold ring-1.5 ring-[--color-brand]' : '',
+                        hasChanged ? 'font-semibold ring-1.5 ring-(--color-brand)' : '',
                         !hasChanged && showDetectedBoxes
                           ? isHovered
                             ? 'bg-blue-500/25 ring-1.5 ring-blue-500'
                             : 'bg-blue-500/10 hover:bg-blue-500/20 ring-0.5 ring-blue-400/40'
                           : '',
-                        isSelected ? 'ring-2 ring-[--color-brand] z-10' : 'z-5',
+                        isSelected ? 'ring-2 ring-(--color-brand) z-10' : 'z-5',
                       ].join(' ')}
                       style={{
                         left: `${b.xPct}%`,
@@ -405,17 +405,17 @@ export default function EditPDF() {
 
           {/* Inline Edit Panel with Automatic Font Detection Values */}
           {selectedBlock && (
-            <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-4 space-y-4 animate-fade-in">
-              <div className="flex items-center justify-between border-b border-[--color-border] pb-2.5">
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between border-b border-(--color-border) pb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded bg-[--color-brand-light] text-[--color-brand]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded bg-(--color-brand-light) text-(--color-brand)">
                     <Type size={14} />
                   </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[--color-text]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-(--color-text)">
                     {selectedBlock.isCustom ? 'Teks Kustom Baru' : 'Edit Teks Terdeteksi'}
                   </span>
                   {!selectedBlock.isCustom && (
-                    <span className="rounded bg-[--color-surface-3] px-2 py-0.5 text-[10px] font-semibold text-[--color-text-2]">
+                    <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
                       Font Terdeteksi: <strong>{selectedBlock.fontNameRaw}</strong> ({selectedBlock.fontSize}pt {selectedBlock.bold ? 'Bold' : ''} {selectedBlock.italic ? 'Italic' : ''})
                     </span>
                   )}
@@ -424,7 +424,7 @@ export default function EditPDF() {
                 {selectedBlock.isCustom ? (
                   <button
                     onClick={() => removeCustomBlock(selectedBlock.id)}
-                    className="flex items-center gap-1 text-xs text-[--color-danger] hover:underline"
+                    className="flex items-center gap-1 text-xs text-(--color-danger) hover:underline"
                   >
                     <Trash2 size={13} /> Hapus
                   </button>
@@ -432,7 +432,7 @@ export default function EditPDF() {
                   <button
                     onClick={() => updateBlock(selectedBlock.id, 'text', selectedBlock.originalText)}
                     disabled={!selectedBlock.isEdited}
-                    className="text-xs text-[--color-text-3] hover:text-[--color-text] disabled:opacity-40"
+                    className="text-xs text-(--color-text-3) hover:text-(--color-text) disabled:opacity-40"
                   >
                     Kembalikan ke Asli
                   </button>
@@ -440,14 +440,14 @@ export default function EditPDF() {
               </div>
 
               {!selectedBlock.isCustom && (
-                <div className="text-xs text-[--color-text-3] bg-[--color-surface-2] p-2.5 rounded border border-[--color-border]">
-                  <span className="font-semibold text-[--color-text-2]">Teks Asli: </span>
+                <div className="text-xs text-(--color-text-3) bg-(--color-surface-2) p-2.5 rounded border border-(--color-border)">
+                  <span className="font-semibold text-(--color-text-2)">Teks Asli: </span>
                   &quot;{selectedBlock.originalText}&quot;
                 </div>
               )}
 
               <div>
-                <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
+                <label className="block mb-1 text-xs font-semibold text-(--color-text-2)">
                   Teks Pengganti
                 </label>
                 <input
@@ -456,17 +456,17 @@ export default function EditPDF() {
                   value={selectedBlock.text}
                   onChange={(e) => updateBlock(selectedBlock.id, 'text', e.target.value)}
                   placeholder="Ketik teks pengganti..."
-                  className="w-full rounded border border-[--color-border] bg-[--color-surface] px-3 py-2 text-sm font-medium outline-none focus:border-[--color-brand] transition-colors"
+                  className="w-full rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm font-medium outline-none focus:border-(--color-brand) transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                 <div>
-                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">Keluarga Font</label>
+                  <label className="block mb-1 text-xs font-semibold text-(--color-text-2)">Keluarga Font</label>
                   <select
                     value={selectedBlock.fontFamily || 'Helvetica'}
                     onChange={(e) => updateBlock(selectedBlock.id, 'fontFamily', e.target.value)}
-                    className="w-full rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1.5 text-xs outline-none focus:border-[--color-brand]"
+                    className="w-full rounded border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 text-xs outline-none focus:border-(--color-brand)"
                   >
                     {FONT_OPTIONS.map((f) => (
                       <option key={f.id} value={f.id}>{f.label}</option>
@@ -475,7 +475,7 @@ export default function EditPDF() {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">
+                  <label className="block mb-1 text-xs font-semibold text-(--color-text-2)">
                     Ukuran Font: {selectedBlock.fontSize}pt
                   </label>
                   <input
@@ -485,38 +485,38 @@ export default function EditPDF() {
                     step="0.5"
                     value={selectedBlock.fontSize}
                     onChange={(e) => updateBlock(selectedBlock.id, 'fontSize', Number(e.target.value))}
-                    className="w-full rounded border border-[--color-border] bg-[--color-surface] px-2.5 py-1.5 text-xs outline-none focus:border-[--color-brand]"
+                    className="w-full rounded border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 text-xs outline-none focus:border-(--color-brand)"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">Warna Teks</label>
+                  <label className="block mb-1 text-xs font-semibold text-(--color-text-2)">Warna Teks</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="color"
                       value={selectedBlock.color}
                       onChange={(e) => updateBlock(selectedBlock.id, 'color', e.target.value)}
-                      className="h-7 w-10 cursor-pointer rounded border border-[--color-border]"
+                      className="h-7 w-10 cursor-pointer rounded border border-(--color-border)"
                     />
-                    <span className="text-xs text-[--color-text-3] uppercase font-mono">{selectedBlock.color}</span>
+                    <span className="text-xs text-(--color-text-3) uppercase font-mono">{selectedBlock.color}</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-xs font-semibold text-[--color-text-2]">Warna Penutup Latar</label>
+                  <label className="block mb-1 text-xs font-semibold text-(--color-text-2)">Warna Penutup Latar</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="color"
                       value={selectedBlock.bgColor || '#ffffff'}
                       onChange={(e) => updateBlock(selectedBlock.id, 'bgColor', e.target.value)}
-                      className="h-7 w-10 cursor-pointer rounded border border-[--color-border]"
+                      className="h-7 w-10 cursor-pointer rounded border border-(--color-border)"
                     />
-                    <span className="text-xs text-[--color-text-3] uppercase font-mono">{selectedBlock.bgColor || '#ffffff'}</span>
+                    <span className="text-xs text-(--color-text-3) uppercase font-mono">{selectedBlock.bgColor || '#ffffff'}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-5 pt-1 text-xs text-[--color-text-2]">
+              <div className="flex items-center gap-5 pt-1 text-xs text-(--color-text-2)">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -541,7 +541,7 @@ export default function EditPDF() {
       )}
 
       {error && (
-        <p className="rounded border border-[--color-danger-light] bg-[--color-danger-light] px-3 py-2 text-sm text-[--color-danger] animate-fade-in">
+        <p className="rounded border border-(--color-danger-light) bg-(--color-danger-light) px-3 py-2 text-sm text-(--color-danger) animate-fade-in">
           {error}
         </p>
       )}

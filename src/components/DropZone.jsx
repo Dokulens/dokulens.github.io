@@ -126,28 +126,28 @@ export default function DropZone({ accept, multiple = false, onFiles, label, hin
         className={[
           'group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-all select-none',
           dragging
-            ? 'border-[--color-brand] bg-[--color-brand-light] drop-active scale-[1.01]'
-            : 'border-[--color-border-strong] bg-[--color-surface] hover:border-[--color-brand] hover:bg-[--color-brand-light]',
+            ? 'border-(--color-brand) bg-(--color-brand-light) drop-active scale-[1.01]'
+            : 'border-(--color-border-strong) bg-(--color-surface) hover:border-(--color-brand) hover:bg-(--color-brand-light)',
         ].join(' ')}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[--color-surface-3] text-[--color-text-2] group-hover:text-[--color-brand] group-hover:scale-110 transition-transform duration-150">
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-(--color-surface-3) text-(--color-text-2) group-hover:text-(--color-brand) group-hover:scale-110 transition-transform duration-150">
           <Upload size={24} />
         </div>
 
         <div>
-          <p className="font-semibold text-sm text-[--color-text]">
+          <p className="font-semibold text-sm text-(--color-text)">
             {label || 'Drag & drop atau klik untuk pilih file'}
           </p>
           {hint ? (
-            <p className="mt-1 text-xs text-[--color-text-3]">{hint}</p>
+            <p className="mt-1 text-xs text-(--color-text-3)">{hint}</p>
           ) : accept ? (
-            <p className="mt-1 text-xs text-[--color-text-3]">Format diterima: {getFormatDescription()}</p>
+            <p className="mt-1 text-xs text-(--color-text-3)">Format diterima: {getFormatDescription()}</p>
           ) : null}
         </div>
 
         {/* Ctrl+V Paste Shortcut Tag */}
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-[--color-border] bg-[--color-surface-2] px-3 py-1 text-[11px] font-medium text-[--color-text-2] group-hover:border-[--color-brand] transition-colors">
-          <Clipboard size={12} className="text-[--color-brand]" />
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-(--color-border) bg-(--color-surface-2) px-3 py-1 text-[11px] font-medium text-(--color-text-2) group-hover:border-(--color-brand) transition-colors">
+          <Clipboard size={12} className="text-(--color-brand)" />
           <span>Bisa Paste langsung (<kbd className="font-mono font-semibold">Ctrl+V</kbd> / <kbd className="font-mono font-semibold">⌘V</kbd>)</span>
         </div>
 

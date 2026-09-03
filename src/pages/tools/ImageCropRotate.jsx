@@ -316,19 +316,19 @@ export default function ImageCropRotate() {
       {imageSrc && (
         <div className="space-y-3 animate-fade-in">
           {/* Controls */}
-          <div className="rounded-lg border border-[--color-border] bg-[--color-surface] p-3 space-y-3">
+          <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-3 space-y-3">
             {/* Rotate & Flip */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1">
                 <button onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
-                  className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs font-semibold text-[--color-text-2] hover:bg-[--color-surface-3] transition">
+                  className="flex items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition">
                   <RotateCcw size={13} /> -90°
                 </button>
                 <button onClick={() => setRotation((r) => (r + 90) % 360)}
-                  className="flex items-center gap-1 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs font-semibold text-[--color-text-2] hover:bg-[--color-surface-3] transition">
+                  className="flex items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 py-1 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition">
                   <RotateCw size={13} /> +90°
                 </button>
-                <span className="ml-1 font-mono font-bold text-[--color-brand]">{rotation}°</span>
+                <span className="ml-1 font-mono font-bold text-(--color-brand)">{rotation}°</span>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setFlipH(!flipH)}
@@ -344,18 +344,18 @@ export default function ImageCropRotate() {
 
             {/* Fine angle */}
             <div className="flex items-center gap-3 text-xs">
-              <span className="font-semibold text-[--color-text-2] shrink-0">Sudut Halus:</span>
+              <span className="font-semibold text-(--color-text-2) shrink-0">Sudut Halus:</span>
               <input type="range" min="-45" max="45" value={fineAngle}
                 onChange={(e) => setFineAngle(Number(e.target.value))} className="flex-1" />
-              <span className="w-10 font-mono font-bold text-[--color-text] text-right">{fineAngle}°</span>
+              <span className="w-10 font-mono font-bold text-(--color-text) text-right">{fineAngle}°</span>
               {fineAngle !== 0 && (
-                <button onClick={() => setFineAngle(0)} className="text-xs text-[--color-brand] hover:underline">Reset</button>
+                <button onClick={() => setFineAngle(0)} className="text-xs text-(--color-brand) hover:underline">Reset</button>
               )}
             </div>
 
             {/* Aspect ratios */}
             <div>
-              <label className="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[--color-text-3]">Rasio Aspek</label>
+              <label className="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-(--color-text-3)">Rasio Aspek</label>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
                 {ASPECT_RATIOS.map((item) => (
                   <button key={item.id} onClick={() => applyAspect(item.id)}
@@ -368,7 +368,7 @@ export default function ImageCropRotate() {
           </div>
 
           {/* Canvas Preview — full width, no black bars */}
-          <div ref={containerRef} className="relative flex justify-center rounded-lg border border-[--color-border] bg-neutral-900 p-4 overflow-hidden select-none">
+          <div ref={containerRef} className="relative flex justify-center rounded-lg border border-(--color-border) bg-neutral-900 p-4 overflow-hidden select-none">
             <canvas
               ref={canvasRef}
               className="block max-h-[60vh] w-auto"
@@ -377,9 +377,9 @@ export default function ImageCropRotate() {
           </div>
 
           {/* Export */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[--color-border] bg-[--color-surface] p-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-3 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-[--color-text-3]">Format:</span>
+              <span className="font-semibold text-(--color-text-3)">Format:</span>
               {['png', 'jpg', 'webp'].map((fmt) => (
                 <button key={fmt} onClick={() => setExportFormat(fmt)}
                   className={`rounded border px-2 py-0.5 font-bold uppercase transition ${exportFormat === fmt ? BTN_TOGGLE_ACTIVE : BTN_TOGGLE_INACTIVE}`}>
@@ -388,7 +388,7 @@ export default function ImageCropRotate() {
               ))}
             </div>
             <button onClick={applyCropAndRotate} disabled={processing}
-              className="flex items-center gap-2 rounded bg-[--color-brand] px-4 py-1.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60 transition active:scale-[0.99]">
+              className="flex items-center gap-2 rounded bg-(--color-brand) px-4 py-1.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60 transition active:scale-[0.99]">
               {processing && <Loader2 size={14} className="animate-spin" />}
               {processing ? 'Memproses…' : 'Potong & Simpan'}
             </button>
