@@ -235,9 +235,15 @@ export default function MergePDF() {
   const [viewMode, setViewMode] = useState('grid') // 'grid' | 'file'
   const [widthOption, setWidthOption] = useState('original') // 'original' | 'a4' | 'file-0' | etc.
   const [exportFormat, setExportFormat] = useState('pdf') // 'pdf' | 'png' | 'jpg'
-  const [imageLayout, setImageLayout] = useState('vertical') // 'vertical' | 'horizontal' | 'zip'
+  const [imageLayout, setImageLayout] = useState('vertical') // 'vertical' | 'horizontal' | 'zip' | 'collage'
   const [imageGap, setImageGap] = useState(0) // 0 to 100 px gap
   const [gapBgColor, setGapBgColor] = useState('white') // 'white' | 'black' | 'transparent'
+  const [collagePreset, setCollagePreset] = useState('grid-2x2') // 'grid-2x2' | 'grid-3x3' | 'grid-1x2' | 'grid-2x1' | 'custom'
+  const [collageWidth, setCollageWidth] = useState(1200)
+  const [collageHeight, setCollageHeight] = useState(1600)
+  const [collageItems, setCollageItems] = useState([]) // [{ x, y, width, height, pageIndex }]
+  const [draggingItem, setDraggingItem] = useState(null)
+  const [resizingItem, setResizingItem] = useState(null)
   const [loading, setLoading] = useState(false)
   const [loadProgress, setLoadProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
@@ -708,6 +714,59 @@ export default function MergePDF() {
           })
           setResultPages([{ pageNum: 1, dataUrl }])
           setResultCurrentPage(1)
+        } else if (imageLayout === 'collage') {
+          // Collage/Grid layout
+          const gap = imageGap
+          const cols = collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-1x2' ? 1 : 2
+          const rows = collagePreset === 'grid-3x3' ? 3 : collagePreset === 'grid-2x2' ? 2 : collagePreset === 'grid-2x1' ? 1 : 2
+          
+          const masterCanvas = document.createElement('canvas')
+          masterCanvas.width = collageWidth
+          masterCanvas.height = collageHeight
+          const masterCtx = masterCanvas.getContext('2d')
+
+          // Fill background
+          if (isJpg || gapBgColor !== 'transparent') {
+            masterCtx.fillStyle = gapBgColor === 'black' ? '#000000' : '#ffffff'
+            masterCtx.fillRect(0, 0, collageWidth, collageHeight)
+          }
+
+          // Calculate cell dimensions
+          const cellW = Math.floor((collageWidth - (cols - 1) * gap) / cols)
+          const cellH = Math.floor((collageHeight - (rows - 1) * gap) / rows)
+
+          // Draw images in grid
+          for (let i = 0; i < Math.min(pageCanvasList.length, cols * rows); i++) {
+            const item = pageCanvasList[i]
+            const col = i % cols
+            const row = Math.floor(i / cols)
+            const x = col * (cellW + gap)
+            const y = row * (cellH + gap)
+            
+            // Scale to fit cell while maintaining aspect ratio
+            const scale = Math.min(cellW / item.width, cellH / item.height)
+            const drawW = Math.floor(item.width * scale)
+            const drawH = Math.floor(item.height * scale)
+            const drawX = x + Math.floor((cellW - drawW) / 2)
+            const drawY = y + Math.floor((cellH - drawH) / 2)
+            
+            masterCtx.drawImage(item.canvas, drawX, drawY, drawW, drawH)
+          }
+
+          const dataUrl = masterCanvas.toDataURL(mimeType, isJpg ? 0.92 : undefined)
+          const base64 = dataUrl.split(',')[1]
+          const binary = atob(base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+
+          setResult({
+            blob: new Blob([bytes], { type: mimeType }),
+            mime: mimeType,
+            ext,
+            fileName: `collage_${collagePreset}.${ext}`,
+          })
+          setResultPages([{ pageNum: 1, dataUrl }])
+          setResultCurrentPage(1)
         } else {
           // Multiple pages -> zip
           const zip = new JSZip()
@@ -927,10 +986,24 @@ export default function MergePDF() {
                     <FolderArchive size={13} className="text-emerald-500" /> File Terpisah per Halaman <span className="text-[--color-text-3] font-mono">(.ZIP)</span>
                   </span>
                 </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mergeImageLayout"
+                    value="collage"
+                    checked={imageLayout === 'collage'}
+                    onChange={() => setImageLayout('collage')}
+                    className="accent-emerald-600"
+                  />
+                  <span className="font-medium flex items-center gap-1">
+                    <Grid size={13} className="text-emerald-500" /> Kolase / Grid <span className="text-[--color-text-3]">(Susun Berpetak)</span>
+                  </span>
+                </label>
               </div>
 
               {/* Range / Gap spacing control between images */}
-              {imageLayout !== 'zip' && (
+              {imageLayout !== 'zip' && imageLayout !== 'collage' && (
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 border-t border-[--color-border]/60">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[--color-text-2]">Jarak / Range Antar Gambar:</span>
@@ -962,6 +1035,77 @@ export default function MergePDF() {
                       </select>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Collage / Grid Presets */}
+              {imageLayout === 'collage' && (
+                <div className="space-y-3 pt-2 border-t border-[--color-border]/60">
+                  <div className="text-xs font-semibold text-[--color-text-2]">Pilih Tata Letak Kolase:</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'grid-2x2', label: '2 × 2', desc: '4 gambar' },
+                      { id: 'grid-3x3', label: '3 × 3', desc: '9 gambar' },
+                      { id: 'grid-1x2', label: '1 × 2', desc: '2 gambar vertikal' },
+                      { id: 'grid-2x1', label: '2 × 1', desc: '2 gambar horizontal' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCollagePreset(preset.id)}
+                        className={`flex flex-col items-center justify-center rounded-lg border-2 p-2.5 text-xs text-center transition-all min-h-[60px] ${
+                          collagePreset === preset.id
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                            : 'border-[--color-border] bg-[--color-surface] text-[--color-text-2] hover:border-[--color-border-strong]'
+                        }`}
+                      >
+                        <span className="font-bold text-sm">{preset.label}</span>
+                        <span className="text-[10px] opacity-70">{preset.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-[--color-text-2]">Lebar:</span>
+                      <input
+                        type="number"
+                        min="200"
+                        max="4000"
+                        step="100"
+                        value={collageWidth}
+                        onChange={(e) => setCollageWidth(Math.max(200, Math.min(4000, Number(e.target.value) || 1200)))}
+                        className="w-20 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                      />
+                      <span className="text-[10px] text-[--color-text-3]">px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-[--color-text-2]">Tinggi:</span>
+                      <input
+                        type="number"
+                        min="200"
+                        max="4000"
+                        step="100"
+                        value={collageHeight}
+                        onChange={(e) => setCollageHeight(Math.max(200, Math.min(4000, Number(e.target.value) || 1600)))}
+                        className="w-20 rounded border border-[--color-border] bg-[--color-surface] px-2 py-1 text-xs text-[--color-text] outline-none"
+                      />
+                      <span className="text-[10px] text-[--color-text-3]">px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-[--color-text-2]">Jarak:</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="50"
+                        step="5"
+                        value={imageGap}
+                        onChange={(e) => setImageGap(Number(e.target.value))}
+                        className="w-24 accent-emerald-600 cursor-pointer"
+                      />
+                      <span className="font-mono text-emerald-500 font-bold text-[11px]">{imageGap}px</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
