@@ -447,7 +447,8 @@ export default function ImageCollage() {
       }
 
       if (isCustom) {
-        // Match preview getCellRect exactly
+        // Match preview getCellRect exactly — use object-cover (fill + crop)
+        ctx.save()
         for (let r = 0; r < rowHeights.length; r++) {
           let cumX = 0
           const cumY = rowHeights.slice(0, r).reduce((a, b) => a + b, 0) + r * gap
@@ -455,14 +456,22 @@ export default function ImageCollage() {
             const imgIdx = cellMap[r]?.[c]
             if (imgIdx != null && images[imgIdx]) {
               const imgEl = await loadImage(images[imgIdx].url)
-              const scale = Math.min(colWidths[c] / imgEl.naturalWidth, rowHeights[r] / imgEl.naturalHeight)
+              // object-cover: fill cell, crop overflow
+              const scale = Math.max(colWidths[c] / imgEl.naturalWidth, rowHeights[r] / imgEl.naturalHeight)
               const dw = Math.floor(imgEl.naturalWidth * scale)
               const dh = Math.floor(imgEl.naturalHeight * scale)
+              // Clip to cell
+              ctx.beginPath()
+              ctx.rect(cumX, cumY, colWidths[c], rowHeights[r])
+              ctx.clip()
               ctx.drawImage(imgEl, cumX + Math.floor((colWidths[c] - dw) / 2), cumY + Math.floor((rowHeights[r] - dh) / 2), dw, dh)
+              ctx.restore()
+              ctx.save()
             }
             cumX += colWidths[c] + gap
           }
         }
+        ctx.restore()
       } else {
         const cellW = Math.floor((canvasW - (pr.cols - 1) * gap) / pr.cols)
         const cellH = Math.floor((canvasH - (pr.rows - 1) * gap) / pr.rows)
