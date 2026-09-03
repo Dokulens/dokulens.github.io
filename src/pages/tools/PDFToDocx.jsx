@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx'
 import { Loader2, FileText } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
@@ -9,7 +9,12 @@ import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
-import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
+import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
+
+// ---------- Konstanta koordinat ----------
+const Y_TOLERANCE = 5 // px — teks dengan selisih Y < 5 dianggap satu baris
+const X_GAP_THRESHOLD = 28 // px — lompatan X di atas ini = kolom baru → sisipkan spasi/tab
+const PARA_Y_BREAK = 18 // px — jarak antar baris untuk paragraf baru (legacy fallback)
 
 function mergeClosePositions(positions, threshold = 8) {
   if (!positions.length) return []
@@ -27,12 +32,9 @@ function mergeClosePositions(positions, threshold = 8) {
 
 function detectTable(textItems, pageWidth) {
   if (textItems.length < 6) return null
-
   const colPositions = mergeClosePositions(textItems.map((t) => t.x0), pageWidth * 0.02)
-  const rowPositions = mergeClosePositions(textItems.map((t) => Math.round(t.y)), 6)
-
+  const rowPositions = mergeClosePositions(textItems.map((t) => Math.round(t.y)), Y_TOLERANCE)
   if (colPositions.length < 2 || rowPositions.length < 2) return null
-
   const grid = []
   for (let r = 0; r < rowPositions.length; r++) {
     const row = []
@@ -40,17 +42,15 @@ function detectTable(textItems, pageWidth) {
       const cellItems = textItems.filter((t) => {
         const colDist = Math.abs(t.x0 - colPositions[c])
         const rowDist = Math.abs(Math.round(t.y) - rowPositions[r])
-        return colDist < pageWidth * 0.04 && rowDist < 10
+        return colDist < pageWidth * 0.04 && rowDist < Y_TOLERANCE + 2
       })
       row.push(cellItems.map((t) => t.text).join(' ').trim())
     }
     grid.push(row)
   }
-
   const filledCells = grid.flat().filter((c) => c.length > 0).length
   const totalCells = grid.length * grid[0].length
   if (filledCells / totalCells < 0.3) return null
-
   return grid
 }
 
@@ -58,7 +58,6 @@ function detectHeading(textItems, medianSize) {
   if (textItems.length === 0) return null
   const maxSize = Math.max(...textItems.map((t) => t.fontSize))
   const allBold = textItems.every((t) => t.bold)
-
   if (maxSize >= medianSize * 1.4 && allBold) return HeadingLevel.HEADING_1
   if (maxSize >= medianSize * 1.25 && allBold) return HeadingLevel.HEADING_2
   if (maxSize >= medianSize * 1.15 && allBold) return HeadingLevel.HEADING_3
@@ -74,6 +73,57 @@ function detectList(text) {
     return { type: 'numbered', text: match[2], number: match[1] }
   }
   return null
+}
+
+// ---------- FIX: Y-Tolerance grouping ----------
+// Mengelompokkan item transform-based ke baris dengan Y_TOLERANCE = 5
+function groupByY2Lines(sortedItems) {
+  const lines = []
+  let currentLine = []
+  let lineY = null
+  for (const item of sortedItems) {
+    if (lineY === null || Math.abs(item.y - lineY) < Y_TOLERANCE) {
+      currentLine.push(item)
+      // keep weighted Y as average to stay stable
+      lineY = lineY === null ? item.y : (lineY * (currentLine.length - 1) + item.y) / currentLine.length
+    } else {
+      // flush line sorted X asc
+      lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
+      currentLine = [item]
+      lineY = item.y
+    }
+  }
+  if (currentLine.length) lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
+  return lines
+}
+
+// ---------- FIX: X-Distance spacing ----------
+// Pada baris yang sama, gap X besar → sisipkan spasi/tab simulasi kolom
+function buildRunsWithXGaps(lineItems) {
+  // lineItems sudah sort X asc
+  const runs = []
+  let prevX1 = null
+  for (const item of lineItems) {
+    if (prevX1 !== null) {
+      const gap = item.x0 - prevX1
+      if (gap > X_GAP_THRESHOLD) {
+        // estimasi spasi berdasarkan lebar karakter rata-rata
+        const avgCharW = Math.max(4, (item.rawFontSize || 10) * 0.5)
+        const extraSpaces = Math.max(2, Math.min(16, Math.round(gap / avgCharW)))
+        // gunakan tab untuk lompatan besar (>60px) agar Word me-render kolom rapi
+        if (gap > 60) {
+          runs.push({ isGap: true, text: '\t'.repeat(Math.max(1, Math.round(gap / 80))) + ' '.repeat(extraSpaces) })
+        } else {
+          runs.push({ isGap: true, text: ' '.repeat(extraSpaces) })
+        }
+      } else if (gap > 1) {
+        runs.push({ isGap: true, text: ' ' })
+      }
+    }
+    runs.push(item)
+    prevX1 = item.x1
+  }
+  return runs
 }
 
 export default function PDFToDocx() {
@@ -105,7 +155,7 @@ export default function PDFToDocx() {
       const pdfDoc = await loadingTask.promise
       const totalPages = pdfDoc.numPages
 
-      // Pass 1: collect all font sizes to compute median
+      // Pass 1: median font size untuk deteksi heading
       const allFontSizes = []
       for (let i = 1; i <= totalPages; i++) {
         const page = await pdfDoc.getPage(i)
@@ -119,7 +169,7 @@ export default function PDFToDocx() {
       allFontSizes.sort((a, b) => a - b)
       const medianSize = allFontSizes[Math.floor(allFontSizes.length / 2)] || 12
 
-      // Pass 2: extract structured content per page
+      // Pass 2: extract per page dengan koordinat
       const docChildren = []
 
       for (let i = 1; i <= totalPages; i++) {
@@ -131,7 +181,7 @@ export default function PDFToDocx() {
         const pageWidth = viewport.width
         const textContent = await page.getTextContent()
 
-        // Build rich text items with position and style info
+        // FIX: ambil matriks posisi dari item.transform [a,b,c,d, e=X, f=Y]
         const items = textContent.items
           .filter((t) => t.str?.trim())
           .map((t) => {
@@ -139,10 +189,11 @@ export default function PDFToDocx() {
             const fontName = (t.fontName || '').toLowerCase()
             return {
               text: t.str,
-              x0: t.transform[4],
-              y: t.transform[5],
+              // FIX: koordinat absolut
+              x0: t.transform[4], // X
+              y: t.transform[5], // Y
               x1: t.transform[4] + (t.width || 0),
-              fontSize: Math.round(fh * 2), // half-points for docx
+              fontSize: Math.round(fh * 2),
               rawFontSize: fh,
               bold: fontName.includes('bold'),
               italic: fontName.includes('italic'),
@@ -157,8 +208,11 @@ export default function PDFToDocx() {
           continue
         }
 
-        // Try table detection
-        const tableGrid = detectTable(items, pageWidth)
+        // FIX: sort Y menurun (atas→bawah), X menaik (kiri→kanan)
+        const sortedItems = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0)
+
+        // try table detection with Y_TOLERANCE
+        const tableGrid = detectTable(sortedItems, pageWidth)
         if (tableGrid && tableGrid.length >= 2 && tableGrid[0].length >= 2) {
           const table = new Table({
             rows: tableGrid.map(
@@ -180,117 +234,71 @@ export default function PDFToDocx() {
           continue
         }
 
-        // Group items into lines by Y proximity
-        const lines = []
-        let currentLine = []
-        let lastY = null
-
-        const sortedItems = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0)
-        for (const item of sortedItems) {
-          if (lastY !== null && Math.abs(item.y - lastY) > 6) {
-            if (currentLine.length) {
-              lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
-            }
-            currentLine = []
-          }
-          currentLine.push(item)
-          lastY = item.y
-        }
-        if (currentLine.length) lines.push([...currentLine].sort((a, b) => a.x0 - b.x0))
-
-        // Group lines into paragraphs (by Y proximity between lines)
-        const paragraphs = []
-        let currentPara = []
-        let prevLineY = null
+        // FIX: Y-Tolerance grouping → tiap line = satu Paragraph Word
+        const lines = groupByY2Lines(sortedItems)
 
         for (const line of lines) {
-          const lineY = line[0]?.y
-          if (prevLineY !== null && Math.abs(lineY - prevLineY) > 18) {
-            if (currentPara.length) paragraphs.push(currentPara)
-            currentPara = []
-          }
-          currentPara.push(line)
-          prevLineY = lineY
-        }
-        if (currentPara.length) paragraphs.push(currentPara)
-
-        // Convert paragraphs to DOCX elements
-        for (const paraLines of paragraphs) {
-          const allItems = paraLines.flat()
-          const fullText = allItems.map((t) => t.text).join(' ').trim()
+          const fullText = line.map((t) => t.text).join(' ').trim()
           if (!fullText) continue
 
-          // Check for heading
-          const heading = detectHeading(allItems, medianSize)
+          // heading check per line
+          const heading = detectHeading(line, medianSize)
           if (heading) {
             docChildren.push(
               new Paragraph({
                 heading,
                 spacing: { after: 200, line: 276 },
-                children: allItems.map(
+                children: line.map(
                   (item) =>
-                    new TextRun({
-                      text: item.text + ' ',
-                      size: item.fontSize,
-                      bold: true,
-                      font: 'Calibri',
-                    })
+                    new TextRun({ text: item.text + ' ', size: item.fontSize, bold: true, font: 'Calibri' })
                 ),
               })
             )
             continue
           }
 
-          // Check for list
           const listMatch = detectList(fullText)
           if (listMatch) {
-            const indent = listMatch.type === 'bullet' ? 720 : 360
-            const prefix = listMatch.type === 'numbered' ? listMatch.number + ' ' : '• '
+            // FIX: bangun paragraph list dengan run yang sudah memperhitungkan X gap
+            const runs = buildRunsWithXGaps(line)
+            // for list, prefix + text tanpa gap logic ganda
             docChildren.push(
               new Paragraph({
                 spacing: { after: 80, line: 260 },
-                indent: { left: indent, hanging: indent },
+                indent: { left: listMatch.type === 'bullet' ? 720 : 360, hanging: listMatch.type === 'bullet' ? 720 : 360 },
                 children: [
-                  new TextRun({ text: prefix, size: 20, font: 'Calibri' }),
-                  new TextRun({
-                    text: listMatch.text,
-                    size: 20,
-                    font: 'Calibri',
-                  }),
+                  new TextRun({ text: listMatch.type === 'numbered' ? listMatch.number + ' ' : '• ', size: 20, font: 'Calibri' }),
+                  new TextRun({ text: listMatch.text, size: 20, font: 'Calibri' }),
                 ],
               })
             )
             continue
           }
 
-          // Regular paragraph
+          // FIX: X-Distance → sisipkan spasi/tab simulasi kolom
+          const runsWithGaps = buildRunsWithXGaps(line)
           docChildren.push(
             new Paragraph({
-              spacing: { after: 120, line: 260 },
-              children: allItems.map(
-                (item) =>
-                  new TextRun({
-                    text: item.text + ' ',
-                    size: item.fontSize,
-                    bold: item.bold,
-                    italics: item.italic,
-                    underline: item.underline ? {} : undefined,
-                    strike: item.strikethrough ? {} : undefined,
-                    font: 'Calibri',
-                  })
-              ),
+              spacing: { after: 100, line: 260 },
+              children: runsWithGaps.map((r) => {
+                if (r.isGap) return new TextRun({ text: r.text, size: 20, font: 'Calibri' })
+                return new TextRun({
+                  text: r.text,
+                  size: r.fontSize,
+                  bold: r.bold,
+                  italics: r.italic,
+                  underline: r.underline ? {} : undefined,
+                  strike: r.strikethrough ? {} : undefined,
+                  font: 'Calibri',
+                })
+              }),
             })
           )
         }
 
-        // Page break between pages (except last)
         if (i < totalPages) {
           docChildren.push(
-            new Paragraph({
-              spacing: { after: 200 },
-              pageBreakBefore: true,
-              children: [],
-            })
+            new Paragraph({ spacing: { after: 200 }, pageBreakBefore: true, children: [] })
           )
         }
       }
@@ -299,11 +307,7 @@ export default function PDFToDocx() {
       setProgress(85)
 
       const docxFile = new Document({
-        sections: [
-          {
-            children: docChildren.length ? docChildren : [new Paragraph({ text: '' })],
-          },
-        ],
+        sections: [{ children: docChildren.length ? docChildren : [new Paragraph({ text: '' })] }],
       })
 
       const blob = await Packer.toBlob(docxFile)
@@ -332,11 +336,10 @@ export default function PDFToDocx() {
             <span className="font-medium text-[--color-text] truncate">{file.name}</span>
             <span className="shrink-0 text-[--color-text-3] ml-2">{fmtBytes(file.size)}</span>
           </div>
-
           <div className="flex items-center gap-2 rounded border border-[--color-border] bg-[--color-surface-2] p-2.5 text-xs text-[--color-text-2]">
             <FileText size={16} className="shrink-0 text-[--color-brand]" />
             <span>
-              Teks, paragraf, tabel, heading, daftar, dan gaya font (bold/italic/underline) akan dipertahankan dalam format .docx.
+              Koordinat teks (X,Y) dari PDF.js dipertahankan: Y-Tolerance 5px per baris &amp; X-Gap untuk kolom/tabel.
             </span>
           </div>
         </div>
