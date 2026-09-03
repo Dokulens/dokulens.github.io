@@ -321,9 +321,12 @@ export default function ImageCarver() {
   const [seamsRemovedText, setSeamsRemovedText] = useState('0')
   const [resultSizeText, setResultSizeText] = useState('—')
   const [resultBlob, setResultBlob] = useState(null)
+  const [carveStage, setCarveStage] = useState(0)
+  const [totalSeams, setTotalSeams] = useState(0)
 
   const origCanvasRef = useRef(null)
   const resCanvasRef = useRef(null)
+  const originalSnapshotRef = useRef(null)
   const origImageDataRef = useRef(null)
   const maskDataRef = useRef(null)
   const resultImageDataRef = useRef(null)
@@ -340,14 +343,17 @@ export default function ImageCarver() {
     const canvas = origCanvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    if (!sourceImage || !origW || !origH) {
+    const baseData = origImageDataRef.current
+    if (!baseData) {
       canvas.width = 0
       canvas.height = 0
       return
     }
+    const baseW = baseData.width
+    const baseH = baseData.height
 
-    let dispW = origW
-    let dispH = origH
+    let dispW = baseW
+    let dispH = baseH
     const maxD = 600
     if (dispW > maxD || dispH > maxD) {
       const scale = Math.min(maxD / dispW, maxD / dispH)
@@ -357,12 +363,17 @@ export default function ImageCarver() {
 
     canvas.width = dispW
     canvas.height = dispH
-    ctx.drawImage(sourceImage, 0, 0, dispW, dispH)
+    const tmp = document.createElement('canvas')
+    tmp.width = baseW
+    tmp.height = baseH
+    const tctx = tmp.getContext('2d')
+    tctx.putImageData(baseData, 0, 0)
+    ctx.drawImage(tmp, 0, 0, dispW, dispH)
 
     const maskData = maskDataRef.current
-    if (maskData && origW > 0 && origH > 0 && maskData.length === origW * origH) {
-      const scaleX = dispW / origW
-      const scaleY = dispH / origH
+    if (maskData && baseW > 0 && baseH > 0 && maskData.length === baseW * baseH) {
+      const scaleX = dispW / baseW
+      const scaleY = dispH / baseH
       const imgData = ctx.getImageData(0, 0, dispW, dispH)
       const d = imgData.data
 
@@ -370,18 +381,16 @@ export default function ImageCarver() {
         for (let px = 0; px < dispW; px++) {
           const mx = Math.floor(px / scaleX)
           const my = Math.floor(py / scaleY)
-          const idx = my * origW + mx
+          const idx = my * baseW + mx
           if (idx < maskData.length) {
             const mVal = maskData[idx]
             if (mVal > 128) {
-              // Red tint for remove (255)
               const i = (py * dispW + px) * 4
               d[i] = Math.min(255, d[i] + 120)
               d[i + 1] = Math.max(0, d[i + 1] - 40)
               d[i + 2] = Math.max(0, d[i + 2] - 40)
               d[i + 3] = Math.min(255, d[i + 3] + 60)
             } else if (mVal === 128) {
-              // Green tint for protect (128)
               const i = (py * dispW + px) * 4
               d[i] = Math.max(0, d[i] - 40)
               d[i + 1] = Math.min(255, d[i + 1] + 120)
@@ -393,7 +402,7 @@ export default function ImageCarver() {
       }
       ctx.putImageData(imgData, 0, 0)
     }
-  }, [sourceImage, origW, origH])
+  }, [])
 
   // ─── Draw Result Canvas ───
   const drawResult = useCallback(() => {
@@ -460,14 +469,20 @@ export default function ImageCarver() {
         const tctx = tmp.getContext('2d')
         tctx.drawImage(img, 0, 0)
 
-        origImageDataRef.current = tctx.getImageData(0, 0, img.width, img.height)
+        const baseData = tctx.getImageData(0, 0, img.width, img.height)
+        originalSnapshotRef.current = new ImageData(new Uint8ClampedArray(baseData.data), baseData.width, baseData.height)
+        origImageDataRef.current = new ImageData(new Uint8ClampedArray(baseData.data), baseData.width, baseData.height)
         maskDataRef.current = new Uint8Array(img.width * img.height)
         resultImageDataRef.current = null
         setSeamsRemovedText('0')
+        setCarveStage(0)
+        setTotalSeams(0)
         setWidthPct(80)
         setHeightPct(80)
         setStatusText(`Gambar berhasil dimuat: ${img.width} × ${img.height} px. Lukis mask & tekan Carve.`)
         stopRequestedRef.current = false
+        drawOriginal()
+        drawResult()
       }
       img.src = e.target.result
     }
@@ -576,17 +591,19 @@ export default function ImageCarver() {
 
   const handleReset = () => {
     if (isCarving) return
-    if (sourceImage && origW && origH) {
-      const tmp = document.createElement('canvas')
-      tmp.width = origW
-      tmp.height = origH
-      const tctx = tmp.getContext('2d')
-      tctx.drawImage(sourceImage, 0, 0)
-      origImageDataRef.current = tctx.getImageData(0, 0, origW, origH)
-      maskDataRef.current = new Uint8Array(origW * origH)
+    if (originalSnapshotRef.current) {
+      const snap = originalSnapshotRef.current
+      origImageDataRef.current = new ImageData(new Uint8ClampedArray(snap.data), snap.width, snap.height)
+      setOrigW(snap.width)
+      setOrigH(snap.height)
+      maskDataRef.current = new Uint8Array(snap.width * snap.height)
       resultImageDataRef.current = null
       setResultBlob(null)
       setSeamsRemovedText('0')
+      setCarveStage(0)
+      setTotalSeams(0)
+      setWidthPct(80)
+      setHeightPct(80)
       drawOriginal()
       drawResult()
       setStatusText('Di-reset ke gambar asli.')
@@ -722,8 +739,19 @@ export default function ImageCarver() {
         if (blob) setResultBlob(blob)
       }, 'image/png')
 
+      // Promote result → new working base so user can carve again without remask from original
+      origImageDataRef.current = new ImageData(new Uint8ClampedArray(finalResult.data), finalResult.width, finalResult.height)
+      setOrigW(finalResult.width)
+      setOrigH(finalResult.height)
+      maskDataRef.current = new Uint8Array(finalResult.width * finalResult.height)
+      setCarveStage((s) => s + 1)
+      setTotalSeams((t) => t + removedCount)
+      setWidthPct(80)
+      setHeightPct(80)
+      drawOriginal()
+
       const elapsed = ((performance.now() - startTime) / 1000).toFixed(1)
-      setStatusText(`✅ Selesai dalam ${elapsed}s — ${finalResult.width} × ${finalResult.height} px`)
+      setStatusText(`✅ Selesai dalam ${elapsed}s — ${finalResult.width} × ${finalResult.height} px. Anda bisa carve lagi langsung (stage ${carveStage + 1}).`)
       setProgress(100)
     } catch (err) {
       setStatusText(`❌ Error: ${err.message}`)
@@ -774,7 +802,12 @@ export default function ImageCarver() {
 
           <div className="text-xs text-(--color-text-3)">
             {origW && origH ? (
-              <span className="font-semibold text-(--color-text)">{origW} × {origH} px</span>
+              <div className="text-right space-y-0.5">
+                <span className="font-semibold text-(--color-text) block">{origW} × {origH} px</span>
+                {carveStage > 0 && (
+                  <span className="text-[10px] text-(--color-brand) font-semibold">Tahap {carveStage} · {totalSeams} seam terpotong</span>
+                )}
+              </div>
             ) : (
               'Belum ada gambar'
             )}
@@ -898,7 +931,7 @@ export default function ImageCarver() {
         <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3) flex items-center gap-1.5">
-              <Paintbrush size={14} className="text-(--color-brand)" /> Foto Asli + Kuas Masking
+              <Paintbrush size={14} className="text-(--color-brand)" /> {carveStage === 0 ? 'Foto Asli + Kuas Masking' : `Tahap ${carveStage + 1} — Hasil Sebelumnya + Kuas Masking`}
             </span>
             <span className="rounded bg-(--color-surface-3) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-2)">
               Draw Mask
@@ -953,7 +986,7 @@ export default function ImageCarver() {
           </div>
 
           <div className="relative flex justify-center items-center overflow-auto rounded border border-(--color-border) bg-black/90 p-2 min-h-[260px] max-h-[500px]">
-            {sourceImage ? (
+            {origImageDataRef.current ? (
               <canvas
                 ref={origCanvasRef}
                 onMouseDown={startDraw}
