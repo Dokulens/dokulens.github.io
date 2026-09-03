@@ -328,6 +328,7 @@ export default function ImageCollage() {
 
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null)
+  const [resultName, setResultName] = useState('')
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
 
@@ -362,6 +363,7 @@ export default function ImageCollage() {
     }
     setImages((prev) => [...prev, ...newImgs])
     setResult(null)
+    setResultName('')
   }
 
   // Auto-fill empty grid cells when new images are added
@@ -397,12 +399,14 @@ export default function ImageCollage() {
       return prev.map((r) => r.map((v) => v === imgIdx ? null : v))
     })
     setResult(null)
+    setResultName('')
   }
 
   const clearAll = () => {
     images.forEach((i) => URL.revokeObjectURL(i.url))
     setImages([])
     setResult(null)
+    setResultName('')
   }
 
   const redistribute = (count, total, gapCount) => {
@@ -537,6 +541,7 @@ export default function ImageCollage() {
       const bytes = new Uint8Array(binary.length)
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
       setResult({ blob: new Blob([bytes], { type: mime }), dataUrl, ext: exportFormat, fileName: `kolase.${exportFormat}` })
+      setResultName(`kolase.${exportFormat}`)
     } catch (err) {
       setError(err.message || 'Gagal membuat kolase')
     }
@@ -546,7 +551,7 @@ export default function ImageCollage() {
   const downloadResult = () => {
     if (!result) return
     const url = URL.createObjectURL(result.blob)
-    const a = document.createElement('a'); a.href = url; a.download = result.fileName; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = resultName || result.fileName; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -733,9 +738,11 @@ export default function ImageCollage() {
             <div className="flex items-center gap-1">
               <SendToDropdown
                 blob={result.blob}
-                fileName={result.fileName}
+                fileName={resultName || result.fileName}
                 outputMimeType={result.ext === 'jpg' ? 'image/jpeg' : 'image/png'}
                 excludeRoute="image-collage"
+                onRename={(n) => setResultName(n)}
+                onDownload={downloadResult}
               />
             </div>
           </div>
@@ -747,7 +754,7 @@ export default function ImageCollage() {
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-md">
               <Download size={18} /> Unduh {result.ext.toUpperCase()}
             </button>
-            <button onClick={() => setResult(null)}
+            <button onClick={() => { setResult(null); setResultName('') }}
               className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
               Kembali
             </button>

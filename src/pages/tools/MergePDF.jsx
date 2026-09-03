@@ -468,6 +468,7 @@ export default function MergePDF() {
   const [loadProgress, setLoadProgress] = useState(0)
   const [processing, setProcessing] = useState(false)
   const [result, setResult] = useState(null) // { blob, mime, ext, fileName }
+  const [resultName, setResultName] = useState('')
   const [resultPages, setResultPages] = useState([])
   const [resultCurrentPage, setResultCurrentPage] = useState(1)
   const [renderingResult, setRenderingResult] = useState(false)
@@ -1481,24 +1482,25 @@ export default function MergePDF() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-(--color-text)">Hasil</span>
-              <p className="text-xs text-(--color-text-3)">{result.fileName || 'output'} — {fmtBytes(result.blob.size)}</p>
+              <p className="text-xs text-(--color-text-3)">{(resultName || result.fileName || 'output')} — {fmtBytes(result.blob.size)}</p>
             </div>
             <div className="flex items-center gap-2">
               <SendToDropdown
                 blob={result.blob}
-                fileName={result.fileName || 'output'}
+                fileName={resultName || result.fileName || 'output'}
                 outputMimeType={result.mime || 'application/pdf'}
                 excludeRoute="merge-pdf"
+                onRename={(n) => setResultName(n)}
               />
               <button
-                onClick={() => { setResult(null); setResultPages([]); setResultCurrentPage(1) }}
+                onClick={() => { setResult(null); setResultName(''); setResultPages([]); setResultCurrentPage(1) }}
                 className="flex h-7 items-center gap-1 rounded border border-(--color-border) bg-(--color-surface) px-2 text-xs text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors"
               >
                 <X size={12} /> Tutup
               </button>
               <a
                 href={URL.createObjectURL(result.blob)}
-                download={result.fileName || 'output'}
+                download={resultName || result.fileName || 'output'}
                 className="flex h-7 items-center gap-1 rounded bg-(--color-brand) px-3 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors no-underline"
               >
                 <ArrowDown size={12} /> Unduh
