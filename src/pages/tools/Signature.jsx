@@ -23,7 +23,7 @@ function loadImg(src) {
 }
 
 /* ============ Signature Drawing Canvas ============ */
-function SignaturePad({ onSave, onDownload }) {
+function SignaturePad({ onSave }) {
   const canvasRef = useRef(null)
   const drawingRef = useRef(false)
   const lastRef = useRef(null)
@@ -94,16 +94,24 @@ function SignaturePad({ onSave, onDownload }) {
     setHasInk(false)
   }
   // output = transparent PNG (no white fill)
-  const save = () => {
+  const toDataUrl = () => {
     const c = canvasRef.current
-    if (!hasInk) return
+    if (!hasInk) return null
     const out = document.createElement('canvas')
     out.width = c.width
     out.height = c.height
     const ctx = out.getContext('2d')
     ctx.clearRect(0, 0, out.width, out.height)
     ctx.drawImage(c, 0, 0)
-    onSave(out.toDataURL('image/png'))
+    return out.toDataURL('image/png')
+  }
+  const save = () => {
+    const d = toDataUrl()
+    if (d) onSave(d)
+  }
+  const download = () => {
+    const d = toDataUrl()
+    if (d) downloadBlob(dataUrlToBlob(d), 'ttd.png')
   }
 
   return (
@@ -138,8 +146,8 @@ function SignaturePad({ onSave, onDownload }) {
           <Eraser size={14} /> Bersihkan
         </button>
         <div className="ml-auto flex items-center gap-2">
-          {onDownload && hasInk && (
-            <button onClick={onDownload} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+          {hasInk && (
+            <button onClick={download} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
               <Download size={14} /> Download PNG
             </button>
           )}
@@ -419,7 +427,6 @@ export default function Signature() {
         <div className="space-y-4">
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
             <SignaturePad
-              onDownload={downloadCurrent}
               onSave={(d) => { setSigDataUrl(d); setMode('create') }}
             />
           </div>
