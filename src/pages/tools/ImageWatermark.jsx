@@ -397,7 +397,7 @@ export default function ImageWatermark() {
               blob={resultBlob}
               fileName={`watermarked_${stripExt(fileName)}.png`}
               onDownload={downloadResult}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border-2 border-(--color-brand) bg-(--color-brand) px-4 py-2.5 text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-(--color-success) px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity"
             >
               <Download size={16} /> Download Hasil
             </DownloadButton>

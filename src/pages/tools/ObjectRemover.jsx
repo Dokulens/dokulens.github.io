@@ -380,28 +380,30 @@ export default function ObjectRemover() {
             )}
 
             {resultUrl && (
-              <div className="space-y-2 animate-fade-in">
-                <div className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                  <Check size={14} /> Selesai! Objek berhasil dihapus.
-                </div>
-                <img src={resultUrl} alt="Result" className="w-full rounded-lg border border-(--color-border)" />
-                <div className="flex gap-2 items-center justify-end">
-                  <DownloadButton
-                    blob={resultBlob}
-                    fileName={`no-object_${stripExt(fileName || 'image')}.png`}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 transition-all"
-                  >
-                    <Download size={14} /> Download
-                  </DownloadButton>
+              <div className="space-y-2 rounded-xl border border-(--color-success-light) bg-(--color-success-light) p-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-(--color-success) flex items-center gap-1.5">
+                    <Check size={16} /> Selesai! Objek berhasil dihapus.
+                  </div>
                   <SendToDropdown
                     blob={resultBlob}
                     fileName={`${stripExt(fileName || 'image')}_clean.png`}
                     outputMimeType="image/png"
                     excludeRoute="object-remover"
                   />
+                </div>
+                <img src={resultUrl} alt="Result" className="w-full rounded-lg" />
+                <div className="flex gap-2 items-center justify-end">
+                  <DownloadButton
+                    blob={resultBlob}
+                    fileName={`no-object_${stripExt(fileName || 'image')}.png`}
+                    className="flex items-center justify-center gap-1.5 rounded-lg bg-(--color-success) px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity"
+                  >
+                    <Download size={14} /> Download
+                  </DownloadButton>
                   <button
                     onClick={() => { setResultUrl(null); setResultBlob(null) }}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-(--color-border) bg-(--color-surface-3) px-3 py-2 text-xs font-bold text-(--color-text-2) hover:bg-(--color-surface-2) transition-all"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs font-bold text-(--color-text-2) hover:bg-(--color-surface-3) transition-all"
                     title="Proses lagi"
                   >
                     <RefreshCw size={14} />

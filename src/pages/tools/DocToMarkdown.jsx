@@ -6,6 +6,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import FilePreview from '../../components/FilePreview'
 import ProgressBar from '../../components/ProgressBar'
+import DownloadButton from '../../components/DownloadButton'
 import { pdfjsLib } from '../../utils/pdfRender'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
@@ -263,16 +264,6 @@ export default function DocToMarkdown() {
     } finally { setProcessing(false) }
   }
 
-  const downloadMd = () => {
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${stripExt(file?.name || 'dokumen')}.md`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const copyMd = async () => {
     try { await navigator.clipboard.writeText(md); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch {}
   }
@@ -327,21 +318,25 @@ export default function DocToMarkdown() {
 
       {md && (
         <div className="space-y-3">
-          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) overflow-hidden">
-            <div className="flex items-center justify-between gap-2 border-b border-(--color-border) bg-(--color-surface-2) px-3 py-2">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-(--color-text-2)">
-                <FileCode2 size={14} className="text-(--color-brand)" /> {baseName}.md · {fmtBytes(new Blob([md]).size)}
+          <div className="overflow-hidden rounded-xl border border-(--color-success-light) bg-(--color-success-light)">
+            <div className="flex items-center justify-between gap-2 border-b border-(--color-success-light) bg-(--color-success-light) px-3 py-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-(--color-success)">
+                <FileCode2 size={14} /> ✓ Selesai — {baseName}.md · {fmtBytes(new Blob([md]).size)}
               </span>
               <div className="flex items-center gap-2">
                 <button onClick={copyMd} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
                   {copied ? <Check size={13} className="text-(--color-success)" /> : <Copy size={13} />} {copied ? 'Tersalin' : 'Salin'}
                 </button>
-                <button onClick={downloadMd} className="flex items-center gap-1.5 rounded border border-(--color-border) bg-(--color-surface) px-2.5 py-1.5 text-xs font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+                <DownloadButton
+                  blob={new Blob([md], { type: 'text/markdown;charset=utf-8' })}
+                  fileName={`${baseName}.md`}
+                  className="flex items-center gap-1.5 rounded bg-(--color-success) px-2.5 py-1.5 text-xs font-bold text-white hover:opacity-90 transition-opacity cursor-pointer"
+                >
                   <FileDown size={13} /> Unduh .md
-                </button>
+                </DownloadButton>
               </div>
             </div>
-            <pre className="max-h-[420px] overflow-auto p-4 text-xs leading-relaxed text-(--color-text) whitespace-pre-wrap bg-(--color-surface)">{md}</pre>
+            <pre className="max-h-[420px] overflow-auto p-4 text-xs leading-relaxed whitespace-pre-wrap text-(--color-text)" style={{ background: 'var(--color-surface, #fff)' }}>{md}</pre>
           </div>
           <button onClick={() => { setMd(''); setFile(null) }} className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-2.5 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
             Konversi file lain

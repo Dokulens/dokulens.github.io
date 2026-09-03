@@ -734,8 +734,8 @@ export default function ImageCollage() {
 
       {result && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-(--color-border) bg-(--color-surface) px-4 py-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-(--color-text-3)">Hasil Kolase</span>
+          <div className="flex items-center justify-between gap-2 rounded-t-xl border border-(--color-success-light) bg-(--color-success-light) px-4 py-2">
+            <p className="text-sm font-bold text-(--color-success)">✓ Kolase selesai dibuat</p>
             <div className="flex items-center gap-1">
               <SendToDropdown
                 blob={result.blob}
@@ -747,22 +747,22 @@ export default function ImageCollage() {
               />
             </div>
           </div>
-          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
-            <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg shadow-lg" />
-          </div>
-          <div className="flex gap-2 items-center">
-            <DownloadButton
-              blob={result.blob}
-              fileName={resultName || result.fileName}
-              onNameChange={(n) => setResultName(n)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors cursor-pointer shadow-md"
-            >
-              <Download size={18} /> Unduh {result.ext.toUpperCase()}
-            </DownloadButton>
-            <button onClick={() => { setResult(null); setResultName('') }}
-              className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
-              Kembali
-            </button>
+          <div className="rounded-b-xl border border-t-0 border-(--color-success-light) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
+            <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg" />
+            <div className="flex w-full max-w-md gap-2">
+              <DownloadButton
+                blob={result.blob}
+                fileName={resultName || result.fileName}
+                onNameChange={(n) => setResultName(n)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-(--color-success) px-4 py-3 text-sm font-bold text-white hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                <Download size={18} /> Unduh {result.ext.toUpperCase()}
+              </DownloadButton>
+              <button onClick={() => { setResult(null); setResultName('') }}
+                className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
+                Kembali
+              </button>
+            </div>
           </div>
         </div>
       )}

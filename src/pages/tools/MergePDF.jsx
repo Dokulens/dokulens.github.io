@@ -1479,11 +1479,11 @@ export default function MergePDF() {
 
       {/* Result Section */}
       {result && (
-        <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-4 space-y-3">
+        <div className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-(--color-text)">Hasil</span>
-              <p className="text-xs text-(--color-text-3)">{(resultName || result.fileName || 'output')} — {fmtBytes(result.blob.size)}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-bold text-(--color-success)">✓ Hasil siap</span>
+              <p className="text-xs text-(--color-text-2) truncate">{(resultName || result.fileName || 'output')} — {fmtBytes(result.blob.size)}</p>
             </div>
             <div className="flex items-center gap-2">
               <SendToDropdown
@@ -1503,7 +1503,7 @@ export default function MergePDF() {
                 blob={result.blob}
                 fileName={resultName || result.fileName || 'output'}
                 onNameChange={(n) => setResultName(n)}
-                className="flex h-7 items-center gap-1 rounded bg-(--color-brand) px-3 text-xs font-bold text-white hover:bg-(--color-brand-hover) transition-colors no-underline"
+                className="flex h-7 items-center gap-1 rounded bg-(--color-success) px-3 text-xs font-bold text-white hover:opacity-90 transition-opacity no-underline"
               >
                 <ArrowDown size={12} /> Unduh
               </DownloadButton>
