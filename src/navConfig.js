@@ -15,8 +15,7 @@ export const NAV_GROUPS = [
     label: 'Word & Dokumen',
     items: [
       { path: 'add-page-number', label: 'Tambah Nomor Halaman',         icon: 'Hash',         desc: 'Nomor halaman otomatis untuk PDF & Word (.docx)' },
-      { path: 'pdf-to-docx',     label: 'PDF → Word (.docx)',          icon: 'FileText',     desc: 'Ubah file PDF jadi dokumen Word yang bisa diedit' },
-      { path: 'docx-to-pdf',     label: 'Word (.docx) → PDF',          icon: 'FileType',     desc: 'Konversi file Word docx menjadi PDF' },
+      // hidden: pdf-to-docx, docx-to-pdf — see App.jsx + toolRegistry.js
     ],
   },
   {

@@ -55,20 +55,7 @@ export const TOOL_REGISTRY = [
     icon: 'FileImage',
     accepts: ['application/pdf'],
   },
-  {
-    id: 'pdf-to-docx',
-    route: 'pdf-to-docx',
-    label: 'PDF → Word',
-    icon: 'FileText',
-    accepts: ['application/pdf'],
-  },
-  {
-    id: 'docx-to-pdf',
-    route: 'docx-to-pdf',
-    label: 'Word → PDF',
-    icon: 'FileType',
-    accepts: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  },
+  // hidden: pdf-to-docx, docx-to-pdf — restore entries above
   {
     id: 'image-to-pdf',
     route: 'image-to-pdf',
