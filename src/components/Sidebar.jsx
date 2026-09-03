@@ -40,7 +40,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
           title="DokuLens Beranda"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[--color-brand] shrink-0">
-            <Icons.FileSearch size={18} className="text-white" />
+            <Icons.FileSearch size={18} className="text-white" style={{ color: '#ffffff' }} />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
