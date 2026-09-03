@@ -472,6 +472,28 @@ export default function ImageCollage() {
           }
         }
         ctx.restore()
+
+        // Draw grid lines
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+        ctx.lineWidth = 1
+        // Vertical lines
+        let cumX = 0
+        for (let c = 0; c <= colWidths.length; c++) {
+          ctx.beginPath()
+          ctx.moveTo(cumX, 0)
+          ctx.lineTo(cumX, canvasH)
+          ctx.stroke()
+          if (c < colWidths.length) cumX += colWidths[c] + gap
+        }
+        // Horizontal lines
+        let cumY = 0
+        for (let r = 0; r <= rowHeights.length; r++) {
+          ctx.beginPath()
+          ctx.moveTo(0, cumY)
+          ctx.lineTo(canvasW, cumY)
+          ctx.stroke()
+          if (r < rowHeights.length) cumY += rowHeights[r] + gap
+        }
       } else {
         const cellW = Math.floor((canvasW - (pr.cols - 1) * gap) / pr.cols)
         const cellH = Math.floor((canvasH - (pr.rows - 1) * gap) / pr.rows)
