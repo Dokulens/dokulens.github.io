@@ -55,19 +55,31 @@ function CollageGridEditor({ images, canvasW, canvasH, gridCols, gridRows, colWi
     if (!dragLine) return
     const onMove = (e) => {
       const pos = toCanvas(e.clientX, e.clientY)
+      const minSize = 40
       if (dragLine.type === 'col') {
-        const dx = pos.x - dragLine.startX
+        let dx = pos.x - dragLine.startX
+        // Clamp so total colWidths stays within canvasW - gaps
+        const totalGaps = (dragLine.origSizes.length - 1) * gap
+        const maxTotal = canvasW - totalGaps
+        const w0 = dragLine.origSizes[dragLine.index]
+        const w1 = dragLine.origSizes[dragLine.index + 1]
+        const newW0 = Math.max(minSize, Math.min(maxTotal - (dragLine.origSizes.length - 2) * minSize, w0 + dx))
+        dx = newW0 - w0
         const newSizes = [...dragLine.origSizes]
-        const minSize = 40
-        newSizes[dragLine.index] = Math.max(minSize, dragLine.origSizes[dragLine.index] + dx)
-        newSizes[dragLine.index + 1] = Math.max(minSize, dragLine.origSizes[dragLine.index + 1] - dx)
+        newSizes[dragLine.index] = newW0
+        newSizes[dragLine.index + 1] = Math.max(minSize, w1 - dx)
         setColWidths(newSizes)
       } else {
-        const dy = pos.y - dragLine.startY
+        let dy = pos.y - dragLine.startY
+        const totalGaps = (dragLine.origSizes.length - 1) * gap
+        const maxTotal = canvasH - totalGaps
+        const h0 = dragLine.origSizes[dragLine.index]
+        const h1 = dragLine.origSizes[dragLine.index + 1]
+        const newH0 = Math.max(minSize, Math.min(maxTotal - (dragLine.origSizes.length - 2) * minSize, h0 + dy))
+        dy = newH0 - h0
         const newSizes = [...dragLine.origSizes]
-        const minSize = 40
-        newSizes[dragLine.index] = Math.max(minSize, dragLine.origSizes[dragLine.index] + dy)
-        newSizes[dragLine.index + 1] = Math.max(minSize, dragLine.origSizes[dragLine.index + 1] - dy)
+        newSizes[dragLine.index] = newH0
+        newSizes[dragLine.index + 1] = Math.max(minSize, h1 - dy)
         setRowHeights(newSizes)
       }
     }
