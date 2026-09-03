@@ -7,6 +7,7 @@ import {
   ShieldCheck, FileType, Download, X
 } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
+import DownloadButton from '../../components/DownloadButton'
 import DropZone from '../../components/DropZone'
 import ResultCard from '../../components/ResultCard'
 import FilePreview from '../../components/FilePreview'
@@ -1297,13 +1298,13 @@ export default function AddPageNumber() {
                   <p className="text-xs text-(--color-text-3)">{base}_numbered.{outExt} — {fmtBytes(resultBlob.size)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href={URL.createObjectURL(resultBlob)}
-                    download={`${base}_numbered.${outExt}`}
+                  <DownloadButton
+                    blob={resultBlob}
+                    fileName={`${base}_numbered.${outExt}`}
                     className="flex items-center gap-1.5 rounded bg-(--color-success) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity no-underline"
                   >
                     <Download size={14} /> Download
-                  </a>
+                  </DownloadButton>
                   <button
                     onClick={() => { setResultBlob(null); setResultPages([]) }}
                     className="rounded p-1.5 text-(--color-text-3) hover:bg-(--color-surface-3)"

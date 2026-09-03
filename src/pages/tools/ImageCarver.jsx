@@ -7,7 +7,7 @@ import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import ResultCard from '../../components/ResultCard'
-import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -318,7 +318,6 @@ export default function ImageCarver() {
   const [isCarving, setIsCarving] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('Silakan muat gambar untuk memulai.')
-  const [seamsRemovedText, setSeamsRemovedText] = useState('0')
   const [resultSizeText, setResultSizeText] = useState('—')
   const [resultBlob, setResultBlob] = useState(null)
   const [carveStage, setCarveStage] = useState(0)
@@ -474,7 +473,6 @@ export default function ImageCarver() {
         origImageDataRef.current = new ImageData(new Uint8ClampedArray(baseData.data), baseData.width, baseData.height)
         maskDataRef.current = new Uint8Array(img.width * img.height)
         resultImageDataRef.current = null
-        setSeamsRemovedText('0')
         setCarveStage(0)
         setTotalSeams(0)
         setWidthPct(80)
@@ -599,7 +597,6 @@ export default function ImageCarver() {
       maskDataRef.current = new Uint8Array(snap.width * snap.height)
       resultImageDataRef.current = null
       setResultBlob(null)
-      setSeamsRemovedText('0')
       setCarveStage(0)
       setTotalSeams(0)
       setWidthPct(80)
@@ -725,7 +722,6 @@ export default function ImageCarver() {
       if (currentMask) maskDataRef.current = currentMask
 
       const removedCount = origW - finalResult.width + (origH - finalResult.height)
-      setSeamsRemovedText(`${removedCount}`)
       drawResult()
 
       // Convert final result canvas to Blob for ResultCard download

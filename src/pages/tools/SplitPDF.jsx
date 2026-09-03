@@ -5,6 +5,7 @@ import { Loader2, Download } from 'lucide-react'
 import ToolShell from '../../components/ToolShell'
 import DropZone from '../../components/DropZone'
 import FilePreview from '../../components/FilePreview'
+import DownloadButton from '../../components/DownloadButton'
 import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
 import { BTN_CARD_ACTIVE, BTN_CARD_INACTIVE, BTN_TOGGLE_ACTIVE, BTN_TOGGLE_INACTIVE } from '../../utils/activeButtonStyles'
@@ -148,13 +149,13 @@ export default function SplitPDF() {
         <div key={r.name} className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4">
           <p className="text-sm font-semibold text-(--color-success)">✓ Selesai</p>
           <p className="mt-0.5 text-sm text-(--color-text-2)">{r.name} — {fmtBytes(r.blob.size)}</p>
-          <a
-            href={URL.createObjectURL(r.blob)}
-            download={r.name}
-            className="mt-3 flex items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
+          <DownloadButton
+            blob={r.blob}
+            fileName={r.name}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
           >
             <Download size={16} />Download
-          </a>
+          </DownloadButton>
         </div>
       ))}
     </ToolShell>

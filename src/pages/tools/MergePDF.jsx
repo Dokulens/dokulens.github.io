@@ -21,9 +21,9 @@ import DownloadButton from '../../components/DownloadButton'
 import DropZone from '../../components/DropZone'
 import ProgressBar from '../../components/ProgressBar'
 import { pdfjsLib, renderPageToDataUrl } from '../../utils/pdfRender'
-import { readAsArrayBuffer, fmtBytes, stripExt } from '../../utils/helpers'
+import { readAsArrayBuffer, fmtBytes } from '../../utils/helpers'
 import { useIncomingFile } from '../../hooks/useIncomingFile'
-import { BTN_SEG_ACTIVE, BTN_SEG_INACTIVE, BTN_CARD_ACTIVE, BTN_CARD_INACTIVE } from '../../utils/activeButtonStyles'
+import { BTN_SEG_ACTIVE, BTN_SEG_INACTIVE } from '../../utils/activeButtonStyles'
 
 /* ─── Helper: Convert image file to PNG Uint8Array bytes ─── */
 async function convertImageToPngBytes(file) {
