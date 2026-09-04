@@ -42,7 +42,10 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
           <div className="flex h-8 w-8 items-center justify-center rounded bg-(--color-brand) shrink-0">
             <Icons.FileSearch size={18} className="text-white" style={{ color: '#ffffff' }} />
           </div>
-          {!isCollapsed && (
+          <div 
+            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'}`}
+            style={{ whiteSpace: 'nowrap' }}
+          >
             <div className="min-w-0">
               <span className="text-sm font-bold tracking-tight block leading-tight text-(--color-text) truncate">
                 DokuLens
@@ -51,7 +54,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                 Client-Side Studio
               </span>
             </div>
-          )}
+          </div>
         </NavLink>
 
         {/* Mobile close button */}
@@ -91,21 +94,22 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                 {isActive && !isCollapsed && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-(--color-brand) shadow-sm" />
                 )}
-                <div className="flex items-center gap-2.5">
-                  <Home
-                    size={18}
-                    className={
-                      isActive
-                        ? 'text-(--color-brand) scale-110 transition-transform duration-200'
-                        : 'text-(--color-text-2) group-hover:text-(--color-text) transition-colors duration-150'
-                    }
-                  />
-                  {!isCollapsed && (
-                    <span className={isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}>
+                  <div className="flex items-center gap-2.5">
+                    <Home
+                      size={18}
+                      className={
+                        isActive
+                          ? 'text-(--color-brand) scale-110 transition-transform duration-200'
+                          : 'text-(--color-text-2) group-hover:text-(--color-text) transition-colors duration-150'
+                      }
+                    />
+                    <span 
+                      className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'} ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
                       Semua Tools
                     </span>
-                  )}
-                </div>
+                  </div>
                 {isActive && !isCollapsed && (
                   <span className="h-2 w-2 shrink-0 rounded-full bg-(--color-brand) shadow-xs animate-pulse" />
                 )}
@@ -159,11 +163,12 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
                         <div className="flex items-center gap-2.5 min-w-0">
                           <NavIcon name={item.icon} active={isActive} />
-                          {!isCollapsed && (
-                            <span className={`truncate ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}>
-                              {item.label}
-                            </span>
-                          )}
+                          <span 
+                            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'} truncate ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}
+                            style={{ whiteSpace: 'nowrap' }}
+                          >
+                            {item.label}
+                          </span>
                         </div>
 
                         {isActive && !isCollapsed && (
@@ -188,7 +193,9 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
       </nav>
 
       {/* Footer Info & PWA status */}
-      {!isCollapsed && (
+      <div 
+        className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'max-h-0 opacity-0 border-0' : 'max-h-40 opacity-100'}`}
+      >
         <div className="border-t border-(--color-border) p-3 space-y-2">
           <PWAInstallBanner />
           <div className="rounded border border-(--color-border) bg-(--color-surface-2) p-2.5 text-[11px] text-(--color-text-3)">
@@ -199,7 +206,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
             <p className="leading-snug">Semua file diproses lokal di browser perangkat Anda.</p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
