@@ -318,8 +318,8 @@ export default function DocToMarkdown() {
 
       {md && (
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-xl border border-(--color-success-light) bg-(--color-success-light)">
-            <div className="flex items-center justify-between gap-2 border-b border-(--color-success-light) bg-(--color-success-light) px-3 py-2">
+          <div className="overflow-visible rounded-xl border border-(--color-success-light) bg-(--color-success-light)">
+            <div className="flex items-center justify-between gap-2 rounded-t-xl border-b border-(--color-border) bg-(--color-surface) px-3 py-2">
               <span className="flex items-center gap-1.5 text-xs font-bold text-(--color-success)">
                 <FileCode2 size={14} /> ✓ Selesai — {baseName}.md · {fmtBytes(new Blob([md]).size)}
               </span>
@@ -336,7 +336,7 @@ export default function DocToMarkdown() {
                 </DownloadButton>
               </div>
             </div>
-            <pre className="max-h-[420px] overflow-auto p-4 text-xs leading-relaxed whitespace-pre-wrap text-(--color-text)" style={{ background: 'var(--color-surface, #fff)' }}>{md}</pre>
+            <pre className="max-h-[420px] overflow-auto rounded-b-xl bg-(--color-surface) p-4 text-xs leading-relaxed whitespace-pre-wrap text-(--color-text)">{md}</pre>
           </div>
           <button onClick={() => { setMd(''); setFile(null) }} className="w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-2.5 text-sm font-semibold text-(--color-text-2) hover:bg-(--color-surface-3) transition-colors cursor-pointer">
             Konversi file lain

@@ -742,8 +742,6 @@ export default function ImageCollage() {
                 fileName={resultName || result.fileName}
                 outputMimeType={result.ext === 'jpg' ? 'image/jpeg' : 'image/png'}
                 excludeRoute="image-collage"
-                onRename={(n) => setResultName(n)}
-                onDownload={downloadResult}
               />
             </div>
           </div>

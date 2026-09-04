@@ -1,24 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, MoreVertical, Send, Check, Pencil, Download } from 'lucide-react'
+import { X, MoreVertical, Send, Download } from 'lucide-react'
 import DownloadButton from './DownloadButton'
 import { getTargetsForOutput } from '../utils/toolRegistry'
 
-function splitExt(name) {
-  const m = (name || '').match(/^(.*?)(\.[^.]+)?$/)
-  return { base: m[1] || name, ext: m[2] || '' }
-}
-
 export default function ResultCard({ fileName, blob, onReset, extraInfo, outputMimeType, sourceRoute }) {
-  const initial = splitExt(fileName)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [nameBase, setNameBase] = useState(initial.base)
-  const [ext] = useState(initial.ext)
   const menuRef = useRef(null)
   const navigate = useNavigate()
-
-  const finalName = nameBase.trim() ? `${nameBase.trim()}${ext}` : fileName
 
   const targets = outputMimeType ? getTargetsForOutput(outputMimeType, sourceRoute) : []
 
@@ -34,39 +23,15 @@ export default function ResultCard({ fileName, blob, onReset, extraInfo, outputM
   const handleSendTo = (target) => {
     if (!blob) return
     setMenuOpen(false)
-    navigate(`/${target.route}`, { state: { file: blob, fileName: finalName } })
+    navigate(`/${target.route}`, { state: { file: blob, fileName } })
   }
-
-  const commit = () => { setEditing(false); setMenuOpen(false) }
 
   return (
     <div className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-(--color-success)">✓ Selesai diproses</p>
-          {/* Editable filename row */}
-          <div className="mt-0.5 flex items-center gap-1.5">
-            {editing ? (
-              <div className="flex items-center gap-1">
-                <input
-                  autoFocus
-                  value={nameBase}
-                  onChange={(e) => setNameBase(e.target.value.replace(/[\\/:*?"<>|]/g, ''))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setNameBase(initial.base); setEditing(false) } }}
-                  className="w-40 rounded border border-(--color-border) bg-(--color-surface) px-1.5 py-0.5 text-sm text-(--color-text) outline-none focus:border-(--color-brand)"
-                />
-                <span className="text-sm text-(--color-text-3) select-none">{ext}</span>
-                <button onClick={commit} className="rounded p-0.5 text-(--color-success) hover:bg-(--color-surface-3)" title="Simpan nama"><Check size={14} /></button>
-              </div>
-            ) : (
-              <>
-                <span className="truncate text-sm text-(--color-text-2)" title={finalName}>{finalName}</span>
-                <button onClick={() => { setEditing(true); setMenuOpen(false) }} className="shrink-0 rounded p-1 text-(--color-text-3) hover:bg-(--color-surface-3)" title="Rename file">
-                  <Pencil size={12} />
-                </button>
-              </>
-            )}
-          </div>
+          <p className="mt-0.5 truncate text-sm text-(--color-text-2)" title={fileName}>{fileName}</p>
           {extraInfo && <p className="mt-0.5 text-xs text-(--color-text-3)">{extraInfo}</p>}
         </div>
         <div className="flex items-center gap-1 shrink-0 relative">
@@ -123,8 +88,7 @@ export default function ResultCard({ fileName, blob, onReset, extraInfo, outputM
       {blob && (
         <DownloadButton
           blob={blob}
-          fileName={finalName}
-          onNameChange={(n) => { setNameBase(splitExt(n).base) }}
+          fileName={fileName}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded bg-(--color-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity no-underline"
         >
           <Download size={16} />

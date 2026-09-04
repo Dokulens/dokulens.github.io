@@ -53,7 +53,7 @@ export default function DownloadButton({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
             ref={popRef}
-            className="absolute bottom-full right-0 z-50 mb-1.5 w-64 space-y-2 rounded-lg border p-2.5 shadow-lg"
+            className="absolute right-0 top-full z-50 mt-1.5 w-64 space-y-2 rounded-lg border p-2.5 shadow-lg"
             style={{ background: 'var(--color-surface, #fff)', borderColor: 'var(--color-border, #e5e7eb)' }}
           >
             <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-3, #6b7280)' }}>

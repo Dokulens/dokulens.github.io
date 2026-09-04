@@ -1491,7 +1491,6 @@ export default function MergePDF() {
                 fileName={resultName || result.fileName || 'output'}
                 outputMimeType={result.mime || 'application/pdf'}
                 excludeRoute="merge-pdf"
-                onRename={(n) => setResultName(n)}
               />
               <button
                 onClick={() => { setResult(null); setResultName(''); setResultPages([]); setResultCurrentPage(1) }}
