@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import * as Icons from 'lucide-react'
 import { NAV_GROUPS } from '../navConfig'
+import { setMeta, injectStructuredData } from '../utils/seo'
 
 function NavIcon({ name, size = 20 }) {
   const Comp = Icons[name]
@@ -14,6 +16,16 @@ const FEATURES = [
 ]
 
 export default function Landing() {
+  useEffect(() => {
+    injectStructuredData()
+    setMeta({
+      title: 'DokuLens',
+      path: '/',
+      description: 'Studio olah dokumen & gambar 100% client-side. Edit PDF, merge, split, kompresi, watermark, nomor halaman, crop, kolase & content-aware image carver — gratis, offline, tanpa upload.',
+      keywords: 'edit pdf, merge pdf, split pdf, compress pdf, watermark, nomor halaman, konversi gambar, kolase gambar, image carver, online, gratis',
+    })
+  }, [])
+
   return (
     <div className="mx-auto max-w-5xl animate-fade-in pb-8">
       {/* Hero */}
