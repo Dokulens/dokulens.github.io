@@ -27,6 +27,7 @@ const Signature = lazy(() => import('./pages/tools/Signature'))
 const WatermarkPDF = lazy(() => import('./pages/tools/WatermarkPDF'))
 const PasswordPDF = lazy(() => import('./pages/tools/PasswordPDF'))
 const About = lazy(() => import('./pages/About'))
+const Faq = lazy(() => import('./pages/Faq'))
 
 function PageFallback() {
   return (
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="watermark-pdf" element={<WatermarkPDF />} />
               <Route path="password-pdf" element={<PasswordPDF />} />
               <Route path="about" element={<About />} />
+              <Route path="faq" element={<Faq />} />
             </Route>
           </Routes>
         </Suspense>

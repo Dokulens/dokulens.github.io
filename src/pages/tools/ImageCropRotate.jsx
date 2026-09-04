@@ -41,9 +41,11 @@ export default function ImageCropRotate() {
 
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
+  const overlayRef = useRef(null)
   const imgRef = useRef(null)
-  const isDraggingRef = useRef(null)
+  const isDraggingRef = useRef(null) // 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
   const dragStartRef = useRef({ x: 0, y: 0, box: { ...cropBox } })
+  const [canvasTick, setCanvasTick] = useState(0)
 
   const handleFile = ([f]) => {
     if (!f) return
@@ -132,23 +134,10 @@ export default function ImageCropRotate() {
     ctx.closePath()
     ctx.fill('evenodd')
     ctx.restore()
-
-    // Draw crop box border
-    ctx.save()
-    ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(corners[0][0], corners[0][1])
-    for (let i = 1; i < corners.length; i++) {
-      ctx.lineTo(corners[i][0], corners[i][1])
-    }
-    ctx.closePath()
-    ctx.stroke()
-    ctx.restore()
   }
 
   useEffect(() => {
-    if (imageSrc) requestAnimationFrame(drawPreview)
+    if (imageSrc) requestAnimationFrame(() => { drawPreview(); setCanvasTick((t) => t + 1) })
   }, [imageSrc, rotation, fineAngle, flipH, flipV, cropBox])
 
   const applyAspect = (id) => {
@@ -172,50 +161,132 @@ export default function ImageCropRotate() {
     })
   }
 
+  // Compute bounding-box (in canvas CSS px) of the transformed crop polygon,
+  // used to position the draggable overlay handles.
+  const cropBBox = () => {
+    const img = imgRef.current
+    const canvas = canvasRef.current
+    if (!img || !canvas) return { left: 0, top: 0, width: 0, height: 0 }
+
+    const rad = ((rotation + fineAngle) * Math.PI) / 180
+    const sin = Math.abs(Math.sin(rad))
+    const cos = Math.abs(Math.cos(rad))
+    const rW = Math.round(img.naturalWidth * cos + img.naturalHeight * sin)
+    const rH = Math.round(img.naturalWidth * sin + img.naturalHeight * cos)
+
+    const cropX = (cropBox.x / 100) * img.naturalWidth
+    const cropY = (cropBox.y / 100) * img.naturalHeight
+    const cropW = (cropBox.w / 100) * img.naturalWidth
+    const cropH = (cropBox.h / 100) * img.naturalHeight
+
+    const corners = [
+      [cropX, cropY],
+      [cropX + cropW, cropY],
+      [cropX + cropW, cropY + cropH],
+      [cropX, cropY + cropH],
+    ].map(([cx, cy]) => {
+      const dx = cx - img.naturalWidth / 2
+      const dy = cy - img.naturalHeight / 2
+      const rx = dx * Math.cos(rad) - dy * Math.sin(rad)
+      const ry = dx * Math.sin(rad) + dy * Math.cos(rad)
+      const fx = flipH ? -rx : rx
+      const fy = flipV ? -ry : ry
+      return [fx + rW / 2, fy + rH / 2]
+    })
+
+    const xs = corners.map((c) => c[0])
+    const ys = corners.map((c) => c[1])
+    const minX = Math.min(...xs)
+    const minY = Math.min(...ys)
+    const w = Math.max(...xs) - minX
+    const h = Math.max(...ys) - minY
+
+    // Map canvas internal px -> displayed CSS px via the canvas's rendered size
+    const rect = canvas.getBoundingClientRect()
+    const sx = rect.width / canvas.width
+    const sy = rect.height / canvas.height
+    return { left: minX * sx, top: minY * sy, width: w * sx, height: h * sy }
+  }
+
   const startDrag = (e, handle) => {
+    e.preventDefault()
     e.stopPropagation()
+    const img = imgRef.current
+    const canvas = canvasRef.current
+    if (!img || !canvas) return
+
     isDraggingRef.current = handle
-    dragStartRef.current = { startX: e.clientX, startY: e.clientY, box: { ...cropBox } }
+    // store start pointer + original cropBox; delta applied in % of original dims
+    dragStartRef.current = { x: e.clientX, y: e.clientY, box: { ...cropBox } }
 
-    const onMouseMove = (moveEvent) => {
-      if (!isDraggingRef.current || !containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
-      const dxPct = ((moveEvent.clientX - dragStartRef.current.startX) / rect.width) * 100
-      const dyPct = ((moveEvent.clientY - dragStartRef.current.startY) / rect.height) * 100
-      const startB = dragStartRef.current.box
+    const rect = canvas.getBoundingClientRect()
+    // % per displayed css px
+    const pctPerPxX = 100 / rect.width
+    const pctPerPxY = 100 / rect.height
 
-      let { x, y, w, h } = startB
+    const onMove = (me) => {
       const ht = isDraggingRef.current
+      if (!ht) return
+      const dxPct = (me.clientX - dragStartRef.current.x) * pctPerPxX
+      const dyPct = (me.clientY - dragStartRef.current.y) * pctPerPxY
+      const s = dragStartRef.current.box
+      let { x, y, w, h } = s
 
       if (ht === 'move') {
-        x = Math.max(0, Math.min(100 - w, startB.x + dxPct))
-        y = Math.max(0, Math.min(100 - h, startB.y + dyPct))
+        x = Math.max(0, Math.min(100 - w, s.x + dxPct))
+        y = Math.max(0, Math.min(100 - h, s.y + dyPct))
       } else {
-        if (ht.includes('e')) w = Math.max(5, Math.min(100 - startB.x, startB.w + dxPct))
-        if (ht.includes('s')) h = Math.max(5, Math.min(100 - startB.y, startB.h + dyPct))
+        if (ht.includes('e')) w = Math.max(5, Math.min(100 - s.x, s.w + dxPct))
+        if (ht.includes('s')) h = Math.max(5, Math.min(100 - s.y, s.h + dyPct))
         if (ht.includes('w')) {
-          const maxW = startB.x + startB.w
-          w = Math.max(5, Math.min(maxW, startB.w - dxPct))
+          const maxW = s.x + s.w
+          w = Math.max(5, Math.min(maxW, s.w - dxPct))
           x = maxW - w
         }
         if (ht.includes('n')) {
-          const maxH = startB.y + startB.h
-          h = Math.max(5, Math.min(maxH, startB.h - dyPct))
+          const maxH = s.y + s.h
+          h = Math.max(5, Math.min(maxH, s.h - dyPct))
           y = maxH - h
+        }
+        // Aspect ratio lock
+        const sel = ASPECT_RATIOS.find((a) => a.id === aspectId)
+        if (sel && sel.ratio) {
+          const ratio = sel.ratio
+          if (ht === 'e' || ht === 'w') h = (w / ratio) * (origDims.w / origDims.h)
+          else if (ht === 'n' || ht === 's') w = h * ratio * (origDims.h / origDims.w)
+          else if (ht === 'nw' || ht === 'ne' || ht === 'sw' || ht === 'se') {
+            // anchor opposite corner, enforce ratio on both
+            const anchorX = ht.includes('e') ? s.x : s.x + s.w
+            const anchorY = ht.includes('s') ? s.y : s.y + s.h
+            const nx = ht.includes('w') ? x : anchorX
+            const ny = ht.includes('n') ? y : anchorY
+            // recompute from dominant delta
+            if (Math.abs(dxPct) >= Math.abs(dyPct)) {
+              w = Math.max(5, Math.min(100, Math.abs(anchorX - nx)))
+              h = (w / ratio) * (origDims.w / origDims.h)
+            } else {
+              h = Math.max(5, Math.min(100, Math.abs(anchorY - ny)))
+              w = h * ratio * (origDims.h / origDims.w)
+            }
+            x = ht.includes('w') ? anchorX - w : anchorX
+            y = ht.includes('n') ? anchorY - h : anchorY
+            // clamp
+            x = Math.max(0, Math.min(100 - w, x))
+            y = Math.max(0, Math.min(100 - h, y))
+          }
         }
       }
 
       setCropBox({ x, y, w, h })
     }
 
-    const onMouseUp = () => {
+    const onUp = () => {
       isDraggingRef.current = null
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
     }
-
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
   const applyCropAndRotate = async () => {
@@ -369,11 +440,70 @@ export default function ImageCropRotate() {
 
           {/* Canvas Preview — full width, no black bars */}
           <div ref={containerRef} className="relative flex justify-center rounded-lg border border-(--color-border) bg-neutral-900 p-4 overflow-hidden select-none">
-            <canvas
-              ref={canvasRef}
-              className="block max-h-[60vh] w-auto"
-              style={{ maxWidth: '100%' }}
-            />
+            <div className="relative inline-block" style={{ lineHeight: 0 }}>
+              <canvas
+                ref={canvasRef}
+                className="block max-h-[60vh] w-auto"
+                style={{ maxWidth: '100%' }}
+              />
+              {/* Crop overlay — draggable + resizable */}
+              {(() => {
+                const bb = cropBBox()
+                const H = 8 // handle size
+                const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+                const pos = {
+                  nw: { left: -H / 2, top: -H / 2, cursor: 'nwse-resize' },
+                  n: { left: '50%', top: -H / 2, cursor: 'ns-resize', tx: '-50%' },
+                  ne: { right: -H / 2, top: -H / 2, cursor: 'nesw-resize' },
+                  e: { right: -H / 2, top: '50%', cursor: 'ew-resize', ty: '-50%' },
+                  se: { right: -H / 2, bottom: -H / 2, cursor: 'nwse-resize' },
+                  s: { left: '50%', bottom: -H / 2, cursor: 'ns-resize', tx: '-50%' },
+                  sw: { left: -H / 2, bottom: -H / 2, cursor: 'nesw-resize' },
+                  w: { left: -H / 2, top: '50%', cursor: 'ew-resize', ty: '-50%' },
+                }
+                return (
+                  <div
+                    ref={overlayRef}
+                    className="absolute z-10"
+                    style={{
+                      left: bb.left,
+                      top: bb.top,
+                      width: bb.width,
+                      height: bb.height,
+                      cursor: 'move',
+                    }}
+                    onMouseDown={(e) => startDrag(e, 'move')}
+                  >
+                    {/* border */}
+                    <div className="absolute inset-0 border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)] pointer-events-none" />
+                    {handles.map((hIdx) => {
+                      const p = pos[hIdx]
+                      const st = {}
+                      if (p.left !== undefined) st.left = p.left
+                      if (p.right !== undefined) st.right = p.right
+                      if (p.top !== undefined) st.top = p.top
+                      if (p.bottom !== undefined) st.bottom = p.bottom
+                      if (p.tx) st.transform = `translateX(${p.tx})`
+                      if (p.ty) st.transform = `translateY(${p.ty})`
+                      return (
+                        <div
+                          key={hIdx}
+                          className="absolute h-2 w-2 rounded-sm bg-white border border-black/40"
+                          style={{ ...st, cursor: p.cursor, zIndex: 11 }}
+                          onMouseDown={(e) => startDrag(e, hIdx)}
+                        />
+                      )
+                    })}
+                    {/* grid lines (rule of thirds) */}
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="border border-white/20" />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
           </div>
 
           {/* Export */}

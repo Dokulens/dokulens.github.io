@@ -36,6 +36,7 @@ export const NAV_GROUPS = [
   {
     label: 'Informasi',
     items: [
+      { path: 'faq',             label: 'FAQ & Bantuan',              icon: 'HelpCircle',   desc: 'Pertanyaan umum seputar privasi & cara pakai' },
       { path: 'about',           label: 'Tentang & Open-Source',       icon: 'Info',         desc: 'Daftar teknologi & pustaka open-source' },
     ],
   },

@@ -135,10 +135,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                     >
                       Semua Tools
                     </span>
-                  </div>
-                {isActive && !isCollapsed && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-(--color-brand) shadow-xs animate-pulse" />
-                )}
+</div>
               </>
             )}
           </NavLink>
@@ -204,10 +201,6 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                             {item.label}
                           </span>
                         </div>
-
-                        {isActive && !isCollapsed && (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-(--color-brand) shadow-xs animate-pulse" />
-                        )}
                       </>
                     )}
                   </NavLink>

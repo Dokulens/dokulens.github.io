@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect x="40" y="40" width="1120" height="550" rx="24" fill="none" stroke="#2563eb" stroke-width="2"/>
+  <text x="80" y="250" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="800" fill="#ffffff">DokuLens</text>
+  <text x="82" y="330" font-family="Segoe UI, Arial, sans-serif" font-size="32" fill="#94a3b8">Studio Olah Dokumen &amp; Gambar — 100% Client-Side</text>
+  <text x="82" y="420" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#60a5fa">Edit PDF · Merge · Kompresi · Watermark · Nomor Halaman</text>
+  <text x="82" y="470" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#60a5fa">Crop · Kolase · Content-Aware Carver — Gratis &amp; Privat</text>
+  <rect x="82" y="520" width="180" height="46" rx="23" fill="#2563eb"/>
+  <text x="172" y="551" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">100% Gratis</text>
+</svg>

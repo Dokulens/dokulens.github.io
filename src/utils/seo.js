@@ -4,7 +4,7 @@
 
 const SITE_NAME = 'DokuLens'
 const SITE_URL = 'https://dokulens.github.io'
-const DEFAULT_IMAGE = `${SITE_URL}/favicon.svg`
+const DEFAULT_IMAGE = `${SITE_URL}/og-image.svg`
 
 function upsertMeta(attr, key, content) {
   if (!content) return
@@ -101,6 +101,31 @@ export function injectStructuredData() {
           'Konversi Gambar',
           'Kolase Gambar',
           'Content-aware Image Carver',
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'Apakah DokuLens benar-benar gratis?',
+            acceptedAnswer: { '@type': 'Answer', text: 'Ya, semua alat DokuLens 100% gratis tanpa batasan, tanpa akun, dan tanpa watermark.' },
+          },
+          {
+            '@type': 'Question',
+            name: 'Apakah file saya aman dan tidak diunggah ke server?',
+            acceptedAnswer: { '@type': 'Answer', text: 'DokuLens bekerja sepenuhnya di browser (client-side). File tidak pernah meninggalkan perangkat Anda, sehingga privasi terjamin.' },
+          },
+          {
+            '@type': 'Question',
+            name: 'Bagaimana cara menggabungkan beberapa PDF?',
+            acceptedAnswer: { '@type': 'Answer', text: 'Buka alat Merge PDF, pilih beberapa file PDF atau gambar, atur urutan, lalu unduh hasil gabungannya.' },
+          },
+          {
+            '@type': 'Question',
+            name: 'Bisakah saya mengompres PDF agar lebih kecil?',
+            acceptedAnswer: { '@type': 'Answer', text: 'Gunakan alat Compress PDF untuk memperkecil ukuran PDF dengan tetap menjaga kualitas.' },
+          },
         ],
       },
     ],
