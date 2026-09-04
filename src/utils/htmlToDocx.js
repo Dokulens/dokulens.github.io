@@ -1,21 +1,21 @@
 // HTML (positioned text layers) → DOCX 1:1.
 // Consumes the page data produced by pdfToHtml.js (spans with X/Y/fontSize/fontFamily
 // and an optional page background image) and emits a Word document where every text
-// line is placed at its exact page coordinate using paragraph text-frames, and the
-// page is rasterized as a floating background image behind the text.
+// line is placed at its exact page coordinate using VML text boxes
+// (<w:pict><v:shape><v:textbox>) — the same mechanism professional PDF→Word converters
+// use, honoured reliably by Word. The page is rasterized as a floating background image
+// behind the text.
 
 import {
   Document,
   Packer,
   Paragraph,
   TextRun,
+  Textbox,
   ImageRun,
-  FrameAnchorType,
   TextWrappingType,
   HorizontalPositionRelativeFrom,
   VerticalPositionRelativeFrom,
-  convertMillimetersToTwip,
-  convertInchesToTwip,
   PageOrientation,
 } from 'docx'
 
@@ -25,19 +25,14 @@ const EMU_PER_PT = 12700
 // Y-tolerance (in px @ scale) for merging spans onto the same visual line.
 const Y_TOLERANCE = 2.5
 
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v))
-}
-
-// Split the PDF-derived CSS font stack into a runnable docx font name + fallbacks.
+// First resolvable font name from the PDF-derived CSS font stack.
 function firstFont(cssFamily, fallback = 'Arial') {
   if (!cssFamily) return fallback
   const first = cssFamily.split(',')[0].replace(/["']/g, '').trim()
   return first || fallback
 }
 
-// Group spans that share the same visual line (same Y within tolerance) and are
-// contiguous (small X gap). This cuts frame count while preserving 1:1 layout.
+// Group spans that share the same visual line (same Y within tolerance).
 function groupSpansIntoLines(spans) {
   const sorted = [...spans].sort((a, b) => a.top - b.top || a.left - b.left)
   const lines = []
@@ -46,8 +41,7 @@ function groupSpansIntoLines(spans) {
   for (const s of sorted) {
     if (lineTop === null || Math.abs(s.top - lineTop) <= Y_TOLERANCE) {
       cur.push(s)
-      if (lineTop === null) lineTop = s.top
-      else lineTop = (lineTop * (cur.length - 1) + s.top) / cur.length
+      lineTop = lineTop === null ? s.top : s.top
     } else {
       cur.sort((a, b) => a.left - b.left)
       lines.push({ top: lineTop, spans: cur })
@@ -62,39 +56,25 @@ function groupSpansIntoLines(spans) {
   return lines
 }
 
-// A single positioned line → one Paragraph with framePr absolute position + runs.
-function lineToParagraphs(line, scale, pageWidthTw) {
-  const first = line.spans[0]
-  const last = line.spans[line.spans.length - 1]
-  const widthPx = Math.max(1, last.left + last.widthPx - first.left)
-  const heightPx = Math.max(...line.spans.map((s) => s.fontSize))
-
-  const xTwip = Math.max(0, Math.round((first.left / scale) * PT_TO_TWIP))
-  const yTwip = Math.max(0, Math.round((line.top / scale) * PT_TO_TWIP))
-  const wTwip = Math.max(40, Math.round((widthPx / scale) * PT_TO_TWIP))
-  const hTwip = Math.max(20, Math.round((heightPx / scale) * PT_TO_TWIP))
-
-  // Build runs, inserting fixed-width runs for intra-line gaps to preserve column spacing.
+// Build runs for one text line, preserving intra-line gaps with fixed-width spacing.
+function buildLineRuns(spans, scale) {
   const runs = []
   let prevRight = null
-  for (const s of line.spans) {
+  for (const s of spans) {
     if (prevRight !== null) {
       const gapPx = s.left - prevRight
       if (gapPx > 3) {
-        const gapTwip = Math.round((gapPx / scale) * PT_TO_TWIP)
-        // Use a tab to roughly preserve the gap; wider gaps get literal spaces too.
-        runs.push(new TextRun({ text: '\t', size: Math.max(4, Math.round(s.fontSize / scale)), font: 'Arial' }))
-        prevRight = null // tab handles it; skip extra space calc
-        void gapTwip
-      } else if (gapPx > 0.5) {
+        const gapSpaces = Math.round((gapPx / scale) / (s.fontSize / scale / 2.2))
+        // insert spaces to approximate the gap (best-effort; word wraps rarely in 1:1 lines)
+        runs.push(new TextRun({ text: ' '.repeat(Math.min(64, Math.max(1, gapSpaces))), size: Math.max(4, Math.round(s.fontSize / scale)), font: 'Arial' }))
+      } else if (gapPx > 0.8) {
         runs.push(new TextRun({ text: ' ', size: Math.max(4, Math.round(s.fontSize / scale)), font: 'Arial' }))
       }
     }
-    const sizePt = Math.max(4, Math.round((s.fontSize / scale) * 2) / 2)
     runs.push(
       new TextRun({
         text: s.text,
-        size: sizePt,
+        size: Math.max(4, Math.round((s.fontSize / scale) * 2) / 2),
         font: firstFont(s.fontFamily || s.fontName, 'Arial'),
         bold: !!s.bold,
         italics: !!s.italic,
@@ -102,30 +82,54 @@ function lineToParagraphs(line, scale, pageWidthTw) {
     )
     prevRight = s.left + s.widthPx
   }
+  return runs
+}
 
-  return new Paragraph({
-    children: runs,
-    frame: {
-      type: 'absolute',
-      position: { x: xTwip, y: yTwip },
-      width: wTwip,
-      height: hTwip,
-      anchor: { horizontal: FrameAnchorType.PAGE, vertical: FrameAnchorType.PAGE },
+// One positioned line → a VML text box anchored at the exact page coordinate.
+function lineToTextbox(line, scale, pageWpt, pageHpt) {
+  const first = line.spans[0]
+  const last = line.spans[line.spans.length - 1]
+  const widthPx = Math.max(1, last.left + last.widthPx - first.left)
+  const heightPx = Math.max(...line.spans.map((s) => s.fontSize))
+
+  const leftPt = Math.max(0, first.left / scale)
+  const topPt = Math.max(0, line.top / scale)
+  const widthPt = Math.max(6, widthPx / scale)
+  const heightPt = Math.max(8, heightPx / scale)
+
+  const runs = buildLineRuns(line.spans, scale)
+
+  return new Textbox({
+    children: [
+      new Paragraph({
+        children: runs,
+        spacing: { before: 0, after: 0, line: 240 },
+      }),
+    ],
+    style: {
+      left: `${leftPt.toFixed(2)}pt`,
+      top: `${topPt.toFixed(2)}pt`,
+      width: `${widthPt.toFixed(2)}pt`,
+      height: `${heightPt.toFixed(2)}pt`,
+      positionHorizontal: 'absolute',
+      positionHorizontalRelative: 'page',
+      positionVertical: 'absolute',
+      positionVerticalRelative: 'page',
     },
-    spacing: { before: 0, after: 0, line: 240 },
   })
 }
 
-// Convert a rasterized page background (dataURL) into a floating ImageRun behind text.
+// Float the rasterized page background behind the text.
 async function backgroundImageRun(bgDataUrl, widthPx, heightPx, scale) {
   if (!bgDataUrl) return null
   const blob = await (await fetch(bgDataUrl)).blob()
   const bytes = new Uint8Array(await blob.arrayBuffer())
-  const emuW = Math.round((widthPx / scale) * EMU_PER_PT)
-  const emuH = Math.round((heightPx / scale) * EMU_PER_PT)
   return new ImageRun({
     data: bytes,
-    transformation: { width: emuW, height: emuH },
+    transformation: {
+      width: Math.round((widthPx / scale) * EMU_PER_PT),
+      height: Math.round((heightPx / scale) * EMU_PER_PT),
+    },
     floating: {
       horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, align: 'left', offset: 0 },
       verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, align: 'top', offset: 0 },
@@ -141,11 +145,11 @@ async function backgroundImageRun(bgDataUrl, widthPx, heightPx, scale) {
  * Build a 1:1 Word document from positioned HTML page data.
  * @param {Array} pages — page objects from pdfToHtml.js
  * @param {{includeImage:boolean, onProgress:Function}} opts
- * @returns {Promise<{blob:Blob}>}
+ * @returns {Promise<Blob>}
  */
 export async function htmlToDocx(pages, opts = {}) {
   const { includeImage = true, onProgress } = opts
-  const children = []
+  const sections = []
   const total = pages.length
 
   for (let pi = 0; pi < total; pi++) {
@@ -155,21 +159,19 @@ export async function htmlToDocx(pages, opts = {}) {
     const orientation = pd.widthPt > pd.heightPt ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT
     const pageChildren = []
 
-    // Background image (floating, behind text) for pixel-perfect backdrop.
+    // Background image first so text boxes layer above it in Z-order.
     if (includeImage && pd.bgDataUrl) {
       const bgRun = await backgroundImageRun(pd.bgDataUrl, pd.widthPx, pd.heightPx, pd.scale)
-      if (bgRun) {
-        pageChildren.push(new Paragraph({ children: [bgRun], spacing: { before: 0, after: 0 } }))
-      }
+      if (bgRun) pageChildren.push(new Paragraph({ children: [bgRun], spacing: { before: 0, after: 0 } }))
     }
 
-    // Text on top — absolute frames.
     const lines = groupSpansIntoLines(pd.spans)
     for (const line of lines) {
-      pageChildren.push(lineToParagraphs(line, pd.scale, pd.widthPt))
+      if (!line.spans.length) continue
+      pageChildren.push(new Paragraph({ children: [lineToTextbox(line, pd.scale, pd.widthPt, pd.heightPt)], spacing: { before: 0, after: 0 } }))
     }
 
-    children.push({
+    sections.push({
       properties: {
         page: {
           size: {
@@ -185,12 +187,8 @@ export async function htmlToDocx(pages, opts = {}) {
   }
 
   if (onProgress) onProgress(93, 'Mengemas dokumen Word (.docx)…')
-  const doc = new Document({ sections: children })
+  const doc = new Document({ sections })
   const blob = await Packer.toBlob(doc)
   if (onProgress) onProgress(100, 'Selesai.')
   return blob
 }
-
-// Re-export helpers used by callers.
-export { convertMillimetersToTwip, convertInchesToTwip }
-void clamp
