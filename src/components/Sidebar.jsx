@@ -113,7 +113,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                 {isActive && !isCollapsed && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-(--color-brand) shadow-sm" />
                 )}
-                  <div className="flex items-center gap-2.5">
+                  <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-2.5'}`}>
                     <Home
                       size={18}
                       className={
@@ -187,7 +187,7 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-(--color-brand) shadow-sm" />
                         )}
 
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-2.5'} min-w-0`}>
                           <NavIcon name={item.icon} active={isActive} />
                           <span 
                             style={{
