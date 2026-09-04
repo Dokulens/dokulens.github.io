@@ -10,9 +10,8 @@ const AddPageNumber = lazy(() => import('./pages/tools/AddPageNumber'))
 const MergePDF = lazy(() => import('./pages/tools/MergePDF'))
 const SplitPDF = lazy(() => import('./pages/tools/SplitPDF'))
 const DocToMarkdown = lazy(() => import('./pages/tools/DocToMarkdown'))
-const PDFToDocx = lazy(() => import('./pages/tools/PDFToDocx'))
 const CompressPDF = lazy(() => import('./pages/tools/CompressPDF'))
-// hidden: DocxToPDF — restore by uncommenting imports + routes below
+// hidden: PDFToDocx, DocxToPDF — restore by uncommenting imports + routes below
 const WatermarkRemover = lazy(() => import('./pages/tools/WatermarkRemover'))
 const ObjectRemover = lazy(() => import('./pages/tools/ObjectRemover'))
 const ImageWatermark = lazy(() => import('./pages/tools/ImageWatermark'))
@@ -50,9 +49,8 @@ export default function App() {
               <Route path="merge-pdf" element={<MergePDF />} />
               <Route path="split-pdf" element={<SplitPDF />} />
               <Route path="doc-to-markdown" element={<DocToMarkdown />} />
-              <Route path="pdf-to-docx" element={<PDFToDocx />} />
               <Route path="compress-pdf" element={<CompressPDF />} />
-              {/* hidden: docx-to-pdf */}
+              {/* hidden: pdf-to-docx, docx-to-pdf */}
               <Route path="watermark-remover" element={<WatermarkRemover />} />
               <Route path="image-watermark" element={<ImageWatermark />} />
               <Route path="object-remover" element={<ObjectRemover />} />

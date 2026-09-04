@@ -28,13 +28,6 @@ export const TOOL_REGISTRY = [
     accepts: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   },
   {
-    id: 'pdf-to-docx',
-    route: 'pdf-to-docx',
-    label: 'PDF → Word (.docx)',
-    icon: 'FileType2',
-    accepts: ['application/pdf'],
-  },
-  {
     id: 'password-pdf',
     route: 'password-pdf',
     label: 'Password & Keamanan PDF',
