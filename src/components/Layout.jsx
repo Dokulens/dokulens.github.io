@@ -30,7 +30,8 @@ export default function Layout() {
       {/* Sidebar (Fully Opaque on Mobile Drawer and Desktop) */}
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-50 flex-shrink-0 border-r border-(--color-border) bg-(--color-surface) transition-all duration-200 lg:relative lg:translate-x-0 shadow-2xl lg:shadow-none',
+          'fixed inset-y-0 left-0 z-50 flex-shrink-0 border-r border-(--color-border) bg-(--color-surface) will-change-transform lg:relative lg:translate-x-0 shadow-2xl lg:shadow-none',
+          'transition-[width,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
           sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
           isCollapsed ? 'lg:w-16' : 'lg:w-64',
         ].join(' ')}

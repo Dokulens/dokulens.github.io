@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Menu, Moon, Sun, PanelLeftClose } from 'lucide-react'
 import { useLocation, Link } from 'react-router-dom'
 import { NAV_GROUPS } from '../navConfig'
 import { useTheme } from '../context/ThemeContext'
@@ -34,10 +34,12 @@ export default function TopBar({ onMenuClick, isCollapsed, onToggleCollapse }) {
         {/* Desktop sidebar collapse/expand toggle */}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex h-8 w-8 items-center justify-center rounded border border-(--color-border) text-(--color-text-3) hover:bg-(--color-surface-3) hover:text-(--color-text) transition-colors"
+          className="hidden lg:flex h-8 w-8 items-center justify-center rounded border border-(--color-border) text-(--color-text-3) hover:bg-(--color-surface-3) hover:text-(--color-text) transition-all duration-300"
           title={isCollapsed ? 'Expand Sidebar' : 'Minimize Sidebar'}
         >
-          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          <span className={`inline-block transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}>
+            <PanelLeftClose size={16} />
+          </span>
         </button>
 
         <div className="flex items-center gap-2 text-sm">
