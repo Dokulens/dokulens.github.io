@@ -122,10 +122,13 @@ function lineToTextbox(line, scale, pageWpt, pageHpt) {
 // Float the rasterized page background behind the text.
 async function backgroundImageRun(bgDataUrl, widthPx, heightPx, scale) {
   if (!bgDataUrl) return null
+  const mime = bgDataUrl.slice(5, bgDataUrl.indexOf(';')) || 'image/jpeg'
+  const type = mime.includes('png') ? 'png' : 'jpg'
   const blob = await (await fetch(bgDataUrl)).blob()
   const bytes = new Uint8Array(await blob.arrayBuffer())
   return new ImageRun({
     data: bytes,
+    type,
     transformation: {
       width: Math.round((widthPx / scale) * EMU_PER_PT),
       height: Math.round((heightPx / scale) * EMU_PER_PT),
