@@ -25,14 +25,22 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
   return (
     <div
-      className="flex h-full flex-col bg-(--color-surface) select-none transition-all duration-200 overflow-hidden"
-      style={{ backgroundColor: 'var(--color-surface)' }}
+      className="flex h-full flex-col bg-(--color-surface) select-none overflow-hidden"
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        transition: 'all 300ms ease-in-out',
+      }}
     >
       {/* Brand Header */}
-      <div className={[
-        'flex h-14 items-center border-b border-(--color-border)',
-        isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
-      ].join(' ')}>
+      <div 
+        className="flex h-14 items-center border-b border-(--color-border)"
+        style={{
+          transition: 'padding 300ms ease-in-out',
+          justifyContent: isCollapsed ? 'center' : 'space-between',
+          paddingLeft: isCollapsed ? 8 : 16,
+          paddingRight: isCollapsed ? 8 : 16,
+        }}
+      >
         <NavLink
           to="/"
           onClick={onClose}
@@ -43,8 +51,13 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
             <Icons.FileSearch size={18} className="text-white" style={{ color: '#ffffff' }} />
           </div>
           <div 
-            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'}`}
-            style={{ whiteSpace: 'nowrap' }}
+            style={{
+              transition: 'all 300ms ease-in-out',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              width: isCollapsed ? 0 : 140,
+              opacity: isCollapsed ? 0 : 1,
+            }}
           >
             <div className="min-w-0">
               <span className="text-sm font-bold tracking-tight block leading-tight text-(--color-text) truncate">
@@ -67,10 +80,16 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
       </div>
 
       {/* Nav groups (Scrollbar completely hidden on minimize across Chrome & Firefox) */}
-      <nav className={[
-        'flex-1 overflow-y-auto overflow-x-hidden space-y-3',
-        isCollapsed ? 'p-2 flex flex-col items-center no-scrollbar' : 'p-3'
-      ].join(' ')}>
+      <nav 
+        className={[
+          'flex-1 overflow-y-auto overflow-x-hidden space-y-3',
+          isCollapsed ? 'flex flex-col items-center no-scrollbar' : '',
+        ].join(' ')}
+        style={{
+          transition: 'padding 300ms ease-in-out',
+          padding: isCollapsed ? '8px' : '12px',
+        }}
+      >
         {/* Landing / Home link */}
         <div className="relative group w-full flex justify-center">
           <NavLink
@@ -104,8 +123,15 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                       }
                     />
                     <span 
-                      className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'} ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}
-                      style={{ whiteSpace: 'nowrap' }}
+                      style={{
+                        transition: 'all 300ms ease-in-out',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        width: isCollapsed ? 0 : 'auto',
+                        opacity: isCollapsed ? 0 : 1,
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? 'var(--color-brand-text)' : undefined,
+                      }}
                     >
                       Semua Tools
                     </span>
@@ -164,8 +190,16 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
                         <div className="flex items-center gap-2.5 min-w-0">
                           <NavIcon name={item.icon} active={isActive} />
                           <span 
-                            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'opacity-100'} truncate ${isActive ? 'font-bold text-(--color-brand-text)' : 'font-medium'}`}
-                            style={{ whiteSpace: 'nowrap' }}
+                            style={{
+                              transition: 'all 300ms ease-in-out',
+                              overflow: 'hidden',
+                              whiteSpace: 'nowrap',
+                              width: isCollapsed ? 0 : 'auto',
+                              opacity: isCollapsed ? 0 : 1,
+                              fontWeight: isActive ? 700 : 500,
+                              color: isActive ? 'var(--color-brand-text)' : undefined,
+                              minWidth: 0,
+                            }}
                           >
                             {item.label}
                           </span>
@@ -194,7 +228,12 @@ export default function Sidebar({ onClose, isCollapsed, onToggleCollapse }) {
 
       {/* Footer Info & PWA status */}
       <div 
-        className={`transition-all duration-300 overflow-hidden ${isCollapsed ? 'max-h-0 opacity-0 border-0' : 'max-h-40 opacity-100'}`}
+        style={{
+          transition: 'all 300ms ease-in-out',
+          overflow: 'hidden',
+          maxHeight: isCollapsed ? 0 : 200,
+          opacity: isCollapsed ? 0 : 1,
+        }}
       >
         <div className="border-t border-(--color-border) p-3 space-y-2">
           <PWAInstallBanner />

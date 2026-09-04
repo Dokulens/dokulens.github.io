@@ -31,11 +31,13 @@ export default function Layout() {
       <aside
         className={[
           'fixed inset-y-0 left-0 z-50 flex-shrink-0 border-r border-(--color-border) bg-(--color-surface) will-change-transform lg:relative lg:translate-x-0 shadow-2xl lg:shadow-none',
-          'transition-all duration-300 ease-in-out',
           sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
           isCollapsed ? 'lg:w-16' : 'lg:w-64',
         ].join(' ')}
-        style={{ backgroundColor: 'var(--color-surface)' }}
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          transition: 'width 300ms ease-in-out, transform 300ms ease-in-out',
+        }}
       >
         <Sidebar
           onClose={() => setSidebarOpen(false)}
