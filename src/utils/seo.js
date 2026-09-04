@@ -43,7 +43,9 @@ function upsertCanonical(url) {
 export function setMeta({ title, description, path = '/', image = DEFAULT_IMAGE, keywords }) {
   // clean path -> no trailing slash, "/" for root
   const cleanPath = path === '/' || path === '' ? '/' : `/${path.replace(/^\/+|\/+$/g, '')}`
-  const fullTitle = title === SITE_NAME ? SITE_NAME : `${title} — ${SITE_NAME}`
+  // Append brand only if it does not push the title past ~60 chars (Google truncation).
+  const branded = title === SITE_NAME ? SITE_NAME : `${title} — ${SITE_NAME}`
+  const fullTitle = title === SITE_NAME ? SITE_NAME : (branded.length <= 60 ? branded : title)
   const canonical = `${SITE_URL}${cleanPath === '/' ? '/' : cleanPath}`
 
   document.title = fullTitle
