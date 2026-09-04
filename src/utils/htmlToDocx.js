@@ -168,7 +168,7 @@ export async function htmlToDocx(pages, opts = {}) {
     const lines = groupSpansIntoLines(pd.spans)
     for (const line of lines) {
       if (!line.spans.length) continue
-      pageChildren.push(new Paragraph({ children: [lineToTextbox(line, pd.scale, pd.widthPt, pd.heightPt)], spacing: { before: 0, after: 0 } }))
+      pageChildren.push(lineToTextbox(line, pd.scale, pd.widthPt, pd.heightPt))
     }
 
     sections.push({
