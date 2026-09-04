@@ -318,7 +318,7 @@ export default function DocToMarkdown() {
 
       {md && (
         <div className="space-y-3">
-          <div className="overflow-visible rounded-xl border border-(--color-success-light) bg-(--color-success-light)">
+          <div className="overflow-visible rounded-lg border border-(--color-success-light) bg-(--color-success-light)">
             <div className="flex items-center justify-between gap-2 rounded-t-xl border-b border-(--color-border) bg-(--color-surface) px-3 py-2">
               <span className="flex items-center gap-1.5 text-xs font-bold text-(--color-success)">
                 <FileCode2 size={14} /> ✓ Selesai — {baseName}.md · {fmtBytes(new Blob([md]).size)}

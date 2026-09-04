@@ -380,7 +380,7 @@ export default function ObjectRemover() {
             )}
 
             {resultUrl && (
-              <div className="space-y-2 rounded-xl border border-(--color-success-light) bg-(--color-success-light) p-4 animate-fade-in">
+              <div className="space-y-2 rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-bold text-(--color-success) flex items-center gap-1.5">
                     <Check size={16} /> Selesai! Objek berhasil dihapus.

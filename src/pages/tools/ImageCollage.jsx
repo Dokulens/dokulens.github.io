@@ -660,7 +660,7 @@ export default function ImageCollage() {
               <span className="text-xs font-medium text-(--color-text-2)">Jarak:</span>
               <input type="range" min="0" max="50" step="5" value={gap}
                 onChange={(e) => setGap(Number(e.target.value))}
-                className="w-24 accent-emerald-600 cursor-pointer" />
+                className="w-24 accent-(--color-brand) cursor-pointer" />
               <span className="font-mono text-emerald-500 font-bold text-[11px] w-8">{gap}px</span>
             </div>
             <div className="flex items-center gap-2">
@@ -726,7 +726,7 @@ export default function ImageCollage() {
 
       {images.length > 0 && !result && (
         <button onClick={handleRender} disabled={processing}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors cursor-pointer shadow-md">
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-(--color-brand) px-4 py-3 text-sm font-bold text-white hover:bg-(--color-brand-hover) disabled:opacity-60 transition-colors cursor-pointer shadow-md">
           {processing ? <Loader2 size={18} className="animate-spin" /> : <Grid size={18} />}
           {processing ? 'Membuat Kolase…' : 'Buat Kolase'}
         </button>
@@ -734,7 +734,7 @@ export default function ImageCollage() {
 
       {result && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 rounded-t-xl border border-(--color-success-light) bg-(--color-success-light) px-4 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-t-lg border border-(--color-success-light) bg-(--color-success-light) px-4 py-2">
             <p className="text-sm font-bold text-(--color-success)">✓ Kolase selesai dibuat</p>
             <div className="flex items-center gap-1">
               <SendToDropdown
@@ -745,7 +745,7 @@ export default function ImageCollage() {
               />
             </div>
           </div>
-          <div className="rounded-b-xl border border-t-0 border-(--color-success-light) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
+          <div className="rounded-b-lg border border-t-0 border-(--color-success-light) bg-(--color-surface) p-4 flex flex-col items-center gap-3">
             <img src={result.dataUrl} alt="Kolase" className="max-w-full max-h-[60vh] rounded-lg" />
             <div className="flex w-full max-w-md gap-2">
               <DownloadButton

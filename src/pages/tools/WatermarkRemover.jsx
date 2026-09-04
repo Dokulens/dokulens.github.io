@@ -336,7 +336,7 @@ export default function WatermarkRemover() {
 
           {/* Result Card */}
           {resultUrl && (
-            <div className="rounded-lg border border-(--color-success-light) bg-(--color-surface) p-4 animate-fade-in space-y-4 shadow-sm">
+            <div className="rounded-lg border border-(--color-success-light) bg-(--color-success-light) p-4 animate-fade-in space-y-4 shadow-sm">
               <div className="flex items-start justify-between border-b border-(--color-border) pb-3">
                 <div>
                   <p className="text-sm font-bold text-(--color-success) flex items-center gap-1.5">
