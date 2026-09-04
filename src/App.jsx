@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { ThemeProvider } from './context/ThemeContext'
 import Layout from './components/Layout'
@@ -36,10 +36,27 @@ function PageFallback() {
   )
 }
 
+// Restore deep-link routes after GitHub Pages 404.html SPA fallback rewrite.
+function RestoreRoute() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search)
+    const p = sp.get('p')
+    if (p) {
+      // strip leading slash, decode, drop query/hash remnants captured
+      const target = p.replace(/^\/+/, '')
+      navigate(`/${target}`, { replace: true })
+    }
+  }, [location.search, navigate])
+  return null
+}
+
 export default function App() {
   return (
     <ThemeProvider>
-      <HashRouter>
+      <BrowserRouter>
+        <RestoreRoute />
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Layout />}>
@@ -69,7 +86,7 @@ export default function App() {
             </Route>
           </Routes>
         </Suspense>
-      </HashRouter>
+      </BrowserRouter>
     </ThemeProvider>
   )
 }

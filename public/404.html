@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mengalihkan…</title>
+    <script>
+      // SPA fallback for GitHub Pages: rewrite the client-side route into the
+      // SPA root while preserving the path, so BrowserRouter can pick it up.
+      (function () {
+        var path = location.pathname + location.search + location.hash
+        var sessionKey = 'redirect'
+        // temporary sessionStorage guard to avoid infinite loops
+        if (sessionStorage.getItem(sessionKey)) {
+          sessionStorage.removeItem(sessionKey)
+          location.replace('/')
+          return
+        }
+        sessionStorage.setItem(sessionKey, '1')
+        // encode path into the root as a query to decode on the app side
+        location.replace('/?p=' + encodeURIComponent(path.slice(1)))
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>
