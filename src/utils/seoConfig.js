@@ -136,4 +136,4 @@ export function getSeoForPath(pathname) {
   return SEO_CONFIG[key] || null
 }
 
-export const DEFAULT_OG_IMAGE = 'https://dokulens.github.io/og-image.svg'
+export const DEFAULT_OG_IMAGE = 'https://dokulens.github.io/og-image.png'

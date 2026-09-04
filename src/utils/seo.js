@@ -4,7 +4,7 @@
 
 const SITE_NAME = 'DokuLens'
 const SITE_URL = 'https://dokulens.github.io'
-const DEFAULT_IMAGE = `${SITE_URL}/og-image.svg`
+const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`
 
 function upsertMeta(attr, key, content) {
   if (!content) return
