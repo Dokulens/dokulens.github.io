@@ -110,6 +110,12 @@ export const SEO_CONFIG = {
     description: 'Tingkatkan resolusi dan perbesar gambar/foto tanpa pecah dengan AI upscaling. Hasil tajam dan detail. Diproses di browser, gratis.',
     keywords: 'upscale image, perbesar resolusi foto, enhance image online, ai upscale gratis',
   },
+  'background-remover': {
+    h1: 'Hapus Background Foto',
+    title: 'Hapus Background Foto Online Gratis — AI Otomatis & Transparan',
+    description: 'Hapus latar belakang foto secara otomatis dengan AI, hasil PNG transparan. Gratis, tanpa upload server, diproses lokal di browser.',
+    keywords: 'hapus background foto, remove background online, hapus latar belakang, png transparan, ai background remover',
+  },
   'image-edit-text': {
     h1: 'Edit Teks Pada Gambar',
     title: 'Edit Teks pada Gambar Online Gratis — Ganti Teks Foto',

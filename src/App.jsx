@@ -23,6 +23,7 @@ const ImageConvert = lazy(() => import('./pages/tools/ImageConvert'))
 const ImageEditText = lazy(() => import('./pages/tools/ImageEditText'))
 const ImageUpscaler = lazy(() => import('./pages/tools/ImageUpscaler'))
 const ImageCollage = lazy(() => import('./pages/tools/ImageCollage'))
+const BackgroundRemover = lazy(() => import('./pages/tools/BackgroundRemover'))
 const Signature = lazy(() => import('./pages/tools/Signature'))
 const WatermarkPDF = lazy(() => import('./pages/tools/WatermarkPDF'))
 const PasswordPDF = lazy(() => import('./pages/tools/PasswordPDF'))
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="signature" element={<Signature />} />
               <Route path="image-edit-text" element={<ImageEditText />} />
               <Route path="image-upscale" element={<ImageUpscaler />} />
+              <Route path="background-remover" element={<BackgroundRemover />} />
               <Route path="watermark-pdf" element={<WatermarkPDF />} />
               <Route path="password-pdf" element={<PasswordPDF />} />
               <Route path="about" element={<About />} />

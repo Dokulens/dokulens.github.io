@@ -127,6 +127,13 @@ export const TOOL_REGISTRY = [
     accepts: ['image/png', 'image/jpeg', 'image/webp'],
   },
   {
+    id: 'background-remover',
+    route: 'background-remover',
+    label: 'Hapus Background Foto',
+    icon: 'Eraser',
+    accepts: ['image/png', 'image/jpeg', 'image/webp'],
+  },
+  {
     id: 'doc-to-markdown',
     route: 'doc-to-markdown',
     label: 'Dokumen → Markdown',

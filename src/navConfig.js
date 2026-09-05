@@ -31,6 +31,7 @@ export const NAV_GROUPS = [
       { path: 'image-to-pdf',    label: 'Gambar → PDF',                icon: 'ImagePlus',    desc: 'Gabung JPG/PNG/WebP jadi PDF' },
       { path: 'pdf-to-image',    label: 'PDF → Gambar',                icon: 'FileImage',    desc: 'Ekspor halaman PDF sebagai gambar' },
       { path: 'image-convert',   label: 'Konversi & Resize Gambar',    icon: 'RefreshCw',    desc: 'WebP, JPG, PNG, AVIF, BMP, ICO & kompresi' },
+      { path: 'background-remover', label: 'Hapus Background Foto',       icon: 'Eraser',       desc: 'Hapus latar foto otomatis dengan AI, hasil PNG transparan' },
     ],
   },
   {

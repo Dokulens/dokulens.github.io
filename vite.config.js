@@ -37,7 +37,17 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2,wasm}'],
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8MB for heavy PDF/Word engines & worker
+        maximumFileSizeToCacheInBytes: 40 * 1024 * 1024, // 40MB for onnxruntime WASM + heavy engines
+        runtimeCaching: [
+          {
+            urlPattern: /https:\/\/staticimgly\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'imgly-model-cache',
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
     }),
   ],
