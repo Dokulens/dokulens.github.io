@@ -18,8 +18,8 @@ export default defineConfig({
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'any',
-        start_url: './',
-        scope: './',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'favicon-512.png',
@@ -51,7 +51,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: './',
+  base: '/',
   build: {
     rollupOptions: {
       output: {

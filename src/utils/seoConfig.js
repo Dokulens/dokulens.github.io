@@ -134,6 +134,12 @@ export const SEO_CONFIG = {
     description: 'DokuLens adalah studio olah dokumen & gambar open-source yang 100% berjalan di browser. Pelajari teknologi & pustaka yang digunakan.',
     keywords: 'tentang dokulens, open source pdf editor, privasi online',
   },
+  'faq': {
+    h1: 'FAQ — Pertanyaan Umum',
+    title: 'FAQ DokuLens — Jawaban Pertanyaan Umum',
+    description: 'Jawaban pertanyaan umum tentang DokuLens: privasi file, cara merge/kompres PDF, hapus watermark, format gambar, dan mode offline.',
+    keywords: 'faq dokulens, tanya jawab pdf, cara merge pdf, cara kompres pdf, hapus watermark',
+  },
 }
 
 export function getSeoForPath(pathname) {
