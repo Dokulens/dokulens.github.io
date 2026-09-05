@@ -14,23 +14,23 @@ const FAQS = [
   },
   {
     q: 'Bagaimana cara menggabungkan beberapa PDF?',
-    a: `Buka alat ${<Link to="/merge-pdf" className="text-(--color-brand) hover:underline">Merge PDF</Link>}, pilih beberapa file PDF atau gambar, atur urutan, samakan ukuran halaman, lalu unduh hasil gabungannya. Semua selesai dalam hitungan detik.`,
+    a: <>Buka alat <Link to="/merge-pdf" className="text-(--color-brand) hover:underline">Merge PDF</Link>, pilih beberapa file PDF atau gambar, atur urutan, samakan ukuran halaman, lalu unduh hasil gabungannya. Semua selesai dalam hitungan detik.</>,
   },
   {
     q: 'Bisakah saya mengompres PDF agar lebih kecil?',
-    a: `Ya, gunakan ${<Link to="/compress-pdf" className="text-(--color-brand) hover:underline">Compress PDF</Link>} untuk memperkecil ukuran PDF dengan tetap menjaga kualitas teks dan gambar.`,
+    a: <>Ya, gunakan <Link to="/compress-pdf" className="text-(--color-brand) hover:underline">Compress PDF</Link> untuk memperkecil ukuran PDF dengan tetap menjaga kualitas teks dan gambar.</>,
   },
   {
     q: 'Bagaimana cara menambah nomor halaman pada PDF?',
-    a: `Gunakan ${<Link to="/add-page-number" className="text-(--color-brand) hover:underline">Tambah Nomor Halaman</Link>}. Pilih posisi (atas/bawah/kiri/kanan), format angka, dan rentang halaman, lalu unduh hasilnya.`,
+    a: <>Gunakan <Link to="/add-page-number" className="text-(--color-brand) hover:underline">Tambah Nomor Halaman</Link>. Pilih posisi (atas/bawah/kiri/kanan), format angka, dan rentang halaman, lalu unduh hasilnya.</>,
   },
   {
     q: 'Apakah ada watermark AI yang bisa dihapus?',
-    a: `Ya. Alat ${<Link to="/watermark-remover" className="text-(--color-brand) hover:underline">Hapus Watermark</Link>} memakai Reverse Alpha Blending dan inpainting untuk menghilangkan cap air (termasuk watermark AI seperti Gemini/Imagen), logo, dan objek tak diinginkan dari foto.`,
+    a: <>Ya. Alat <Link to="/watermark-remover" className="text-(--color-brand) hover:underline">Hapus Watermark</Link> memakai Reverse Alpha Blending dan inpainting untuk menghilangkan cap air (termasuk watermark AI seperti Gemini/Imagen), logo, dan objek tak diinginkan dari foto.</>,
   },
   {
     q: 'Format gambar apa saja yang didukung?',
-    a: `Kami mendukung JPG, PNG, WebP, AVIF, BMP, GIF dan ICO melalui ${<Link to="/image-convert" className="text-(--color-brand) hover:underline">Konversi Gambar</Link>}. Kamu juga bisa mengubah gambar menjadi PDF atau sebaliknya.`,
+    a: <>Kami mendukung JPG, PNG, WebP, AVIF, BMP, GIF dan ICO melalui <Link to="/image-convert" className="text-(--color-brand) hover:underline">Konversi Gambar</Link>. Kamu juga bisa mengubah gambar menjadi PDF atau sebaliknya.</>,
   },
   {
     q: 'Apakah DokuLens bekerja offline?',
