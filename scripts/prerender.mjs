@@ -105,7 +105,7 @@ for (const [key, cfg] of Object.entries(SEO_CONFIG)) {
 
 let generated = 0
 for (const r of routes) {
-  const canonical = r.path === '/' ? `${SITE_URL}/` : `${SITE_URL}${r.path}`
+  const canonical = r.path === '/' ? `${SITE_URL}/` : `${SITE_URL}${r.path}/`
   const html = buildHtml({ ...r, canonical })
   if (r.path === '/') {
     writeFileSync(templatePath, html, 'utf8')
@@ -118,9 +118,9 @@ for (const r of routes) {
   generated++
 }
 
-// Also generate sitemap.xml with all routes (now all will be 200)
+// Also generate sitemap.xml with all routes (trailing slash -> 200, avoids 301)
 const sitemapRoutes = routes.map(r => {
-  const loc = r.path === '/' ? `${SITE_URL}/` : `${SITE_URL}${r.path}`
+  const loc = r.path === '/' ? `${SITE_URL}/` : `${SITE_URL}${r.path}/`
   const priority = r.path === '/' ? '1.0' : r.path === '/faq' ? '0.6' : r.path === '/about' ? '0.5' : '0.8'
   const changefreq = r.path === '/' ? 'weekly' : 'monthly'
   return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`

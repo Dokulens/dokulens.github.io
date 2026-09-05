@@ -41,12 +41,12 @@ function upsertCanonical(url) {
  * @param {{title:string, description:string, path?:string, image?:string, keywords?:string}} opts
  */
 export function setMeta({ title, description, path = '/', image = DEFAULT_IMAGE, keywords }) {
-  // clean path -> no trailing slash, "/" for root
-  const cleanPath = path === '/' || path === '' ? '/' : `/${path.replace(/^\/+|\/+$/g, '')}`
+  // GitHub Pages serves prerendered dirs as /edit-pdf/ (with trailing slash) -> use slash for canonical to avoid 301
+  const cleanPath = path === '/' || path === '' ? '/' : `/${path.replace(/^\/+|\/+$/g, '')}/`
   // Append brand only if it does not push the title past ~60 chars (Google truncation).
   const branded = title === SITE_NAME ? SITE_NAME : `${title} — ${SITE_NAME}`
   const fullTitle = title === SITE_NAME ? SITE_NAME : (branded.length <= 60 ? branded : title)
-  const canonical = `${SITE_URL}${cleanPath === '/' ? '/' : cleanPath}`
+  const canonical = `${SITE_URL}${cleanPath}`
 
   document.title = fullTitle
 
